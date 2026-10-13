@@ -833,3 +833,24 @@ a, .jump a, .m summary::after, .qmore > summary { color: var(--accent); }
   .brand svg { width: 25px; height: 30px; }
   .brand span { font-size: 19.5px; }
 }
+
+/* v2.5.1: lighter explainer layout on phones */
+@media (max-width: 860px) {
+  /* method blind spots: one card with divided rows instead of three boxes */
+  .blind { gap: 0; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: linear-gradient(180deg, var(--surface-2), var(--surface)); }
+  .blind__i { border: 0; border-radius: 0; background: none; padding: 14px 16px 14px 18px; }
+  .blind__i + .blind__i { border-top: 1px solid var(--line-soft); }
+  .blind__i h3 { font-size: 15px; margin-bottom: 4px; }
+  /* takeaways: simple marked lines, no boxes */
+  .takeaways { border: 0; border-radius: 0; margin-top: 18px; gap: 12px; overflow: visible; }
+  .takeaways div { padding: 2px 0 2px 14px; border-left: 2px solid rgba(143, 180, 230, .4); gap: 2px; }
+  .takeaways div + div { border-top: 0; border-left: 2px solid rgba(143, 180, 230, .4); }
+  /* how-it-works steps: number beside the title, tighter cards */
+  .steps { gap: 10px; }
+  .steps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: 12px; padding: 16px; }
+  .steps li::before { grid-row: 1 / span 2; margin: 0; }
+  .steps h3 { align-self: center; margin: 0 0 4px; }
+  .steps p { grid-column: 2; }
+  /* pillar cards a little tighter */
+  .pillars { gap: 10px; } .pillars li { padding: 16px; }
+}
