@@ -11,8 +11,8 @@
     try { return get ? localStorage.getItem(KEY) : (v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY)); } catch (e) { return null; }
   }
   var cls = function (up, s) { return up >= s.buy ? "pos" : up <= s.sell ? "neg" : ""; };
-  var barCol = function (up, s) { return up >= s.buy ? "#3ccf7a" : up <= s.sell ? "#ef5b5b" : "#e2b84a"; };
-  var scoreCol = function (v) { return v >= 65 ? "#3ccf7a" : v >= 50 ? "#e2b84a" : "#ef5b5b"; };
+  var barCol = function (up, s) { return up >= s.buy ? "#4cb782" : up <= s.sell ? "#d66b63" : "#c9a75a"; };
+  var scoreCol = function (v) { return v >= 65 ? "#4cb782" : v >= 50 ? "#c9a75a" : "#d66b63"; };
 
   /* ---------------- flow ---------------- */
   function loadLive(t) {
@@ -178,7 +178,7 @@
       '<div class="head" id="overview"><h2>' + esc(inp.name) + ' <span class="head__tk">' + esc(inp.ticker) + '</span></h2><div class="head__meta">' + (inp.exchange ? esc(inp.exchange) + " · " : "") + "Price as of " + esc(inp.asOf) + " · Financials to " + esc(inp.ttmEnd) + " · Data: " + esc(inp.source || (inp.manual ? "entered by you" : inp.live ? "live data provider" : "checked built-in figures")) + "</div></div>" +
       '<p class="bridge" style="margin:18px 0 -10px">Step 1 · The answer: what Plumbline thinks the stock is worth</p><div id="rVerdict"></div>' +
       '<section class="sec" id="quality"><p class="bridge">Step 2 · Is the business behind the stock any good?</p><h2>Business quality scorecard</h2><p class="sec__lede">The valuation above says whether the stock is cheap. This scorecard says whether the business is good. It grades the company on 13 measures across three areas, using its own financial statements. Each measure scores Strong, Good or Weak, and core measures count double.</p><div id="rQuality"></div></section>' +
-      '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is the Plumbline value (the median of the nine) and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#3ccf7a"></i>Undervalued</span><span><i style="background:#e2b84a"></i>Fair</span><span><i style="background:#ef5b5b"></i>Overvalued</span><span><i class="sq" style="background:#4fd1c5"></i>Plumbline value (median)</span></div></div></section>' +
+      '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is the Plumbline value (the median of the nine) and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#4cb782"></i>Undervalued</span><span><i style="background:#c9a75a"></i>Fair</span><span><i style="background:#d66b63"></i>Overvalued</span><span><i class="sq" style="background:#8fb4e6"></i>Plumbline value (median)</span></div></div></section>' +
       '<section class="sec" id="methods"><p class="bridge">Step 4 · Each of the nine methods in detail</p><h2>How each method got its number</h2><p class="sec__lede">Select a method to see why it is used, where it works best and how its number was built from this company\'s own figures.</p><p class="swipe-hint">Swipe to see all nine methods. Tap one for the full calculation.</p><div class="mlist" id="rMethods"></div></section>' +
       '<section class="sec" id="average"><p class="bridge">Step 5 · The methods disagree, so here\'s how one number is chosen</p><h2>How nine values become one</h2><div id="rAvgText"></div><div class="card"><div class="chart" id="rStats"></div></div><div class="avg" id="rAvg"></div></section>' +
       '<section class="sec" id="forecast"><p class="bridge">Step 6 · The cash flow methods depend on a forecast. Here\'s what it assumes</p><h2>What the forecast assumes</h2><p class="sec__lede" id="rProjText"></p>' +
@@ -300,7 +300,7 @@
 
   /* ---------------- business quality ---------------- */
   var LEVEL_CLS = { Strong: "lv--s", Good: "lv--g", Weak: "lv--w", "n/a": "lv--n" };
-  var LEVEL_COL = { Strong: "#3ccf7a", Good: "#e2b84a", Weak: "#ef5b5b", "n/a": "#5d716f" };
+  var LEVEL_COL = { Strong: "#4cb782", Good: "#c9a75a", Weak: "#d66b63", "n/a": "#5e6f88" };
   function renderQuality(r) {
     var el = $("rQuality"), q = state.quality;
     if (!el) return;
@@ -316,21 +316,21 @@
       '<div class="qs__ringtxt"><b style="color:' + col + '">' + q.grade + "</b><span>" + Math.round(q.score) + "/100</span></div></div>" +
       '<div class="qs__sum"><p class="qs__label" style="color:' + col + '">' + esc(q.label) + "</p>" +
       '<div class="qs__pillars">' + q.pillars.map(function (p) {
-        var ok = p.score != null, pc2 = ok ? scoreCol(p.score) : "#5d716f";
+        var ok = p.score != null, pc2 = ok ? scoreCol(p.score) : "#5e6f88";
         return '<div class="qp"><span class="qp__name">' + esc(p.name) + ' <small>' + Math.round(p.weight * 100) + "% of score</small></span>" +
           '<span class="qp__bar"><b style="width:' + (ok ? Math.max(2, p.score) : 0) + "%;background:" + pc2 + '"></b></span><span class="qp__val" style="color:' + pc2 + '">' + (ok ? Math.round(p.score) : "n/a") + "</span></div>";
       }).join("") + "</div>" +
       '<p class="qs__scale">A 80+ Excellent · B 65–79 Good · C 50–64 Average · D 35–49 Weak · F below 35 Poor</p></div></div>';
     var comboHtml = combo ? '<div class="qs__combo qs__combo--' + (combo.tone || "mid") + '"><span class="pill pill--' + v + '"><i></i>' + v + '</span><span class="qs__plus">+</span><span class="qs__gradechip" style="color:' + col + ';border-color:' + col + '">Quality ' + q.grade + "</span><div><h3>" + esc(combo.title) + "</h3><p>" + esc(combo.text) + "</p></div></div>" : "";
     var cards = q.pillars.map(function (p) {
-      var pc2 = p.score != null ? scoreCol(p.score) : "#5d716f";
+      var pc2 = p.score != null ? scoreCol(p.score) : "#5e6f88";
       var scored = p.metrics.filter(function (m) { return m.level != null; });
       var best = scored.slice().sort(function (a, b) { return b.level - a.level || (b.core ? 1 : 0) - (a.core ? 1 : 0); })[0];
       var worst = scored.slice().sort(function (a, b) { return a.level - b.level || (b.core ? 1 : 0) - (a.core ? 1 : 0); })[0];
       var hl = function (label, m) { return m ? '<div class="hl2"><small>' + label + '</small><span>' + esc(m.name) + '</span><b>' + esc(m.show) + '</b><span class="lv ' + LEVEL_CLS[m.levelName] + '">' + esc(m.levelName) + "</span></div>" : ""; };
       var rows = p.metrics.map(function (m) {
         var lc = LEVEL_CLS[m.levelName] || "lv--n";
-        var sp = m.series ? Charts.spark(m.series, LEVEL_COL[m.levelName] || "#8fa3a0") : "";
+        var sp = m.series ? Charts.spark(m.series, LEVEL_COL[m.levelName] || "#93a3ba") : "";
         return '<div class="qm"><div class="qm__head"><span class="qm__name">' + esc(m.name) + (m.core ? '<span class="qm__core" title="Counts double in this area">Core ×2</span>' : "") + "</span>" +
           '<span class="qm__spark">' + sp + '</span><span class="qm__val">' + esc(m.show) + '</span><span class="lv ' + lc + '">' + esc(m.levelName) + "</span></div>" +
           '<p class="qm__says">' + esc(m.says) + "</p>" +
@@ -394,15 +394,15 @@
   function drawProj(r) {
     var P = r.proj;
     Charts.lines($("rProj"), [
-      { values: P.ocf, color: "#4fd1c5", endText: "Op. cash flow" }, { values: P.fcf, color: "#b39cf5", endText: "Free cash flow" }, { values: P.ni, color: "#7aa7ff", endText: "Net income" }
+      { values: P.ocf, color: "#8fb4e6", endText: "Op. cash flow" }, { values: P.fcf, color: "#7f8fd0", endText: "Free cash flow" }, { values: P.ni, color: "#a9bfdf", endText: "Net income" }
     ], { fmt: bn, h: 290, zero: "$0" });
-    $("rProjLeg").innerHTML = '<span><i class="sq" style="background:#4fd1c5"></i>Operating cash flow</span><span><i class="sq" style="background:#b39cf5"></i>Free cash flow</span><span><i class="sq" style="background:#7aa7ff"></i>Net income (excl. one-offs)</span><span>Starts from the last 12 months. X axis is years from today.</span>';
+    $("rProjLeg").innerHTML = '<span><i class="sq" style="background:#8fb4e6"></i>Operating cash flow</span><span><i class="sq" style="background:#7f8fd0"></i>Free cash flow</span><span><i class="sq" style="background:#a9bfdf"></i>Net income (excl. one-offs)</span><span>Starts from the last 12 months. X axis is years from today.</span>';
     var gcv = P.gCF.slice(), gev = P.gEPS.slice();
     var ymax = Math.max(Math.max.apply(null, gcv), Math.max.apply(null, gev), .1);
     Charts.lines($("rGrow"), [
-      { values: gcv, color: "#4fd1c5", dots: [0, 1], endText: "Cash flow" }, { values: gev, color: "#7aa7ff", dots: [0, 1], endText: "Earnings" }
+      { values: gcv, color: "#8fb4e6", dots: [0, 1], endText: "Cash flow" }, { values: gev, color: "#a9bfdf", dots: [0, 1], endText: "Earnings" }
     ], { fmt: function (v) { return (v * 100).toFixed(0) + "%"; }, h: 290, ymin: Math.min(0, Math.min.apply(null, gcv.concat(gev))), ymax: ymax * 1.05, band: [0, 1], bandLabel: "Years 1–2", xlabel: function (i) { return i + 1; } });
-    $("rGrowLeg").innerHTML = '<span><i class="sq" style="background:#4fd1c5"></i>Cash flow growth</span><span><i class="sq" style="background:#7aa7ff"></i>Earnings growth</span><span>X axis is the forecast year (1 to 20).</span>';
+    $("rGrowLeg").innerHTML = '<span><i class="sq" style="background:#8fb4e6"></i>Cash flow growth</span><span><i class="sq" style="background:#a9bfdf"></i>Earnings growth</span><span>X axis is the forecast year (1 to 20).</span>';
   }
 
   function renderData(r) {
@@ -440,6 +440,44 @@
   }
 
   /* ---------------- wiring ---------------- */
+  /* Faint "digital rain" of figures behind the home headline. Runs only while the home page is on screen,
+     about 16 frames a second; one still frame when the device asks for reduced motion. */
+  function startRain() {
+    var c = $("rain"); if (!c || !c.getContext) return;
+    var ctx = c.getContext("2d"), GLYPHS = "0123456789$%.+-0123456789", fs = 15, cols = 0, drops = [], speed = [], W = 0, H = 0;
+    var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    function size() {
+      var r = c.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+      W = Math.max(1, r.width); H = Math.max(1, r.height);
+      c.width = W * dpr; c.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cols = Math.ceil(W / (fs * 1.15)); drops = []; speed = [];
+      for (var i = 0; i < cols; i++) { drops.push(Math.random() * -H / fs); speed.push(.35 + Math.random() * .55); }
+      ctx.fillStyle = "#040a16"; ctx.fillRect(0, 0, W, H);
+      ctx.font = "500 " + fs + "px 'Instrument Sans', 'Helvetica Neue', sans-serif";
+    }
+    function frame(full) {
+      ctx.fillStyle = "rgba(4, 10, 22, .16)"; ctx.fillRect(0, 0, W, H);
+      for (var i = 0; i < cols; i++) {
+        var y = drops[i] * fs, x = i * fs * 1.15;
+        if (y > 0) {
+          ctx.fillStyle = "rgba(170, 225, 205, .85)"; ctx.fillText(GLYPHS[(Math.random() * GLYPHS.length) | 0], x, y);
+          ctx.fillStyle = "rgba(70, 150, 130, .55)"; ctx.fillText(GLYPHS[(Math.random() * GLYPHS.length) | 0], x, y - fs);
+        }
+        drops[i] += full ? 1 : speed[i];
+        if (y > H && Math.random() > .97) drops[i] = Math.random() * -12;
+      }
+    }
+    size();
+    if (still) { for (var k = 0; k < 60; k++) frame(true); return; }
+    var last = 0;
+    (function loop(t) {
+      requestAnimationFrame(loop);
+      if (document.hidden || $("hero").classList.contains("hidden") || t - last < 60) return;
+      last = t; frame(false);
+    })(0);
+    var rt; window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(size, 200); });
+  }
+
   function wire() {
     $("heroForm").addEventListener("submit", function (e) { e.preventDefault(); search($("heroInput").value); });
     $("barForm").addEventListener("submit", function (e) { e.preventDefault(); search($("barInput").value, "bar"); });
@@ -468,6 +506,7 @@
       if (y0 == null) return; var dy = e.changedTouches[0].clientY - y0; y0 = null; panel.style.transform = "";
       if (dy > 90) closeSheet();
     });
+    startRain();
     var q = new URLSearchParams(location.search).get("t");
     var hm = $("heroManual"); if (hm) hm.addEventListener("click", function () { showManual({}); });
     drawHero(true);

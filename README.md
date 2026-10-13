@@ -1,4 +1,4 @@
-# Plumbline v2.2: stock intrinsic value and business quality
+# Plumbline v2.3: stock intrinsic value and business quality
 
 A static website (no build step). Open `index.html` in a browser, or upload the folder to any static host
 (Netlify, Vercel, GitHub Pages, Cloudflare Pages).
@@ -14,6 +14,13 @@ Data sources (all free, no key): company financials from SEC EDGAR filings, pric
 Analyst estimates are not available there, so growth for the first years comes from the company's own past growth (labelled on the page).
 Optional: add `FMP_API_KEY=...` to `.env` to use Financial Modeling Prep as a backup (foreign companies), or set `DATA_SOURCE=fmp` if you pay for FMP and want its analyst estimates.
 Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example ASML) and very recent listings need the manual entry form.
+
+## v2.3 changes: midnight blue, elegant type, quiet "digital rain"
+- The v2.2 terminal look felt too much like code. The theme is now a darker midnight blue (#040a16) with a soft blue accent (#8fb4e6) used sparingly.
+- Colour is kept for meaning only: green BUY, amber HOLD, red SELL, and the matching good/weak marks. Everything else is white, grey or blue.
+- One typeface throughout: Instrument Sans (clean, professional, not monospaced). Numbers use tabular figures so columns line up.
+- A faint, slow "digital rain" of figures (0-9, $, %, ., +, -) falls behind the home headline. It pauses when off screen or in a background tab, and stays still when the device asks for reduced motion.
+- Pill-shaped search box and buttons, quieter step labels, solid sticky header and phone verdict bar for readability.
 
 ## v2.2 changes: research terminal look
 - The user felt the gold and the v2.1 fonts looked too much like Claude's own style. The accent is now a cool terminal teal (#4fd1c5) on near-black, with a faint grid in the background.
