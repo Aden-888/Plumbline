@@ -39,15 +39,24 @@
 
     /* dots, sorted so label lanes can alternate */
     var sorted = ms.slice().sort(function (a, b) { return a.value - b.value; });
-    var lanes = narrow ? 5 : 4, laneH = narrow ? 22 : 26;
+    var lanes = narrow ? 6 : 4, laneH = narrow ? 21 : 26;
+    /* each label goes in the lowest lane where it does not touch the label before it, so names never overlap */
+    var fsz = narrow ? 11 : 12, laneEnd = [], tx = {};
+    for (var q = 0; q < lanes; q++) laneEnd.push(-1e9);
     sorted.forEach(function (m, i) {
-      var cx = x(m.value), lane = i % lanes, ly = dotY - 26 - lane * laneH;
+      var w = m.short.length * fsz * .66 + 12, c = Math.min(Math.max(x(m.value), w / 2 + 2), W - w / 2 - 2), pick = -1;
+      for (var q = 0; q < lanes; q++) if (c - w / 2 > laneEnd[q]) { pick = q; break; }
+      if (pick < 0) { pick = 0; for (q = 1; q < lanes; q++) if (laneEnd[q] < laneEnd[pick]) pick = q; c = Math.min(laneEnd[pick] + w / 2, W - w / 2 - 2); }
+      laneEnd[pick] = c + w / 2; tx[i] = { lane: pick, c: c };
+    });
+    sorted.forEach(function (m, i) {
+      var cx = x(m.value), lane = tx[i].lane, ly = dotY - 26 - lane * laneH;
       var col = opt.stats ? "#5e6f88" : dotColor(m.upside, r.settings);
       var tip = m.short + ": " + usd0(m.value) + " (" + (m.upside >= 0 ? "+" : "−") + Math.abs(m.upside * 100).toFixed(0) + "% vs price)";
       s.push('<g class="dotg" data-i="' + i + '"><title>' + esc(tip) + "</title>" +
         '<line x1="' + cx + '" x2="' + cx + '" y1="' + (ly + 4) + '" y2="' + (dotY - 7) + '" stroke="' + col + '" opacity=".45"/>' +
         '<circle cx="' + cx + '" cy="' + dotY + '" r="7" fill="' + col + '" stroke="#040a16" stroke-width="2"/>' +
-        '<text x="' + cx + '" y="' + ly + '" text-anchor="middle" style="font-size:' + (narrow ? 11 : 12) + 'px">' + esc(m.short) + "</text></g>");
+        '<text x="' + tx[i].c + '" y="' + ly + '" text-anchor="middle" style="font-size:' + fsz + 'px">' + esc(m.short) + "</text></g>");
     });
 
     if (opt.stats) {
@@ -160,8 +169,14 @@
     o.push('<line x1="' + x(med) + '" x2="' + x(med) + '" y1="' + yTop + '" y2="' + yBot + '" stroke="#e9eef5" stroke-width="1.6" stroke-dasharray="5 4"/>');
     o.push('<line x1="' + x(price) + '" x2="' + x(price) + '" y1="' + yTop + '" y2="' + yBot + '" stroke="#4cb782" stroke-width="1.6" stroke-dasharray="5 4"/>');
     var medRight = med >= price;
-    o.push('<text class="lbl" x="' + (x(med) + (medRight ? 8 : -8)) + '" y="' + (top - 16) + '" text-anchor="' + (medRight ? "start" : "end") + '">Plumbline value: ' + usd2(med) + "</text>");
-    o.push('<text class="lbl" x="' + (x(price) + (medRight ? -8 : 8)) + '" y="' + (H - 12) + '" text-anchor="' + (medRight ? "end" : "start") + '" style="fill:#4cb782">Stock price: ' + usd2(price) + "</text>");
+    /* keep both line labels inside the chart: switch sides if the preferred side would run off the edge */
+    function edgeLabel(px, preferRight, y, text, style) {
+      var w = text.length * 7, right = preferRight;
+      if (right && px + 8 + w > W - 4) right = false; else if (!right && px - 8 - w < 4) right = true;
+      return '<text class="lbl" x="' + (px + (right ? 8 : -8)) + '" y="' + y + '" text-anchor="' + (right ? "start" : "end") + '"' + (style ? ' style="' + style + '"' : "") + ">" + text + "</text>";
+    }
+    o.push(edgeLabel(x(med), medRight, top - 16, (narrow ? "Median: " : "Plumbline value: ") + usd2(med)));
+    o.push(edgeLabel(x(price), !medRight, H - 12, (narrow ? "Price: " : "Stock price: ") + usd2(price), "fill:#4cb782"));
     o.push("</svg>");
     el.innerHTML = o.join("");
   }

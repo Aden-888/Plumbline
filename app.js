@@ -174,6 +174,7 @@
     $("results").classList.remove("hidden");
     $("results").innerHTML =
       '<nav class="tabs" aria-label="Sections"><div class="wrap tabs__in">' + tabs.map(function (t, i) { return '<a class="tab' + (i ? "" : " on") + '" href="#' + t[0] + '" data-s="' + t[0] + '">' + t[1] + "</a>"; }).join("") + "</div></nav>" +
+      '<canvas class="rain rain--res" id="rainRes" aria-hidden="true"></canvas>' +
       '<div class="wrap res">' +
       '<div class="head" id="overview"><h2>' + esc(inp.name) + ' <span class="head__tk">' + esc(inp.ticker) + '</span></h2><div class="head__meta">' + (inp.exchange ? esc(inp.exchange) + " · " : "") + "Price as of " + esc(inp.asOf) + " · Financials to " + esc(inp.ttmEnd) + " · Data: " + esc(inp.source || (inp.manual ? "entered by you" : inp.live ? "live data provider" : "checked built-in figures")) + "</div></div>" +
       '<p class="bridge" style="margin:18px 0 -10px">Step 1 · The answer: what Plumbline thinks the stock is worth</p><div id="rVerdict"></div>' +
@@ -193,6 +194,7 @@
       '<div class="two" style="margin-top:16px"><div><p class="tlabel">The company figures every calculation starts from.</p><div class="card" id="rIn"></div></div><div><p class="tlabel">How the discount rate (the yearly return investors expect) was built.</p><div class="card" id="rWacc"></div></div></div></div></details></section>' +
       "</div>" +
       '<button class="dock" id="dock" type="button" aria-label="Back to the verdict"></button>';
+    startResultRain();
     $("results").querySelectorAll("input[type=range]").forEach(function (el) {
       el.addEventListener("input", function () { state.settings[el.dataset.k] = parseFloat(el.value); sync(); schedule(); });
     });
@@ -440,15 +442,17 @@
   }
 
   /* ---------------- wiring ---------------- */
-  /* Faint "digital rain" of figures behind the home headline. Runs only while the home page is on screen,
-     about 16 frames a second; one still frame when the device asks for reduced motion. */
-  function startRain() {
-    var c = $("rain"); if (!c || !c.getContext) return;
-    var ctx = c.getContext("2d"), GLYPHS = "0123456789$%.+-0123456789", fs = 15, cols = 0, drops = [], speed = [], W = 0, H = 0;
+  /* Faint "digital rain" of figures. Used behind the home headline and behind the company name at the top of
+     each result. Each one runs only while it is on screen, about 16 frames a second; one still frame when the
+     device asks for reduced motion. Returns a handle so a replaced result page can stop its old rain. */
+  function makeRain(c, active) {
+    if (!c || !c.getContext) return { stop: function () {} };
+    var ctx = c.getContext("2d"), GLYPHS = "0123456789$%.+-0123456789", fs = 15, cols = 0, drops = [], speed = [], W = 0, H = 0, stopped = false, seen = true;
     var still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     function size() {
       var r = c.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
       W = Math.max(1, r.width); H = Math.max(1, r.height);
+      fs = W < 600 ? 13 : 15;
       c.width = W * dpr; c.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       cols = Math.ceil(W / (fs * 1.15)); drops = []; speed = [];
       for (var i = 0; i < cols; i++) { drops.push(Math.random() * -H / fs); speed.push(.35 + Math.random() * .55); }
@@ -467,15 +471,28 @@
         if (y > H && Math.random() > .97) drops[i] = Math.random() * -12;
       }
     }
+    function warm() { for (var k = 0; k < 40; k++) frame(true); }
     size();
-    if (still) { for (var k = 0; k < 60; k++) frame(true); return; }
+    var rt, onResize = function () { clearTimeout(rt); rt = setTimeout(function () { size(); if (still) warm(); }, 200); };
+    window.addEventListener("resize", onResize);
+    var io = window.IntersectionObserver ? new IntersectionObserver(function (e) { seen = e[0].isIntersecting; }) : null;
+    if (io) io.observe(c);
+    var handle = { stop: function () { stopped = true; window.removeEventListener("resize", onResize); if (io) io.disconnect(); } };
+    if (still) { warm(); return handle; }
     var last = 0;
     (function loop(t) {
+      if (stopped || !c.isConnected) { handle.stop(); return; }
       requestAnimationFrame(loop);
-      if (document.hidden || $("hero").classList.contains("hidden") || t - last < 60) return;
+      if (document.hidden || !seen || !active() || t - last < 60) return;
       last = t; frame(false);
     })(0);
-    var rt; window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(size, 200); });
+    return handle;
+  }
+  function startRain() { makeRain($("rain"), function () { return !$("hero").classList.contains("hidden"); }); }
+  var resRain = null;
+  function startResultRain() {
+    if (resRain) resRain.stop();
+    resRain = makeRain($("rainRes"), function () { return !$("results").classList.contains("hidden"); });
   }
 
   function wire() {

@@ -684,3 +684,29 @@ a, .jump a, .m summary::after, .qmore > summary { color: var(--accent); }
 /* v2.3: solid sticky layers so text behind them never shows through */
 .bar, .tabs { background: #040a16; }
 .dock { background: #0b1628 !important; }
+
+/* v2.3.1: the same digital rain behind the company name at the top of each result.
+   It sits under the sticky tabs, fades out before the verdict card and stays on the right, away from the name. */
+#results { position: relative; }
+#results > .res { position: relative; z-index: 1; }
+.rain--res { inset: 0 0 auto 0; height: 400px; opacity: .55;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, .3) 40%, #000 75%), linear-gradient(180deg, #000 50%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, .3) 40%, #000 75%), linear-gradient(180deg, #000 50%, transparent 100%); mask-composite: intersect; }
+#results .head { padding-top: 26px; }
+#results .verdict { position: relative; }
+
+/* phones: narrower screens get a softer side fade, so a little rain shows on both sides without crowding the text */
+@media (max-width: 720px) {
+  .rain { opacity: .4;
+    -webkit-mask-image: linear-gradient(90deg, rgba(0, 0, 0, .15) 0%, rgba(0, 0, 0, .35) 45%, #000 100%), linear-gradient(180deg, #000 40%, transparent 100%);
+    mask-image: linear-gradient(90deg, rgba(0, 0, 0, .15) 0%, rgba(0, 0, 0, .35) 45%, #000 100%), linear-gradient(180deg, #000 40%, transparent 100%); }
+  .rain--res { height: 320px; opacity: .45; }
+  #results .head { padding-top: 14px; }
+  /* home search on phones: a slimmer button so the hint text is not cut off */
+  .search--big { padding: 6px 6px 6px 18px; }
+  .search--big input { font-size: 16px; }
+  .search--big button { padding: 12px 16px; font-size: 14px; }
+}
+
+@media (max-width: 480px) { .hide-sm { display: none; } }

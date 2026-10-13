@@ -1,4 +1,4 @@
-# Plumbline v2.3: stock intrinsic value and business quality
+# Plumbline v2.3.1: stock intrinsic value and business quality
 
 A static website (no build step). Open `index.html` in a browser, or upload the folder to any static host
 (Netlify, Vercel, GitHub Pages, Cloudflare Pages).
@@ -14,6 +14,11 @@ Data sources (all free, no key): company financials from SEC EDGAR filings, pric
 Analyst estimates are not available there, so growth for the first years comes from the company's own past growth (labelled on the page).
 Optional: add `FMP_API_KEY=...` to `.env` to use Financial Modeling Prep as a backup (foreign companies), or set `DATA_SOURCE=fmp` if you pay for FMP and want its analyst estimates.
 Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example ASML) and very recent listings need the manual entry form.
+
+## v2.3.1 changes: the same rain on every result, and phone fixes
+- The digital rain now also falls behind the company name at the top of each result (for example Salesforce), so the result page opens with the same look as the home page. It fades out before the verdict card and stops when you scroll past it or search another stock.
+- Phones: the home search button reads "Value" so the hint text fits; the rain shows softly on both sides of narrow screens.
+- Chart labels never overlap: each method name goes in the lowest free row and shifts sideways if a cluster is crowded. The median and price labels on the valuation chart switch sides instead of running off the edge.
 
 ## v2.3 changes: midnight blue, elegant type, quiet "digital rain"
 - The v2.2 terminal look felt too much like code. The theme is now a darker midnight blue (#040a16) with a soft blue accent (#8fb4e6) used sparingly.
