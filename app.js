@@ -205,7 +205,7 @@
   function drawHero(animate) {
     var p = window.PRESETS.NVDA, s = Object.assign(IV.defaultSettings(p), p.settings);
     var r = IV.compute(p, s), el = $("heroChart");
-    Charts.strip(el, r);
+    Charts.dotplot(el, r);
     if (animate) Charts.settle(el);
     var hs = $("heroStats"), st = r.stats;
     if (hs) hs.innerHTML = "<div><dt>Share price</dt><dd>" + F.usd(p.price, 0) + "</dd></div><div><dt>Median value</dt><dd>" + F.usd(st.median, 0) + '</dd></div><div><dt>Verdict</dt><dd><span class="pill pill--sm pill--' + st.verdict + '">' + st.verdict + "</span></dd></div>";

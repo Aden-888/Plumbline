@@ -816,3 +816,7 @@ a, .jump a, .m summary::after, .qmore > summary { color: var(--accent); }
 .dotg text, .chart text.lbl { paint-order: stroke; stroke: #0a1424; stroke-width: 4px; stroke-linejoin: round; }
 .hero__cap { max-width: none; }
 .fail__alt { color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 6px 0 0; }
+/* home example: ranked dot plot */
+.chart .dp__nm { fill: var(--text); font-size: 12.5px; font-weight: 500; }
+.chart .dp__v { fill: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+@media (max-width: 560px) { .chart .dp__nm, .chart .dp__v { font-size: 12px; } }

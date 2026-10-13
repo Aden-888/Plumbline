@@ -1,4 +1,4 @@
-# Plumbline v2.4: stock intrinsic value and business quality
+# Plumbline v2.4.1: stock intrinsic value and business quality
 
 A static website (no build step). Open `index.html` in a browser, or upload the folder to any static host
 (Netlify, Vercel, GitHub Pages, Cloudflare Pages).
@@ -14,6 +14,10 @@ Data sources (all free, no key): company financials from SEC EDGAR filings, pric
 Analyst estimates are not available there, so growth for the first years comes from the company's own past growth (labelled on the page).
 Optional: add `FMP_API_KEY=...` to `.env` to use Financial Modeling Prep as a backup (foreign companies), or set `DATA_SOURCE=fmp` if you pay for FMP and want its analyst estimates.
 Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example ASML) and very recent listings need the manual entry form.
+
+## v2.4.1 changes
+- Sharper home intro: "Plumbline cross-checks a company across multiple valuation models and distils them into one fair-value estimate. Then it grades the business behind the share price, so you know both what you would pay and what you would own."
+- The home example chart is now a ranked dot plot (`Charts.dotplot`): one row per method from lowest to highest, with the name on the left and the value on the right, and the median and price lines running through every row. Nothing overlaps on any screen size.
 
 ## v2.4 changes: smarter search, clearer home page
 - Search understands company names and typos. "apple" opens Apple (AAPL), "google" opens Alphabet, "jp morgan" opens JPMorgan. A near miss such as "nvdia" or "microsfot" shows "Did you mean" choices with company names. The SEC list is ordered by company size, so the biggest matching company comes first.

@@ -86,6 +86,40 @@
     return el;
   }
 
+  /* Ranked dot plot for the home page example: one row per method, lowest to highest, so no label ever
+     overlaps. The median (solid blue) and the share price (dashed) run through every row. */
+  function dotplot(el, r) {
+    var W = Math.max(300, el.clientWidth || 900), narrow = W < 560;
+    var ms = r.methods.filter(function (m) { return fin(m.value); }).slice().sort(function (a, b) { return a.value - b.value; });
+    var rowH = narrow ? 30 : 32, top = 40, bot = 56, H = top + ms.length * rowH + bot;
+    var labW = narrow ? 92 : 132, valW = narrow ? 50 : 64, x0 = labW + 12, x1 = W - valW - 8;
+    var price = r.inputs.price, med = r.stats.median, s = r.settings;
+    var max = Math.max(price, r.stats.max) * 1.05, step = niceStep(max, narrow ? 3 : 5), topV = narrow ? max : Math.ceil(max / step) * step;
+    var x = function (v) { return x0 + (v / topV) * (x1 - x0); }, axisY = top + ms.length * rowH + 6;
+    var o = ['<svg viewBox="0 0 ' + W + " " + H + '" width="' + W + '" height="' + H + '">'];
+    for (var t = 0; t <= topV + 1e-9; t += step) {
+      o.push('<line class="grid" x1="' + x(t) + '" x2="' + x(t) + '" y1="' + (top - 8) + '" y2="' + axisY + '"/>');
+      o.push('<text x="' + x(t) + '" y="' + (axisY + 18) + '" text-anchor="middle">' + usd0(t) + "</text>");
+    }
+    /* median and price lines first, so rows sit on top of them */
+    o.push('<line x1="' + x(med) + '" x2="' + x(med) + '" y1="' + (top - 14) + '" y2="' + axisY + '" stroke="' + C.accent + '" stroke-width="2"/>');
+    o.push('<rect x="' + (x(med) - 5) + '" y="' + (top - 19) + '" width="10" height="10" transform="rotate(45 ' + x(med) + " " + (top - 14) + ')" fill="' + C.accent + '"/>');
+    var mr = x(med) < W * .7;
+    o.push('<text class="lbl" x="' + (x(med) + (mr ? 12 : -12)) + '" y="' + (top - 10) + '" text-anchor="' + (mr ? "start" : "end") + '" style="fill:' + C.accent + '">Median ' + usd0(med) + "</text>");
+    o.push('<line x1="' + x(price) + '" x2="' + x(price) + '" y1="' + (top - 8) + '" y2="' + axisY + '" stroke="#e8ecf5" stroke-width="1.4" stroke-dasharray="4 4" opacity=".75"/>');
+    o.push('<text class="lbl" x="' + x(price) + '" y="' + (axisY + 38) + '" text-anchor="middle">Price ' + usd0(price) + "</text>");
+    ms.forEach(function (m, i) {
+      var cy = top + i * rowH + rowH / 2, col = dotColor(m.upside, s);
+      o.push('<line x1="' + x0 + '" x2="' + x1 + '" y1="' + cy + '" y2="' + cy + '" stroke="#182841" stroke-width="1"/>');
+      o.push('<text x="' + labW + '" y="' + (cy + 4) + '" text-anchor="end" class="dp__nm">' + esc(m.short) + "</text>");
+      o.push('<g class="dotg" data-i="' + i + '"><title>' + esc(m.short + ": " + usd0(m.value)) + '</title><circle cx="' + x(m.value) + '" cy="' + cy + '" r="' + (narrow ? 6 : 6.5) + '" fill="' + col + '" stroke="#08111f" stroke-width="2"/></g>');
+      o.push('<text x="' + (W - 4) + '" y="' + (cy + 4) + '" text-anchor="end" class="dp__v">' + usd0(m.value) + "</text>");
+    });
+    o.push("</svg>");
+    el.innerHTML = o.join("");
+    return el;
+  }
+
   /* Dots slide in from the left and settle. Used once, on the landing page. */
   function settle(el) {
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -203,5 +237,5 @@
       '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="2.6" fill="' + color + '"/></svg>';
   }
 
-  window.Charts = { strip: strip, bars: bars, settle: settle, lines: lines, ring: ring, spark: spark };
+  window.Charts = { strip: strip, dotplot: dotplot, bars: bars, settle: settle, lines: lines, ring: ring, spark: spark };
 })();
