@@ -11,8 +11,8 @@
     try { return get ? localStorage.getItem(KEY) : (v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY)); } catch (e) { return null; }
   }
   var cls = function (up, s) { return up >= s.buy ? "pos" : up <= s.sell ? "neg" : ""; };
-  var barCol = function (up, s) { return up >= s.buy ? "#46b86e" : up <= s.sell ? "#e0594a" : "#f2cf4a"; };
-  var scoreCol = function (v) { return v >= 65 ? "#46b86e" : v >= 50 ? "#f2cf4a" : "#e0594a"; };
+  var barCol = function (up, s) { return up >= s.buy ? "#3ccf7a" : up <= s.sell ? "#ef5b5b" : "#e2b84a"; };
+  var scoreCol = function (v) { return v >= 65 ? "#3ccf7a" : v >= 50 ? "#e2b84a" : "#ef5b5b"; };
 
   /* ---------------- flow ---------------- */
   function loadLive(t) {
@@ -178,7 +178,7 @@
       '<div class="head" id="overview"><h2>' + esc(inp.name) + ' <span class="head__tk">' + esc(inp.ticker) + '</span></h2><div class="head__meta">' + (inp.exchange ? esc(inp.exchange) + " · " : "") + "Price as of " + esc(inp.asOf) + " · Financials to " + esc(inp.ttmEnd) + " · Data: " + esc(inp.source || (inp.manual ? "entered by you" : inp.live ? "live data provider" : "checked built-in figures")) + "</div></div>" +
       '<p class="bridge" style="margin:18px 0 -10px">Step 1 · The answer: what Plumbline thinks the stock is worth</p><div id="rVerdict"></div>' +
       '<section class="sec" id="quality"><p class="bridge">Step 2 · Is the business behind the stock any good?</p><h2>Business quality scorecard</h2><p class="sec__lede">The valuation above says whether the stock is cheap. This scorecard says whether the business is good. It grades the company on 13 measures across three areas, using its own financial statements. Each measure scores Strong, Good or Weak, and core measures count double.</p><div id="rQuality"></div></section>' +
-      '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is the Plumbline value (the median of the nine) and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#46b86e"></i>Undervalued</span><span><i style="background:#f2cf4a"></i>Fair</span><span><i style="background:#e0594a"></i>Overvalued</span><span><i class="sq" style="background:#a9d4a0"></i>Plumbline value (median)</span></div></div></section>' +
+      '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is the Plumbline value (the median of the nine) and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#3ccf7a"></i>Undervalued</span><span><i style="background:#e2b84a"></i>Fair</span><span><i style="background:#ef5b5b"></i>Overvalued</span><span><i class="sq" style="background:#4fd1c5"></i>Plumbline value (median)</span></div></div></section>' +
       '<section class="sec" id="methods"><p class="bridge">Step 4 · Each of the nine methods in detail</p><h2>How each method got its number</h2><p class="sec__lede">Select a method to see why it is used, where it works best and how its number was built from this company\'s own figures.</p><p class="swipe-hint">Swipe to see all nine methods. Tap one for the full calculation.</p><div class="mlist" id="rMethods"></div></section>' +
       '<section class="sec" id="average"><p class="bridge">Step 5 · The methods disagree, so here\'s how one number is chosen</p><h2>How nine values become one</h2><div id="rAvgText"></div><div class="card"><div class="chart" id="rStats"></div></div><div class="avg" id="rAvg"></div></section>' +
       '<section class="sec" id="forecast"><p class="bridge">Step 6 · The cash flow methods depend on a forecast. Here\'s what it assumes</p><h2>What the forecast assumes</h2><p class="sec__lede" id="rProjText"></p>' +
@@ -300,7 +300,7 @@
 
   /* ---------------- business quality ---------------- */
   var LEVEL_CLS = { Strong: "lv--s", Good: "lv--g", Weak: "lv--w", "n/a": "lv--n" };
-  var LEVEL_COL = { Strong: "#46b86e", Good: "#f2cf4a", Weak: "#e0594a", "n/a": "#5f7389" };
+  var LEVEL_COL = { Strong: "#3ccf7a", Good: "#e2b84a", Weak: "#ef5b5b", "n/a": "#5d716f" };
   function renderQuality(r) {
     var el = $("rQuality"), q = state.quality;
     if (!el) return;
@@ -316,21 +316,21 @@
       '<div class="qs__ringtxt"><b style="color:' + col + '">' + q.grade + "</b><span>" + Math.round(q.score) + "/100</span></div></div>" +
       '<div class="qs__sum"><p class="qs__label" style="color:' + col + '">' + esc(q.label) + "</p>" +
       '<div class="qs__pillars">' + q.pillars.map(function (p) {
-        var ok = p.score != null, pc2 = ok ? scoreCol(p.score) : "#5f7389";
+        var ok = p.score != null, pc2 = ok ? scoreCol(p.score) : "#5d716f";
         return '<div class="qp"><span class="qp__name">' + esc(p.name) + ' <small>' + Math.round(p.weight * 100) + "% of score</small></span>" +
           '<span class="qp__bar"><b style="width:' + (ok ? Math.max(2, p.score) : 0) + "%;background:" + pc2 + '"></b></span><span class="qp__val" style="color:' + pc2 + '">' + (ok ? Math.round(p.score) : "n/a") + "</span></div>";
       }).join("") + "</div>" +
       '<p class="qs__scale">A 80+ Excellent · B 65–79 Good · C 50–64 Average · D 35–49 Weak · F below 35 Poor</p></div></div>';
     var comboHtml = combo ? '<div class="qs__combo qs__combo--' + (combo.tone || "mid") + '"><span class="pill pill--' + v + '"><i></i>' + v + '</span><span class="qs__plus">+</span><span class="qs__gradechip" style="color:' + col + ';border-color:' + col + '">Quality ' + q.grade + "</span><div><h3>" + esc(combo.title) + "</h3><p>" + esc(combo.text) + "</p></div></div>" : "";
     var cards = q.pillars.map(function (p) {
-      var pc2 = p.score != null ? scoreCol(p.score) : "#5f7389";
+      var pc2 = p.score != null ? scoreCol(p.score) : "#5d716f";
       var scored = p.metrics.filter(function (m) { return m.level != null; });
       var best = scored.slice().sort(function (a, b) { return b.level - a.level || (b.core ? 1 : 0) - (a.core ? 1 : 0); })[0];
       var worst = scored.slice().sort(function (a, b) { return a.level - b.level || (b.core ? 1 : 0) - (a.core ? 1 : 0); })[0];
       var hl = function (label, m) { return m ? '<div class="hl2"><small>' + label + '</small><span>' + esc(m.name) + '</span><b>' + esc(m.show) + '</b><span class="lv ' + LEVEL_CLS[m.levelName] + '">' + esc(m.levelName) + "</span></div>" : ""; };
       var rows = p.metrics.map(function (m) {
         var lc = LEVEL_CLS[m.levelName] || "lv--n";
-        var sp = m.series ? Charts.spark(m.series, LEVEL_COL[m.levelName] || "#8da0b5") : "";
+        var sp = m.series ? Charts.spark(m.series, LEVEL_COL[m.levelName] || "#8fa3a0") : "";
         return '<div class="qm"><div class="qm__head"><span class="qm__name">' + esc(m.name) + (m.core ? '<span class="qm__core" title="Counts double in this area">Core ×2</span>' : "") + "</span>" +
           '<span class="qm__spark">' + sp + '</span><span class="qm__val">' + esc(m.show) + '</span><span class="lv ' + lc + '">' + esc(m.levelName) + "</span></div>" +
           '<p class="qm__says">' + esc(m.says) + "</p>" +
@@ -394,15 +394,15 @@
   function drawProj(r) {
     var P = r.proj;
     Charts.lines($("rProj"), [
-      { values: P.ocf, color: "#d9bf86", endText: "Op. cash flow" }, { values: P.fcf, color: "#5cc8d6", endText: "Free cash flow" }, { values: P.ni, color: "#f2cf4a", endText: "Net income" }
+      { values: P.ocf, color: "#4fd1c5", endText: "Op. cash flow" }, { values: P.fcf, color: "#b39cf5", endText: "Free cash flow" }, { values: P.ni, color: "#7aa7ff", endText: "Net income" }
     ], { fmt: bn, h: 290, zero: "$0" });
-    $("rProjLeg").innerHTML = '<span><i class="sq" style="background:#d9bf86"></i>Operating cash flow</span><span><i class="sq" style="background:#5cc8d6"></i>Free cash flow</span><span><i class="sq" style="background:#f2cf4a"></i>Net income (excl. one-offs)</span><span>Starts from the last 12 months. X axis is years from today.</span>';
+    $("rProjLeg").innerHTML = '<span><i class="sq" style="background:#4fd1c5"></i>Operating cash flow</span><span><i class="sq" style="background:#b39cf5"></i>Free cash flow</span><span><i class="sq" style="background:#7aa7ff"></i>Net income (excl. one-offs)</span><span>Starts from the last 12 months. X axis is years from today.</span>';
     var gcv = P.gCF.slice(), gev = P.gEPS.slice();
     var ymax = Math.max(Math.max.apply(null, gcv), Math.max.apply(null, gev), .1);
     Charts.lines($("rGrow"), [
-      { values: gcv, color: "#d9bf86", dots: [0, 1], endText: "Cash flow" }, { values: gev, color: "#f2cf4a", dots: [0, 1], endText: "Earnings" }
+      { values: gcv, color: "#4fd1c5", dots: [0, 1], endText: "Cash flow" }, { values: gev, color: "#7aa7ff", dots: [0, 1], endText: "Earnings" }
     ], { fmt: function (v) { return (v * 100).toFixed(0) + "%"; }, h: 290, ymin: Math.min(0, Math.min.apply(null, gcv.concat(gev))), ymax: ymax * 1.05, band: [0, 1], bandLabel: "Years 1–2", xlabel: function (i) { return i + 1; } });
-    $("rGrowLeg").innerHTML = '<span><i class="sq" style="background:#d9bf86"></i>Cash flow growth</span><span><i class="sq" style="background:#f2cf4a"></i>Earnings growth</span><span>X axis is the forecast year (1 to 20).</span>';
+    $("rGrowLeg").innerHTML = '<span><i class="sq" style="background:#4fd1c5"></i>Cash flow growth</span><span><i class="sq" style="background:#7aa7ff"></i>Earnings growth</span><span>X axis is the forecast year (1 to 20).</span>';
   }
 
   function renderData(r) {

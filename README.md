@@ -1,4 +1,4 @@
-# Plumbline v2.1: stock intrinsic value and business quality
+# Plumbline v2.2: stock intrinsic value and business quality
 
 A static website (no build step). Open `index.html` in a browser, or upload the folder to any static host
 (Netlify, Vercel, GitHub Pages, Cloudflare Pages).
@@ -14,6 +14,12 @@ Data sources (all free, no key): company financials from SEC EDGAR filings, pric
 Analyst estimates are not available there, so growth for the first years comes from the company's own past growth (labelled on the page).
 Optional: add `FMP_API_KEY=...` to `.env` to use Financial Modeling Prep as a backup (foreign companies), or set `DATA_SOURCE=fmp` if you pay for FMP and want its analyst estimates.
 Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example ASML) and very recent listings need the manual entry form.
+
+## v2.2 changes: research terminal look
+- The user felt the gold and the v2.1 fonts looked too much like Claude's own style. The accent is now a cool terminal teal (#4fd1c5) on near-black, with a faint grid in the background.
+- Fonts: IBM Plex Sans for reading, IBM Plex Mono for numbers, tabs, buttons and labels.
+- Light "Matrix" touches: a command-line line above the home headline, a blinking block cursor, "//" step labels and ">" field labels.
+- Verdict colours stay meaningful: green BUY, amber HOLD, red SELL. Chart lines for profit and free cash flow use blue and violet so they never look like a verdict.
 
 ## v2.1 changes: refined dark finance look and a smoother phone flow
 - New type: Schibsted Grotesk for headings, Hanken Grotesk for text, IBM Plex Mono for numbers (digits line up). Deeper navy, gold kept for what matters, thin rules and softer cards.
