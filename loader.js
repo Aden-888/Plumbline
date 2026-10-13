@@ -16,5 +16,6 @@ function loadAny(t) {
 /* Keeps what someone typed as a ticker or a company name (letters, digits, spaces, . - & '), at most 60 characters. */
 function cleanTicker(s) { return String(s || "").replace(/[^A-Za-z0-9.\-&' ]/g, "").replace(/\s+/g, " ").trim().slice(0, 60); }
 function searchAny(q, n) { return Edgar.search(q, n); }
+function tickerList() { return Edgar.tickerList(); }
 
-module.exports = { loadAny: loadAny, cleanTicker: cleanTicker, searchAny: searchAny };
+module.exports = { loadAny: loadAny, cleanTicker: cleanTicker, searchAny: searchAny, tickerList: tickerList };

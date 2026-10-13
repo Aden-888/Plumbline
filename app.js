@@ -49,6 +49,14 @@
     /* a company name such as "salesforce" or "nvidia" opens the same checked data as its ticker */
     var byName = presetByName(raw);
     if (byName) return show(byName);
+    /* the search engine in the browser turns a name into its ticker straight away ("apple" -> AAPL) */
+    var I = sIndex(), hit = window.SearchCore && SearchCore.pick(I, q);
+    if (hit) { t = hit.symbol; if (window.PRESETS[t]) return show(window.PRESETS[t]); q = t; }
+    else if (S.full && window.SearchCore) {
+      /* the full company list is loaded and nothing matches exactly: show the closest companies at once */
+      var near = SearchCore.rank(I, q, 5);
+      if (near.length) return fail(q, "Did you mean one of these?", near);
+    }
     var ask = q.indexOf(" ") >= 0 || q.length > 6 ? q : t;
     setLoading(true, "Fetching data for " + ask + "…");
     loadLive(ask).then(function (inp) { setLoading(false); show(inp); })
@@ -100,61 +108,95 @@
   }
   function titleCase(n) { return /[a-z]/.test(n) ? n : n.toLowerCase().replace(/(^|[\s\-&\/(.])([a-z])/g, function (m, a, b) { return a + b.toUpperCase(); }).replace(/\b(Inc|Corp|Co|Ltd|Plc)\b\.?/g, "$1."); }
 
-  /* ---------------- live suggestions under the search boxes ---------------- */
-  var sugT = null, sugSeq = 0, sugBox = null;
+  /* ---------------- search engine and live suggestions ----------------
+     Matching runs in the browser (search-core.js), so suggestions appear on every keystroke with no wait.
+     It starts with a built-in list of well-known companies, then quietly loads the full SEC list of US-listed
+     companies (/api/tickers) and keeps it in this browser for a week. */
+  var S = { I: null, full: false, loading: null }, sugT = null, sugSeq = 0, sugBox = null, TK_KEY = "plumbline_tickers_v1";
+  function niceNames() { var m = {}; (window.SearchCore ? SearchCore.POPULAR : []).forEach(function (o) { m[o.ticker] = o.title; }); Object.keys(window.PRESETS).forEach(function (k) { m[k] = m[k] || window.PRESETS[k].name; }); return m; }
+  function sIndex() {
+    if (S.I || !window.SearchCore) return S.I;
+    var list = SearchCore.POPULAR.map(function (o) { return { ticker: o.ticker, title: o.title }; });
+    Object.keys(window.PRESETS).forEach(function (k) { if (!list.some(function (o) { return o.ticker === k; })) list.push({ ticker: k, title: window.PRESETS[k].name }); });
+    S.I = SearchCore.makeIndex(list);
+    try { var c = JSON.parse(localStorage.getItem(TK_KEY) || "null"); if (c && c.list && c.list.length > 1000 && Date.now() - c.at < 7 * 864e5) useFull(c.list); } catch (e) {}
+    return S.I;
+  }
+  function useFull(rows) {
+    var nice = niceNames();
+    S.I = SearchCore.makeIndex(rows.map(function (r) { return { ticker: r[0], title: nice[String(r[0]).toUpperCase()] || r[1] }; }));
+    S.full = true;
+  }
+  function loadFull() {
+    if (S.full || S.loading || window.PLUMBLINE_STATIC || location.protocol.indexOf("http") !== 0) return S.loading;
+    S.loading = fetch("/api/tickers").then(function (r) { return r.ok ? r.json() : null; }, function () { return null; }).then(function (rows) {
+      S.loading = null;
+      if (!Array.isArray(rows) || rows.length < 1000) return;
+      useFull(rows);
+      try { localStorage.setItem(TK_KEY, JSON.stringify({ at: Date.now(), list: rows })); } catch (e) {}
+      if (sugBox && sugBox.input.value.trim()) refreshSug(sugBox.input);
+    });
+    return S.loading;
+  }
   function closeSug() {
     ["heroSug", "barSug"].forEach(function (id) { var u = $(id); if (u) { u.hidden = true; u.innerHTML = ""; } });
-    ["heroInput", "barInput"].forEach(function (id) { var i = $(id); if (i) i.setAttribute("aria-expanded", "false"); });
+    ["heroInput", "barInput"].forEach(function (id) { var i = $(id); if (i) { i.setAttribute("aria-expanded", "false"); i.removeAttribute("aria-activedescendant"); } });
     sugBox = null;
   }
-  function localSug(q) {
-    var low = q.toLowerCase(), out = [];
-    Object.keys(window.PRESETS).forEach(function (k) {
-      var p = window.PRESETS[k];
-      if (k.toLowerCase().indexOf(low) === 0 || String(p.name).toLowerCase().indexOf(low) === 0) out.push({ symbol: k, name: p.name });
-    });
-    return out;
+  function hl(text, q, mode) {
+    var t = String(text), low = t.toLowerCase(), k = String(q).trim().toLowerCase(), i = -1;
+    if (k) { i = mode === "start" ? (low.indexOf(k) === 0 ? 0 : -1) : low.search(new RegExp("(^|[^a-z0-9])" + k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))); if (i > 0 && !/[a-z0-9]/.test(low[i])) i++; }
+    if (i < 0) return esc(t);
+    return esc(t.slice(0, i)) + "<mark>" + esc(t.slice(i, i + k.length)) + "</mark>" + esc(t.slice(i + k.length));
   }
-  function drawSug(input, list, listId) {
+  function drawSug(input, list, listId, q) {
     var u = $(listId); if (!u) return;
-    if (!list.length || document.activeElement !== input) { u.hidden = true; u.innerHTML = ""; input.setAttribute("aria-expanded", "false"); return; }
+    if (!list.length || document.activeElement !== input) { u.hidden = true; u.innerHTML = ""; input.setAttribute("aria-expanded", "false"); sugBox = null; return; }
     u.innerHTML = list.map(function (s, i) {
-      return '<li role="option" id="' + listId + '_' + i + '" data-t="' + esc(s.symbol) + '"><b>' + esc(s.symbol) + '</b><span>' + esc(titleCase(s.name || "")) + "</span>" + (s.how === "close" ? '<em>close match</em>' : "") + "</li>";
-    }).join("");
+      return '<li role="option" aria-selected="false" id="' + listId + '_' + i + '" data-t="' + esc(s.symbol) + '"><b>' + hl(s.symbol, q, "start") + '</b><span>' + hl(titleCase(s.name || ""), q) + "</span>" + (s.how === "close" ? '<em>close match</em>' : "") + "</li>";
+    }).join("") + (S.full ? "" : '<li class="sug__note" aria-hidden="true">Loading all US-listed companies…</li>');
     u.hidden = false; input.setAttribute("aria-expanded", "true"); sugBox = { input: input, u: u, i: -1 };
   }
-  function wireSug(inputId, listId) {
-    var input = $(inputId), u = $(listId); if (!input || !u) return;
-    input.addEventListener("input", function () {
-      var q = input.value.trim(); clearTimeout(sugT);
-      if (q.length < 1) return closeSug();
-      var loc = localSug(q);
-      if (loc.length) drawSug(input, loc, listId);
-      if (q.length < 2 || window.PLUMBLINE_STATIC || location.protocol.indexOf("http") !== 0) return;
+  function refreshSug(input) {
+    var listId = input.id === "heroInput" ? "heroSug" : "barSug", q = input.value.trim();
+    clearTimeout(sugT);
+    if (!q) return closeSug();
+    var I = sIndex(); if (!I) return;
+    var hits = SearchCore.rank(I, q, 6);
+    drawSug(input, hits, listId, q);
+    /* before the full list has arrived, ask the server too when the built-in list has few answers */
+    if (!S.full && hits.length < 4 && q.length >= 2 && !window.PLUMBLINE_STATIC && location.protocol.indexOf("http") === 0) {
       var my = ++sugSeq;
       sugT = setTimeout(function () {
         fetch("/api/search?q=" + encodeURIComponent(q)).then(function (r) { return r.ok ? r.json() : []; }, function () { return []; }).then(function (l) {
-          if (my !== sugSeq || !Array.isArray(l)) return;
-          var seen = {}, merged = loc.concat(l).filter(function (x) { if (seen[x.symbol]) return false; seen[x.symbol] = 1; return true; }).slice(0, 6);
-          drawSug(input, merged, listId);
+          if (my !== sugSeq || S.full || !Array.isArray(l) || input.value.trim() !== q) return;
+          var seen = {}, merged = hits.concat(l).filter(function (x) { if (seen[x.symbol]) return false; seen[x.symbol] = 1; return true; }).slice(0, 6);
+          drawSug(input, merged, listId, q);
         });
-      }, 180);
-    });
+      }, 150);
+    }
+  }
+  function wireSug(inputId, listId) {
+    var input = $(inputId), u = $(listId); if (!input || !u) return;
+    input.addEventListener("input", function () { loadFull(); refreshSug(input); });
+    input.addEventListener("focus", function () { loadFull(); if (input.value.trim()) refreshSug(input); });
     input.addEventListener("keydown", function (e) {
       if (!sugBox || sugBox.input !== input) { if (e.key === "Escape") closeSug(); return; }
-      var items = u.querySelectorAll("li");
+      var items = u.querySelectorAll("li[data-t]"); if (!items.length) return;
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
         sugBox.i = (sugBox.i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
         items.forEach(function (li, k) { li.classList.toggle("on", k === sugBox.i); li.setAttribute("aria-selected", k === sugBox.i ? "true" : "false"); });
         input.setAttribute("aria-activedescendant", items[sugBox.i].id);
+        items[sugBox.i].scrollIntoView({ block: "nearest" });
       } else if (e.key === "Enter" && sugBox.i >= 0) {
         e.preventDefault(); var t = items[sugBox.i].dataset.t; input.value = t; search(t);
       } else if (e.key === "Escape") closeSug();
     });
+    u.addEventListener("pointerdown", function (e) { e.preventDefault(); });
     u.addEventListener("mousedown", function (e) { e.preventDefault(); });
-    u.addEventListener("click", function (e) { var li = e.target.closest("li"); if (li) { input.value = li.dataset.t; search(li.dataset.t); } });
-    input.addEventListener("blur", function () { setTimeout(function () { if (sugBox && sugBox.input === input) closeSug(); }, 120); });
+    u.addEventListener("click", function (e) { var li = e.target.closest("li[data-t]"); if (li) { input.value = li.dataset.t; search(li.dataset.t); } });
+    input.addEventListener("blur", function () { setTimeout(function () { if (sugBox && sugBox.input === input && document.activeElement !== input) closeSug(); }, 150); });
   }
 
   function fail(t, msg, suggest) {
@@ -597,6 +639,7 @@
     startRain();
     makeRain($("rainHow"), function () { return true; });
     wireSug("heroInput", "heroSug"); wireSug("barInput", "barSug");
+    sIndex(); setTimeout(loadFull, 1200);
     document.addEventListener("click", function (e) { if (!e.target.closest || !e.target.closest(".search")) closeSug(); });
     var q = new URLSearchParams(location.search).get("t");
     var hm = $("heroManual"); if (hm) hm.addEventListener("click", function () { showManual({}); });

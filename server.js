@@ -19,7 +19,7 @@ if (!KEY) {
 if (KEY && !process.env.FMP_API_KEY) process.env.FMP_API_KEY = KEY;
 var SOURCE = (process.env.DATA_SOURCE || "auto").toLowerCase(); /* auto | edgar | fmp */
 var TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon" };
-var ALLOW = { "index.html": 1, "engine.js": 1, "quality.js": 1, "data.js": 1, "content.js": 1, "api.js": 1, "charts.js": 1, "manual.js": 1, "app.js": 1, "style.css": 1 };
+var ALLOW = { "index.html": 1, "engine.js": 1, "quality.js": 1, "data.js": 1, "content.js": 1, "api.js": 1, "charts.js": 1, "manual.js": 1, "app.js": 1, "style.css": 1, "search-core.js": 1 };
 var cache = {}, TTL = 10 * 60 * 1000;
 /* Optional password. Set SITE_PASSWORD (in .env or on the host) and the browser asks for it once.
    Any user name works; only the password is checked. /health stays open so an uptime monitor can keep the site awake. */
@@ -48,6 +48,10 @@ http.createServer(function (req, res) {
     res.writeHead(401, { "WWW-Authenticate": 'Basic realm="Plumbline", charset="UTF-8"', "Content-Type": "text/plain" });
     return res.end("Password required.");
   }
+  if (u.pathname === "/api/tickers") {
+    Loader.tickerList().then(function (l) { send(res, 200, l); }, function (e) { send(res, 502, { error: e.message || "Could not load the company list." }); });
+    return;
+  }
   if (u.pathname === "/api/search") {
     var sq = Loader.cleanTicker(u.searchParams.get("q"));
     if (!sq) return send(res, 200, []);
@@ -71,5 +75,5 @@ http.createServer(function (req, res) {
     res.end(buf);
   });
 }).listen(PORT, function () {
-  console.log("Plumbline v2.4 is running at http://localhost:" + PORT + "\nData source: " + (SOURCE === "fmp" ? "FMP only" : "SEC filings + Yahoo prices (free), " + (KEY ? "FMP as backup" : "no key needed")) + (process.env.SEC_CONTACT ? "" : "\nTip: add SEC_CONTACT=your@email to a .env file. The SEC asks apps to identify themselves.") + (PASS ? "\nPassword protection is on." : ""));
+  console.log("Plumbline v2.5 is running at http://localhost:" + PORT + "\nData source: " + (SOURCE === "fmp" ? "FMP only" : "SEC filings + Yahoo prices (free), " + (KEY ? "FMP as backup" : "no key needed")) + (process.env.SEC_CONTACT ? "" : "\nTip: add SEC_CONTACT=your@email to a .env file. The SEC asks apps to identify themselves.") + (PASS ? "\nPassword protection is on." : ""));
 });

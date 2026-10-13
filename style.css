@@ -820,3 +820,16 @@ a, .jump a, .m summary::after, .qmore > summary { color: var(--accent); }
 .chart .dp__nm { fill: var(--text); font-size: 12.5px; font-weight: 500; }
 .chart .dp__v { fill: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 @media (max-width: 560px) { .chart .dp__nm, .chart .dp__v { font-size: 12px; } }
+
+/* v2.5: instant search */
+.sug mark { background: none; color: var(--text); font-weight: 600; }
+.sug li b mark { text-decoration: none; color: var(--accent); }
+.sug li.sug__note { cursor: default; font-size: 12px; color: var(--faint); padding: 6px 12px 4px; }
+.sug li.sug__note:hover { background: none; }
+
+/* slightly larger brand on phones */
+@media (max-width: 520px) {
+  .brand { gap: 11px; }
+  .brand svg { width: 25px; height: 30px; }
+  .brand span { font-size: 19.5px; }
+}

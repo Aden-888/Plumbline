@@ -37,76 +37,19 @@ function tickers() {
     tickerCache = { by: by, list: list }; return tickerCache;
   });
 }
-/* ---------- search: tickers, company names and near misses ----------
-   The SEC list is ordered roughly by company size, so its position is used as a popularity rank:
-   "apple" finds Apple Inc. before smaller companies whose names also start with "apple". */
-var ALIAS = { google: "GOOGL", alphabet: "GOOGL", facebook: "META", meta: "META", "berkshire": "BRK-B", "berkshire hathaway": "BRK-B",
-  jpmorgan: "JPM", "jp morgan": "JPM", "coca cola": "KO", coke: "KO", pepsi: "PEP", "walmart": "WMT", "mcdonalds": "MCD",
-  "home depot": "HD", "disney": "DIS", "amazon": "AMZN", "netflix": "NFLX", "tesla": "TSLA", "nvidia": "NVDA", "microsoft": "MSFT", "apple": "AAPL",
-  "salesforce": "CRM", "paypal": "PYPL", "visa": "V", "mastercard": "MA", "costco": "COST", "starbucks": "SBUX", "nike": "NKE", "intel": "INTC", "amd": "AMD",
-  "broadcom": "AVGO", "oracle": "ORCL", "adobe": "ADBE", "uber": "UBER", "airbnb": "ABNB", "palantir": "PLTR", "servicenow": "NOW", "snowflake": "SNOW" };
-var SUFFIX = /\b(incorporated|inc|corporation|corp|company|co|limited|ltd|plc|holdings?|group|the|class [a-c]|sa|nv|ag|se|lp|llc|\/de|\/md|\/new)\b/g;
-function normName(s) { return String(s || "").toLowerCase().replace(/&/g, " and ").replace(/\.com\b/g, "").replace(/[^a-z0-9 ]+/g, " ").replace(SUFFIX, " ").replace(/\s+/g, " ").trim(); }
-function squash(s) { return normName(s).replace(/ /g, ""); }
-function editDist(a, b, cap) {
-  if (Math.abs(a.length - b.length) > cap) return cap + 1;
-  var prev2 = null, prev = [], cur, i, j;
-  for (j = 0; j <= b.length; j++) prev.push(j);
-  for (i = 1; i <= a.length; i++) {
-    cur = [i]; var lo = i;
-    for (j = 1; j <= b.length; j++) {
-      var c = a[i - 1] === b[j - 1] ? 0 : 1, v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + c);
-      if (prev2 && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
-      cur.push(v); if (v < lo) lo = v;
-    }
-    if (lo > cap) return cap + 1;
-    prev2 = prev; prev = cur;
-  }
-  return prev[b.length];
-}
-function indexList(T) {
-  if (T.idx) return T.idx;
-  T.idx = T.list.map(function (o, rank) { var n = normName(o.title); return { o: o, rank: rank, n: n, sq: n.replace(/ /g, ""), first: n.split(" ")[0] }; });
-  return T.idx;
-}
-/* Ranked matches for what someone typed. Each result: { symbol, name, how } where how is ticker, name or close. */
-function rank(T, q, n) {
-  n = n || 6;
-  var raw = String(q || "").trim(); if (!raw) return [];
-  var up = raw.toUpperCase().replace(/\./g, "-").replace(/\s+/g, ""), nq = normName(raw), sq = nq.replace(/ /g, ""), idx = indexList(T);
-  var seen = {}, out = [];
-  function add(o, how) { if (!o || seen[o.ticker] || out.length >= n) return; seen[o.ticker] = 1; out.push({ symbol: o.ticker, name: o.title, how: how }); }
-  if (T.by[up]) add(T.by[up], "ticker");
-  var al = ALIAS[nq] || ALIAS[sq]; if (al && T.by[al]) add(T.by[al], "name");
-  if (sq.length >= 2) {
-    /* names that start with what was typed, biggest companies first; then names containing it as a word */
-    idx.forEach(function (e) { if (e.sq.indexOf(sq) === 0 || e.n.indexOf(nq) === 0) add(e.o, "name"); });
-    if (nq.length >= 3) idx.forEach(function (e) { if ((" " + e.n).indexOf(" " + nq) >= 0) add(e.o, "name"); });
-    /* tickers that start with what was typed */
-    if (up.length <= 5) idx.forEach(function (e) { if (e.o.ticker.indexOf(up) === 0) add(e.o, "ticker"); });
-  }
-  if (out.length < n && sq.length >= 2) {
-    /* near misses: one or two letters off, searched among the larger companies so the guesses stay sensible */
-    var top = idx.slice(0, 4000), cand = [], capN = sq.length <= 4 ? 1 : 2;
-    top.forEach(function (e) {
-      var d1 = up.length <= 6 ? editDist(up, e.o.ticker, 1) : 9;
-      var d2 = sq.length >= 3 ? Math.min(editDist(sq, e.first, capN), editDist(sq, e.sq.slice(0, Math.max(sq.length, e.first.length)), capN)) : 9;
-      var d = Math.min(d1 <= 1 ? d1 : 9, d2 <= capN ? d2 : 9);
-      if (d < 9) cand.push({ e: e, d: d });
-    });
-    cand.sort(function (a, b) { return a.d - b.d || a.e.rank - b.e.rank; });
-    cand.forEach(function (c) { add(c.e.o, "close"); });
-  }
-  return out;
-}
-function search(q, n) { return tickers().then(function (T) { return rank(T, q, n); }); }
+/* ---------- search: tickers, company names and near misses (engine shared with the browser) ---------- */
+var SearchCore = require("./search-core.js");
+function index(T) { if (!T.I) T.I = SearchCore.makeIndex(T.list); return T.I; }
+function search(q, n) { return tickers().then(function (T) { return SearchCore.rank(index(T), q, n); }); }
+/* the full list in compact form for the browser: [[ticker, title], ...], largest companies first */
+function tickerList() { return tickers().then(function (T) { return T.list.map(function (o) { return [o.ticker, o.title]; }); }); }
 function resolve(q) {
   return tickers().then(function (T) {
-    var up = String(q).toUpperCase().replace(/\./g, "-").replace(/\s+/g, "");
-    if (T.by[up]) return T.by[up];
-    var hits = rank(T, q, 6);
+    var I = index(T), up = String(q).toUpperCase().replace(/\./g, "-").replace(/\s+/g, "");
+    if (I.by[up]) return I.by[up];
+    var hits = SearchCore.rank(I, q, 6);
     /* a company name (not a guess) opens the biggest matching company straight away */
-    if (hits.length && hits[0].how === "name") return T.by[hits[0].symbol];
+    if (hits.length && hits[0].how === "name") return I.by[hits[0].symbol];
     throw fail(hits.length ? "Did you mean one of these?" : "We couldn't find a US-listed company with that name or ticker. Check the spelling, or try the company's ticker.", { suggest: hits.slice(0, 5) });
   });
 }
@@ -470,4 +413,4 @@ function load(input) {
   });
 }
 
-module.exports = { load: load, resolve: resolve, search: search, _setTickers: _setTickers, _build: build, _ttm: ttm, _collect: collect };
+module.exports = { load: load, resolve: resolve, search: search, tickerList: tickerList, _setTickers: _setTickers, _build: build, _ttm: ttm, _collect: collect };

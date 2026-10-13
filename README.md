@@ -1,4 +1,4 @@
-# Plumbline v2.4.1: stock intrinsic value and business quality
+# Plumbline v2.5: stock intrinsic value and business quality
 
 A static website (no build step). Open `index.html` in a browser, or upload the folder to any static host
 (Netlify, Vercel, GitHub Pages, Cloudflare Pages).
@@ -14,6 +14,13 @@ Data sources (all free, no key): company financials from SEC EDGAR filings, pric
 Analyst estimates are not available there, so growth for the first years comes from the company's own past growth (labelled on the page).
 Optional: add `FMP_API_KEY=...` to `.env` to use Financial Modeling Prep as a backup (foreign companies), or set `DATA_SOURCE=fmp` if you pay for FMP and want its analyst estimates.
 Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example ASML) and very recent listings need the manual entry form.
+
+## v2.5 changes: instant search
+- Suggestions now appear on every keystroke with no wait. The matching engine (`search-core.js`) runs in the browser and is shared with the server, so both give the same answers.
+- It starts with a built-in list of about 150 well-known US-listed companies, then quietly loads the full SEC list of US-listed companies from `/api/tickers` (`api/tickers.js`, cached at Vercel's edge for a day) and keeps it in the browser for a week.
+- Pressing Enter on a company name opens it straight away ("apple" -> AAPL, "walt disney" -> DIS). A typo ("microsfot") shows "Did you mean" choices at once, without waiting for the server.
+- Matching letters are highlighted in the suggestions; arrow keys, Enter and tapping all work. Short text such as "nv" or "co" is no longer mistaken for a company suffix.
+- The Plumbline logo and icon are slightly larger on phones.
 
 ## v2.4.1 changes
 - Sharper home intro: "Plumbline cross-checks a company across multiple valuation models and distils them into one fair-value estimate. Then it grades the business behind the share price, so you know both what you would pay and what you would own."
@@ -143,7 +150,9 @@ Notes:
 - `api.js`: live data for other tickers (Financial Modeling Prep API). Used by both the browser and `server.js`.
 - `edgar.js`: free data source (SEC EDGAR + Yahoo). Server only. Also collects the scorecard figures.
 - `check.js`: command-line test for one ticker.
-- `api/search.js`: Vercel function for search suggestions (`/api/search?q=`).
+- `search-core.js`: the search engine (names, tickers, typos), used by the browser and the server.
+- `api/tickers.js`: Vercel function that returns the full company list for instant suggestions (`/api/tickers`).
+- `api/search.js`: Vercel function for search suggestions (`/api/search?q=`), used until the full list has loaded.
 - `server.js`: tiny server (no dependencies) that serves the site and keeps your API key private.
 - `manual.js`: the manual entry form.
 - `charts.js`, `app.js`, `style.css`, `index.html`: charts, page logic and the dark theme.
