@@ -40,21 +40,24 @@
     });
   }
   function search(raw) {
-    var t = (raw || "").trim().toUpperCase().replace(/[^A-Z0-9.\-]/g, "");
+    sugSeq++; clearTimeout(sugT); closeSug();
+    var q = String(raw || "").replace(/[^A-Za-z0-9.\-&' ]/g, "").replace(/\s+/g, " ").trim().slice(0, 60);
+    var t = q.toUpperCase().replace(/[^A-Z0-9.\-]/g, "");
     if (!t) return;
     $("heroMsg").innerHTML = "";
     if (window.PRESETS[t]) return show(window.PRESETS[t]);
     /* a company name such as "salesforce" or "nvidia" opens the same checked data as its ticker */
     var byName = presetByName(raw);
     if (byName) return show(byName);
-    setLoading(true, "Fetching data for " + t + "…");
-    loadLive(t).then(function (inp) { setLoading(false); show(inp); })
+    var ask = q.indexOf(" ") >= 0 || q.length > 6 ? q : t;
+    setLoading(true, "Fetching data for " + ask + "…");
+    loadLive(ask).then(function (inp) { setLoading(false); show(inp); })
       .catch(function (e) {
         setLoading(false);
         if (e.needKey) return needKey(t);
         var m = e.message || String(e);
         if (/failed to fetch|networkerror|load failed/i.test(m)) m = "Could not reach the data provider. Check your internet connection and try again.";
-        fail(t, m, e.suggest);
+        fail(q, m, e.suggest);
       });
   }
   function presetByName(raw) {
@@ -88,16 +91,75 @@
   }
   function suggestHtml(list) {
     if (!list || !list.length) return "";
-    return '<p>Did you mean: ' + list.map(function (s) { return '<button class="chip" data-t="' + esc(s.symbol) + '" title="' + esc(s.name) + '">' + esc(s.symbol) + "</button>"; }).join(" ") + "</p>";
+    return '<div class="didmean">' + list.map(function (s) { return '<button class="dm" data-t="' + esc(s.symbol) + '"><b>' + esc(s.symbol) + "</b><span>" + esc(titleCase(s.name || "")) + "</span></button>"; }).join("") + "</div>";
   }
   function bindMsg(t) {
     document.querySelectorAll("#heroMsg [data-t], #results [data-t]").forEach(function (b) { b.addEventListener("click", function () { search(b.dataset.t); }); });
     var m = document.querySelectorAll("[data-manual]"); m.forEach(function (b) { b.addEventListener("click", function () { showManual({ ticker: t }); }); });
     var k = $("resetKey"); if (k) k.addEventListener("click", function () { store(false, null); needKey(t); });
   }
+  function titleCase(n) { return /[a-z]/.test(n) ? n : n.toLowerCase().replace(/(^|[\s\-&\/(.])([a-z])/g, function (m, a, b) { return a + b.toUpperCase(); }).replace(/\b(Inc|Corp|Co|Ltd|Plc)\b\.?/g, "$1."); }
+
+  /* ---------------- live suggestions under the search boxes ---------------- */
+  var sugT = null, sugSeq = 0, sugBox = null;
+  function closeSug() {
+    ["heroSug", "barSug"].forEach(function (id) { var u = $(id); if (u) { u.hidden = true; u.innerHTML = ""; } });
+    ["heroInput", "barInput"].forEach(function (id) { var i = $(id); if (i) i.setAttribute("aria-expanded", "false"); });
+    sugBox = null;
+  }
+  function localSug(q) {
+    var low = q.toLowerCase(), out = [];
+    Object.keys(window.PRESETS).forEach(function (k) {
+      var p = window.PRESETS[k];
+      if (k.toLowerCase().indexOf(low) === 0 || String(p.name).toLowerCase().indexOf(low) === 0) out.push({ symbol: k, name: p.name });
+    });
+    return out;
+  }
+  function drawSug(input, list, listId) {
+    var u = $(listId); if (!u) return;
+    if (!list.length || document.activeElement !== input) { u.hidden = true; u.innerHTML = ""; input.setAttribute("aria-expanded", "false"); return; }
+    u.innerHTML = list.map(function (s, i) {
+      return '<li role="option" id="' + listId + '_' + i + '" data-t="' + esc(s.symbol) + '"><b>' + esc(s.symbol) + '</b><span>' + esc(titleCase(s.name || "")) + "</span>" + (s.how === "close" ? '<em>close match</em>' : "") + "</li>";
+    }).join("");
+    u.hidden = false; input.setAttribute("aria-expanded", "true"); sugBox = { input: input, u: u, i: -1 };
+  }
+  function wireSug(inputId, listId) {
+    var input = $(inputId), u = $(listId); if (!input || !u) return;
+    input.addEventListener("input", function () {
+      var q = input.value.trim(); clearTimeout(sugT);
+      if (q.length < 1) return closeSug();
+      var loc = localSug(q);
+      if (loc.length) drawSug(input, loc, listId);
+      if (q.length < 2 || window.PLUMBLINE_STATIC || location.protocol.indexOf("http") !== 0) return;
+      var my = ++sugSeq;
+      sugT = setTimeout(function () {
+        fetch("/api/search?q=" + encodeURIComponent(q)).then(function (r) { return r.ok ? r.json() : []; }, function () { return []; }).then(function (l) {
+          if (my !== sugSeq || !Array.isArray(l)) return;
+          var seen = {}, merged = loc.concat(l).filter(function (x) { if (seen[x.symbol]) return false; seen[x.symbol] = 1; return true; }).slice(0, 6);
+          drawSug(input, merged, listId);
+        });
+      }, 180);
+    });
+    input.addEventListener("keydown", function (e) {
+      if (!sugBox || sugBox.input !== input) { if (e.key === "Escape") closeSug(); return; }
+      var items = u.querySelectorAll("li");
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        sugBox.i = (sugBox.i + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+        items.forEach(function (li, k) { li.classList.toggle("on", k === sugBox.i); li.setAttribute("aria-selected", k === sugBox.i ? "true" : "false"); });
+        input.setAttribute("aria-activedescendant", items[sugBox.i].id);
+      } else if (e.key === "Enter" && sugBox.i >= 0) {
+        e.preventDefault(); var t = items[sugBox.i].dataset.t; input.value = t; search(t);
+      } else if (e.key === "Escape") closeSug();
+    });
+    u.addEventListener("mousedown", function (e) { e.preventDefault(); });
+    u.addEventListener("click", function (e) { var li = e.target.closest("li"); if (li) { input.value = li.dataset.t; search(li.dataset.t); } });
+    input.addEventListener("blur", function () { setTimeout(function () { if (sugBox && sugBox.input === input) closeSug(); }, 120); });
+  }
+
   function fail(t, msg, suggest) {
-    placeMsg('<div class="notice notice--error"><h3>Could not value ' + esc(t) + "</h3><p>" + esc(msg) + "</p>" + suggestHtml(suggest) +
-      '<p>You can try another ticker' + (window.PLUMBLINE_STATIC ? ' or <button class="btn" data-manual="1">enter the numbers yourself</button>.' : ', <button class="btn" data-manual="1">enter the numbers yourself</button> or <button class="btn" id="resetKey">change the API key</button>') + '</p></div>');
+    placeMsg('<div class="notice notice--error"><h3>' + ((suggest && suggest.length) || /couldn't find/i.test(msg) ? "No match for “" + esc(t) + "”" : "Could not value " + esc(t)) + "</h3><p>" + esc(msg) + "</p>" + suggestHtml(suggest) +
+      '<p class="fail__alt">Not listed in the US, or still not finding it? <button class="btn" data-manual="1">Enter the numbers yourself</button>' + (store(true) ? ' <button class="btn" id="resetKey">Change the API key</button>' : "") + '</p></div>');
     bindMsg(t);
   }
   function showManual(prefill) {
@@ -145,6 +207,8 @@
     var r = IV.compute(p, s), el = $("heroChart");
     Charts.strip(el, r);
     if (animate) Charts.settle(el);
+    var hs = $("heroStats"), st = r.stats;
+    if (hs) hs.innerHTML = "<div><dt>Share price</dt><dd>" + F.usd(p.price, 0) + "</dd></div><div><dt>Median value</dt><dd>" + F.usd(st.median, 0) + '</dd></div><div><dt>Verdict</dt><dd><span class="pill pill--sm pill--' + st.verdict + '">' + st.verdict + "</span></dd></div>";
   }
 
   /* ---------------- results shell (built once per stock) ---------------- */
@@ -176,8 +240,8 @@
       '<nav class="tabs" aria-label="Sections"><div class="wrap tabs__in">' + tabs.map(function (t, i) { return '<a class="tab' + (i ? "" : " on") + '" href="#' + t[0] + '" data-s="' + t[0] + '">' + t[1] + "</a>"; }).join("") + "</div></nav>" +
       '<canvas class="rain rain--res" id="rainRes" aria-hidden="true"></canvas>' +
       '<div class="wrap res">' +
-      '<div class="head" id="overview"><h2>' + esc(inp.name) + ' <span class="head__tk">' + esc(inp.ticker) + '</span></h2><div class="head__meta">' + (inp.exchange ? esc(inp.exchange) + " · " : "") + "Price as of " + esc(inp.asOf) + " · Financials to " + esc(inp.ttmEnd) + " · Data: " + esc(inp.source || (inp.manual ? "entered by you" : inp.live ? "live data provider" : "checked built-in figures")) + "</div></div>" +
-      '<p class="bridge" style="margin:18px 0 -10px">Step 1 · The answer: what Plumbline thinks the stock is worth</p><div id="rVerdict"></div>' +
+      '<div class="head" id="overview"><h2>' + esc(inp.name) + ' <span class="head__tk">' + esc(inp.ticker) + '</span></h2><div class="head__meta">' + (inp.exchange ? '<span>' + esc(inp.exchange) + "</span>" : "") + '<span>Price as of ' + esc(inp.asOf) + "</span></div></div>" +
+      '<p class="bridge" style="margin:18px 0 -10px">Step 1 · What Plumbline thinks the stock is worth</p><div id="rVerdict"></div>' +
       '<section class="sec" id="quality"><p class="bridge">Step 2 · Is the business behind the stock any good?</p><h2>Business quality scorecard</h2><p class="sec__lede">The valuation above says whether the stock is cheap. This scorecard says whether the business is good. It grades the company on 13 measures across three areas, using its own financial statements. Each measure scores Strong, Good or Weak, and core measures count double.</p><div id="rQuality"></div></section>' +
       '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is the Plumbline value (the median of the nine) and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#4cb782"></i>Undervalued</span><span><i style="background:#c9a75a"></i>Fair</span><span><i style="background:#d66b63"></i>Overvalued</span><span><i class="sq" style="background:#8fb4e6"></i>Plumbline value (median)</span></div></div></section>' +
       '<section class="sec" id="methods"><p class="bridge">Step 4 · Each of the nine methods in detail</p><h2>How each method got its number</h2><p class="sec__lede">Select a method to see why it is used, where it works best and how its number was built from this company\'s own figures.</p><p class="swipe-hint">Swipe to see all nine methods. Tap one for the full calculation.</p><div class="mlist" id="rMethods"></div></section>' +
@@ -277,7 +341,7 @@
     var spread = st.max / st.min;
     var qRow = q && q.ok ? '<dt>Business quality</dt><dd><a href="#quality" class="qlink" style="color:' + scoreCol(q.score) + '">' + q.grade + " · " + Math.round(q.score) + "/100</a></dd>" : "";
     var html =
-      '<div class="verdict"><div class="verdict__main"><p class="verdict__label">Estimated intrinsic value per share (median of ' + st.n + ' methods)</p>' +
+      '<div class="verdict"><div class="verdict__main"><p class="verdict__label">Estimated intrinsic value per share</p>' +
       '<p class="verdict__value" id="vNum">' + F.usd(st.median) + "</p>" +
       '<p class="verdict__sum">The share price is ' + F.usd(inp.price) + ". The median value is <strong class=\"" + cls(st.upside, s) + "\">" + F.spct(st.upside) + (st.upside >= 0 ? " above" : " below").replace("+", "") + "</strong> the price. " + line + " " + st.above + " of " + st.n + " methods value the stock above its price." +
       (st.n < r.methods.length ? " " + (r.methods.length - st.n) + " method(s) could not be calculated for this stock (" + r.methods.filter(function (m) { return !fin(m.value); }).map(function (m) { return m.short; }).join(", ") + "), so the median uses the other " + st.n + "." : "") + (spread > 3 ? " The methods are far apart (" + F.usd(st.min, 0) + " to " + F.usd(st.max, 0) + "), which is why the median is used instead of a plain average." : "") + "</p></div>" +
@@ -291,14 +355,21 @@
     var dk = $("dock");
     if (dk) dk.innerHTML = '<b>' + esc(inp.ticker) + '</b><span class="dock__v">' + F.usd(st.median, 0) + '</span><span class="dock__up ' + cls(st.upside, s) + '">' + F.spct(st.upside, 0) + '</span><span class="pill pill--sm pill--' + v + '">' + v + "</span>" + (q && q.ok ? '<span class="dock__q" style="color:' + scoreCol(q.score) + '">' + q.grade + "</span>" : "") + '<span class="dock__up-arrow" aria-hidden="true">↑</span>';
   }
+  /* The headline value "decodes": each digit flickers through random figures and locks in from left to right. */
   function countUp(el, to) {
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    var t0 = performance.now(), d = 900;
+    var final = F.usd(to), t0 = performance.now(), d = 950, last = 0;
     (function f(t) {
-      var k = Math.min(1, (t - t0) / d), e = 1 - Math.pow(1 - k, 3);
-      el.textContent = F.usd(to * e); if (k < 1) requestAnimationFrame(f); else el.textContent = F.usd(to);
+      var k = Math.min(1, (t - t0) / d);
+      if (t - last > 45 || k >= 1) {
+        last = t; var out = "", n = final.length;
+        for (var i = 0; i < n; i++) { var ch = final[i]; out += /\d/.test(ch) && k < (i + 1) / (n + 1) + .1 ? String((Math.random() * 10) | 0) : ch; }
+        el.textContent = k >= 1 ? final : out;
+      }
+      if (k < 1) requestAnimationFrame(f);
     })(t0);
   }
+
 
   /* ---------------- business quality ---------------- */
   var LEVEL_CLS = { Strong: "lv--s", Good: "lv--g", Weak: "lv--w", "n/a": "lv--n" };
@@ -411,7 +482,7 @@
     var inp = r.inputs, T = inp.ttm, b = r.base, w = r.wacc;
     var all = inp.caveats || [], li = function (c) { return "<li>" + esc(c) + "</li>"; };
     var wasOpen = $("cavMore") && $("cavMore").open;
-    $("rCav").innerHTML = '<p class="sec__lede">The most important notes about this result. Every model rests on data and assumptions that can be wrong.</p><ul class="cav">' + all.slice(0, 3).map(li).join("") + "</ul>" +
+    $("rCav").innerHTML = '<p class="sec__lede">The most important notes about this result. Every model rests on data and assumptions that can be wrong.</p><p class="srcline">Data: ' + esc(inp.source || (inp.manual ? "entered by you" : inp.live ? "live data provider" : "checked built-in figures")) + (inp.ttmEnd ? " · Financials to " + esc(inp.ttmEnd) : "") + (inp.asOf ? " · Price as of " + esc(inp.asOf) : "") + '</p><ul class="cav">' + all.slice(0, 3).map(li).join("") + "</ul>" +
       (all.length > 3 ? '<details class="qmore" id="cavMore"' + (wasOpen ? " open" : "") + '><summary>Show ' + (all.length - 3) + " more note" + (all.length - 3 === 1 ? "" : "s") + '</summary><ul class="cav" style="margin-top:10px">' + all.slice(3).map(li).join("") + "</ul></details>" : "");
     renderRatios(r);
     var row = function (a, b2) { return "<tr><td>" + a + "</td><td>" + b2 + "</td></tr>"; };
@@ -524,6 +595,9 @@
       if (dy > 90) closeSheet();
     });
     startRain();
+    makeRain($("rainHow"), function () { return true; });
+    wireSug("heroInput", "heroSug"); wireSug("barInput", "barSug");
+    document.addEventListener("click", function (e) { if (!e.target.closest || !e.target.closest(".search")) closeSug(); });
     var q = new URLSearchParams(location.search).get("t");
     var hm = $("heroManual"); if (hm) hm.addEventListener("click", function () { showManual({}); });
     drawHero(true);

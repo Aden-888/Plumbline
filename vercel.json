@@ -8,6 +8,7 @@
   "routes": [
     { "src": "/api/stock", "dest": "/api/stock.js" },
     { "src": "/api/health", "dest": "/api/health.js" },
+    { "src": "/api/search", "dest": "/api/search.js" },
     { "handle": "filesystem" },
     { "src": "/", "dest": "/index.html" }
   ]

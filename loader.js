@@ -13,6 +13,8 @@ function loadAny(t) {
     return LiveData.load(t, KEY).catch(function (fmpErr) { fmpErr.suggest = edErr.suggest || fmpErr.suggest; fmpErr.message = edErr.message; throw fmpErr; });
   });
 }
-function cleanTicker(s) { return String(s || "").toUpperCase().replace(/[^A-Z0-9.\-]/g, "").slice(0, 12); }
+/* Keeps what someone typed as a ticker or a company name (letters, digits, spaces, . - & '), at most 60 characters. */
+function cleanTicker(s) { return String(s || "").replace(/[^A-Za-z0-9.\-&' ]/g, "").replace(/\s+/g, " ").trim().slice(0, 60); }
+function searchAny(q, n) { return Edgar.search(q, n); }
 
-module.exports = { loadAny: loadAny, cleanTicker: cleanTicker };
+module.exports = { loadAny: loadAny, cleanTicker: cleanTicker, searchAny: searchAny };

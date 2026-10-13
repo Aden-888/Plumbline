@@ -48,8 +48,14 @@ http.createServer(function (req, res) {
     res.writeHead(401, { "WWW-Authenticate": 'Basic realm="Plumbline", charset="UTF-8"', "Content-Type": "text/plain" });
     return res.end("Password required.");
   }
+  if (u.pathname === "/api/search") {
+    var sq = Loader.cleanTicker(u.searchParams.get("q"));
+    if (!sq) return send(res, 200, []);
+    Loader.searchAny(sq, 6).then(function (l) { send(res, 200, l); }, function () { send(res, 200, []); });
+    return;
+  }
   if (u.pathname === "/api/stock") {
-    var t = (u.searchParams.get("t") || "").toUpperCase().replace(/[^A-Z0-9.\-]/g, "");
+    var t = Loader.cleanTicker(u.searchParams.get("t")).toUpperCase();
     if (!t) return send(res, 400, { error: "Enter a ticker." });
     var hit = cache[t];
     if (hit && Date.now() - hit.at < TTL) return send(res, 200, hit.data);
@@ -65,5 +71,5 @@ http.createServer(function (req, res) {
     res.end(buf);
   });
 }).listen(PORT, function () {
-  console.log("Plumbline v2.3.1 is running at http://localhost:" + PORT + "\nData source: " + (SOURCE === "fmp" ? "FMP only" : "SEC filings + Yahoo prices (free), " + (KEY ? "FMP as backup" : "no key needed")) + (process.env.SEC_CONTACT ? "" : "\nTip: add SEC_CONTACT=your@email to a .env file. The SEC asks apps to identify themselves.") + (PASS ? "\nPassword protection is on." : ""));
+  console.log("Plumbline v2.4 is running at http://localhost:" + PORT + "\nData source: " + (SOURCE === "fmp" ? "FMP only" : "SEC filings + Yahoo prices (free), " + (KEY ? "FMP as backup" : "no key needed")) + (process.env.SEC_CONTACT ? "" : "\nTip: add SEC_CONTACT=your@email to a .env file. The SEC asks apps to identify themselves.") + (PASS ? "\nPassword protection is on." : ""));
 });

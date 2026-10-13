@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Plumbline: what is a stock actually worth?</title>
-<meta name="description" content="Plumbline values a stock nine different ways, takes the middle value and grades the quality of the business, showing every step in plain language.">
+<meta name="description" content="Plumbline estimates what a stock is worth using several valuation methods, takes the middle value and grades the quality of the business, showing every step in plain language.">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#040a16">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,8 +21,9 @@
       <span>Plumbline</span>
     </button>
     <form class="search bar__search hidden" id="barForm" autocomplete="off" role="search">
-      <input id="barInput" aria-label="Stock ticker" placeholder="Ticker, e.g. NVDA" maxlength="10" spellcheck="false">
+      <input id="barInput" aria-label="Stock ticker or company name" placeholder="Ticker or company" maxlength="40" spellcheck="false" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="barSug">
       <button type="submit">Value it</button>
+      <ul class="sug" id="barSug" role="listbox" hidden></ul>
     </form>
     <nav class="bar__nav" aria-label="Sections">
       <a href="#how">How it works</a>
@@ -37,20 +38,25 @@
     <canvas class="rain" id="rain" aria-hidden="true"></canvas>
     <div class="wrap hero__grid">
       <div>
-        <p class="hero__eyebrow">Equity research, made readable</p>
+        <p class="hero__eyebrow"><span class="eb-dot" aria-hidden="true"></span>Intrinsic value, calculated</p>
         <h1>What is this stock actually worth?</h1>
-        <p class="hero__lede">Plumbline values a company nine different ways, takes the middle value and grades the quality of the business. Type a ticker to see the answer, and every step behind it, in plain language.</p>
+        <p class="hero__lede">Plumbline runs a stock through several proven valuation methods and takes the middle result as its estimate of fair value. It also grades the business behind the stock, so you can see both the price and the quality.</p>
+        <p class="hero__hint">Search any US-listed company by ticker or name to see the answer and every step behind it.</p>
         <form class="search search--big" id="heroForm" autocomplete="off" role="search">
-          <input id="heroInput" aria-label="Stock ticker" placeholder="Type a ticker, e.g. NVDA" maxlength="10" spellcheck="false" autofocus>
+          <input id="heroInput" aria-label="Stock ticker or company name" placeholder="e.g. AAPL or Apple" maxlength="40" spellcheck="false" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="heroSug" autofocus>
           <button type="submit">Value<span class="hide-sm"> this stock</span></button>
+          <ul class="sug" id="heroSug" role="listbox" hidden></ul>
         </form>
-        <div class="try">Try one: <button class="chip" data-t="NVDA">NVDA</button><button class="chip" data-t="CRM">CRM</button></div>
-        <p class="try" style="margin-top:10px">Stock not loading? <button class="btn" id="heroManual" type="button">Enter the numbers yourself</button></p>
         <div id="heroMsg"></div>
       </div>
       <figure class="hero__fig" style="margin:0">
-        <div class="chart" id="heroChart" role="img" aria-label="Nine valuation estimates for NVIDIA placed on a price line, with the median marked"></div>
-        <figcaption class="hero__cap">Each dot is one valuation method for NVIDIA (NVDA). They disagree, so Plumbline uses the middle value instead of trusting any single one.</figcaption>
+        <div class="ex__head">
+          <div><span class="ex__tag">Example</span><p class="ex__title">One stock, nine estimates</p></div>
+          <dl class="ex__stats" id="heroStats"></dl>
+        </div>
+        <div class="chart" id="heroChart" role="img" aria-label="Example: nine valuation estimates for one stock placed on a price line, with the median and the share price marked"></div>
+        <div class="ex__legend" aria-hidden="true"><span><i class="lg lg--buy"></i>20%+ above price</span><span><i class="lg lg--hold"></i>Within 20%</span><span><i class="lg lg--sell"></i>20%+ below price</span></div>
+        <figcaption class="hero__cap">Each dot is one valuation method applied to the same stock. The methods rarely agree, so Plumbline takes the middle estimate (the median) as its answer, rather than trusting any single one.</figcaption>
       </figure>
     </div>
   </section>
@@ -69,30 +75,52 @@
 
   <!-- how it works -->
   <section class="sec" id="how">
+    <canvas class="rain rain--how" id="rainHow" aria-hidden="true"></canvas>
     <div class="wrap">
+      <p class="kicker">The method</p>
       <h2>How Plumbline works</h2>
       <p class="sec__lede">A stock's price is what people pay today. Its intrinsic value is what the business is worth based on the cash and profit it is expected to make. Plumbline estimates that value in four steps.</p>
       <ol class="steps">
         <li><h3>Collect the numbers</h3><p>Price, shares, cash, debt, sales, profit and cash flow for the last 12 months, plus five years of valuation ratios and analyst forecasts.</p></li>
         <li><h3>Forecast the future</h3><p>Growth for the next two years comes from analyst forecasts. After that it fades step by step towards long-run economic growth (3%) over 20 years.</p></li>
-        <li><h3>Value it nine ways</h3><p>Four cash-flow and profit models, three "normal multiple" checks and two growth-adjusted checks. Each method looks at the company from a different angle.</p></li>
-        <li><h3>Take the middle</h3><p>The median of the nine values is the headline. If it is 20% or more above the price the model says BUY. If it is 20% or more below, SELL. Otherwise, HOLD.</p></li>
+        <li><h3>Value it several ways</h3><p>Four cash-flow and profit models, three "normal multiple" checks and two growth-adjusted checks. Each method looks at the company from a different angle.</p></li>
+        <li><h3>Take the middle</h3><p>The median (middle) value is the headline. If it is 20% or more above the price the model says BUY. If it is 20% or more below, SELL. Otherwise, HOLD.</p></li>
       </ol>
-      <div class="sec" style="padding-top:44px">
-        <h2>Why average nine methods?</h2>
-        <p class="sec__lede">Every method rests on assumptions, and each can be wrong in its own way. A cash-flow model is very sensitive to the discount rate. A multiple-based method assumes the past repeats. A growth-adjusted method depends on a benchmark that is partly a judgement call. When several independent methods land in a similar place, you can trust the answer more. When they are far apart, that spread is itself a warning. Using the median means one extreme method cannot drag the result.</p>
+      <div class="sec ex-sec" style="padding-top:56px">
+        <p class="kicker">Why the median</p>
+        <h2>Why not trust just one method?</h2>
+        <p class="sec__lede">Every valuation method rests on assumptions, and each one can be wrong in its own way. Looking at several methods together shows where they agree and where they don't.</p>
+        <div class="blind">
+          <div class="blind__i"><h3>Cash flow models</h3><p>Very sensitive to the discount rate. A small change in the rate can move the value a lot.</p></div>
+          <div class="blind__i"><h3>Valuation multiples</h3><p>Assume the stock will trade at its usual P/E, P/S or P/B. That only holds if the past repeats.</p></div>
+          <div class="blind__i"><h3>Growth-adjusted checks</h3><p>Compare price with growth against a benchmark, and that benchmark is partly a judgement call.</p></div>
+        </div>
+        <div class="takeaways">
+          <div><b>Close together</b><span>When several independent methods land in a similar place, you can trust the answer more.</span></div>
+          <div><b>Far apart</b><span>A wide spread is itself a warning that the value is hard to pin down.</span></div>
+          <div><b>The median</b><span>Taking the middle value means one extreme method cannot drag the result up or down.</span></div>
+        </div>
       </div>
-      <div class="sec" style="padding-top:44px">
-        <h2>How the business quality score works</h2>
-        <p class="sec__lede">A cheap stock is only a good buy if the business behind it is sound. The scorecard grades the company on 13 measures taken from its own financial statements. Each measure scores Strong (2 points), Good (1 point) or Weak (0 points). The four core measures (ROIC, ROE, free cash flow to net income and free cash flow growth) count double, because profit that turns into cash is the clearest sign of a healthy business.</p>
-        <ol class="steps steps--3">
-          <li><h3>Earnings &amp; cash flow (45%)</h3><p>ROIC, ROE, free cash flow to net income, free cash flow growth, net profit margin and gross profit margin.</p></li>
-          <li><h3>Balance sheet (30%)</h3><p>Debt to equity, debt to EBITDA, interest coverage and retained earnings. Can the company repay its debts and still fund growth?</p></li>
-          <li><h3>Growth outlook (25%)</h3><p>Yearly growth in earnings per share and revenue, and how consistently revenue has grown.</p></li>
+      <div class="sec ex-sec" style="padding-top:56px">
+        <p class="kicker">Business quality</p>
+        <h2>How the quality score works</h2>
+        <p class="sec__lede">A cheap stock is only a good buy if the business behind it is sound. The scorecard grades the company on 13 measures taken from its own financial statements.</p>
+        <div class="pts">
+          <span class="pts__i"><b>2</b>Strong</span><span class="pts__i"><b>1</b>Good</span><span class="pts__i"><b>0</b>Weak</span>
+          <span class="pts__note">Each measure earns points. The four core measures count double, because profit that turns into cash is the clearest sign of a healthy business.</span>
+        </div>
+        <ol class="pillars">
+          <li><div class="pillars__top"><h3>Earnings &amp; cash flow</h3><span>45%</span></div><div class="wbar"><i style="width:45%"></i></div><p>ROIC, ROE, free cash flow to net income and free cash flow growth (the four core measures), plus net and gross profit margin.</p></li>
+          <li><div class="pillars__top"><h3>Balance sheet</h3><span>30%</span></div><div class="wbar"><i style="width:30%"></i></div><p>Debt to equity, debt to EBITDA, interest coverage and retained earnings. Can the company repay its debts and still fund growth?</p></li>
+          <li><div class="pillars__top"><h3>Growth outlook</h3><span>25%</span></div><div class="wbar"><i style="width:25%"></i></div><p>Yearly growth in earnings per share and revenue, and how consistently revenue has grown.</p></li>
         </ol>
-        <p class="sec__lede" style="margin-top:18px">The three areas combine into a score out of 100 and a grade from A to F. The grade sits next to the BUY, HOLD or SELL verdict, so you can tell a good business at a good price apart from a weak business that is only cheap.</p>
+        <div class="grades">
+          <div class="grades__scale"><span class="g g--a">A<small>80+</small></span><span class="g g--b">B<small>65+</small></span><span class="g g--c">C<small>50+</small></span><span class="g g--d">D<small>35+</small></span><span class="g g--f">F<small>below 35</small></span></div>
+          <p>The three areas combine into a score out of 100 and a grade. The grade sits next to the BUY, HOLD or SELL verdict, so you can tell a good business at a fair price apart from a weak business that is only cheap.</p>
+        </div>
       </div>
-      <div class="sec" id="glossary" style="padding-top:44px">
+      <div class="sec" id="glossary" style="padding-top:56px">
+        <p class="kicker">Key terms</p>
         <h2>Glossary</h2>
         <div class="gloss">
           <details><summary>Intrinsic value</summary><p>An estimate of what a business is really worth, based on the cash and profit it can produce, rather than on the day-to-day share price.</p></details>

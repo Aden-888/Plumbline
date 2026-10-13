@@ -1,4 +1,4 @@
-# Plumbline v2.3.1: stock intrinsic value and business quality
+# Plumbline v2.4: stock intrinsic value and business quality
 
 A static website (no build step). Open `index.html` in a browser, or upload the folder to any static host
 (Netlify, Vercel, GitHub Pages, Cloudflare Pages).
@@ -14,6 +14,16 @@ Data sources (all free, no key): company financials from SEC EDGAR filings, pric
 Analyst estimates are not available there, so growth for the first years comes from the company's own past growth (labelled on the page).
 Optional: add `FMP_API_KEY=...` to `.env` to use Financial Modeling Prep as a backup (foreign companies), or set `DATA_SOURCE=fmp` if you pay for FMP and want its analyst estimates.
 Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example ASML) and very recent listings need the manual entry form.
+
+## v2.4 changes: smarter search, clearer home page
+- Search understands company names and typos. "apple" opens Apple (AAPL), "google" opens Alphabet, "jp morgan" opens JPMorgan. A near miss such as "nvdia" or "microsfot" shows "Did you mean" choices with company names. The SEC list is ordered by company size, so the biggest matching company comes first.
+- Suggestions appear under both search boxes as you type (new `/api/search` endpoint, `api/search.js` on Vercel). Arrow keys and Enter work.
+- Home page: the Plumbline name shows next to the icon on phones; new eyebrow "Intrinsic value, calculated"; shorter intro that no longer says "nine"; a separate line inviting a search; the "Try one" and "Enter the numbers yourself" rows are gone (manual entry is still offered when a search fails).
+- The home chart is framed as an example (share price, median value and verdict above it, a colour key below, and a general caption).
+- "Why not trust just one method?" and "How the quality score works" are now cards: three method blind spots, three takeaways, the points scale, the three areas with weight bars and the A-F grade scale.
+- Result pages: the header shows only the exchange and price date; the data source and financials date moved to "Things to know". "The answer:" was removed from Step 1 and the value label is shorter.
+- More Matrix, kept subtle: the headline value "decodes" digit by digit when a stock loads, a faint signal light pulses next to the eyebrow, and a light rain falls behind "How Plumbline works".
+- Chart labels have a dark outline and sit above the median line, so they stay readable where they cross it.
 
 ## v2.3.1 changes: the same rain on every result, and phone fixes
 - The digital rain now also falls behind the company name at the top of each result (for example Salesforce), so the result page opens with the same look as the home page. It fades out before the verdict card and stops when you scroll past it or search another stock.
@@ -129,6 +139,7 @@ Notes:
 - `api.js`: live data for other tickers (Financial Modeling Prep API). Used by both the browser and `server.js`.
 - `edgar.js`: free data source (SEC EDGAR + Yahoo). Server only. Also collects the scorecard figures.
 - `check.js`: command-line test for one ticker.
+- `api/search.js`: Vercel function for search suggestions (`/api/search?q=`).
 - `server.js`: tiny server (no dependencies) that serves the site and keeps your API key private.
 - `manual.js`: the manual entry form.
 - `charts.js`, `app.js`, `style.css`, `index.html`: charts, page logic and the dark theme.

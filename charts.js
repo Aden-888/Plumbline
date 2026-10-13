@@ -37,6 +37,7 @@
     s.push('<line x1="' + x(price) + '" x2="' + x(price) + '" y1="26" y2="' + (axisY + 2) + '" stroke="#e8ecf5" stroke-width="1.5" stroke-dasharray="4 4" opacity=".8"/>');
     s.push('<text x="' + x(price) + '" y="' + (axisY + 38) + '" text-anchor="middle" class="lbl">Price ' + usd0(price) + "</text>");
 
+    var dotsAt = s.length; /* vertical marker lines are slotted in here, under the dots and their labels */
     /* dots, sorted so label lanes can alternate */
     var sorted = ms.slice().sort(function (a, b) { return a.value - b.value; });
     var lanes = narrow ? 6 : 4, laneH = narrow ? 21 : 26;
@@ -68,14 +69,14 @@
       ];
       mk.forEach(function (k) {
         var cx = x(k.v);
-        s.push('<line x1="' + cx + '" x2="' + cx + '" y1="' + k.y + '" y2="' + (axisY) + '" stroke="' + (k.main ? C.accent : "#93a3ba") + '" stroke-width="' + (k.main ? 2 : 1) + '" opacity="' + (k.main ? 1 : .5) + '"/>');
+        s.splice(dotsAt++, 0, '<line x1="' + cx + '" x2="' + cx + '" y1="' + k.y + '" y2="' + (axisY) + '" stroke="' + (k.main ? C.accent : "#93a3ba") + '" stroke-width="' + (k.main ? 2 : 1) + '" opacity="' + (k.main ? 1 : .5) + '"/>');
         s.push('<rect x="' + (cx - 5) + '" y="' + (k.y - 5) + '" width="10" height="10" transform="rotate(45 ' + cx + " " + k.y + ')" fill="' + (k.main ? C.accent : "#040a16") + '" stroke="' + (k.main ? C.accent : "#93a3ba") + '" stroke-width="1.5"/>');
         var right = cx < W * .7;
         s.push('<text x="' + (cx + (right ? 12 : -12)) + '" y="' + (k.y + 4) + '" text-anchor="' + (right ? "start" : "end") + '" class="lbl" style="fill:' + (k.main ? C.accent : "#e8ecf5") + '">' + k.n + " " + usd0(k.v) + "</text>");
       });
     } else {
       var mx = x(med);
-      s.push('<line x1="' + mx + '" x2="' + mx + '" y1="14" y2="' + axisY + '" stroke="' + C.accent + '" stroke-width="2"/>');
+      s.splice(dotsAt, 0, '<line x1="' + mx + '" x2="' + mx + '" y1="14" y2="' + axisY + '" stroke="' + C.accent + '" stroke-width="2"/>');
       s.push('<rect x="' + (mx - 6) + '" y="8" width="12" height="12" transform="rotate(45 ' + mx + ' 14)" fill="' + C.accent + '"/>');
       var right = mx < W * .72;
       s.push('<text x="' + (mx + (right ? 14 : -14)) + '" y="18" text-anchor="' + (right ? "start" : "end") + '" class="lbl" style="fill:' + C.accent + '">Median ' + usd0(med) + "</text>");

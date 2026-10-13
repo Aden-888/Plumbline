@@ -6,7 +6,7 @@ var Loader = require("../loader.js");
 module.exports = async function (req, res) {
   var q = req.query || {};
   if (!q.t && req.url) { try { q.t = new URL(req.url, "http://x").searchParams.get("t"); } catch (e) {} }
-  var t = Loader.cleanTicker(q.t);
+  var t = Loader.cleanTicker(q.t).toUpperCase();
   res.setHeader("Content-Type", "application/json");
   if (!t) { res.statusCode = 400; return res.end(JSON.stringify({ error: "Enter a ticker." })); }
   try {
