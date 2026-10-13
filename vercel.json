@@ -10,6 +10,7 @@
     { "src": "/api/health", "dest": "/api/health.js" },
     { "src": "/api/search", "dest": "/api/search.js" },
     { "src": "/api/tickers", "dest": "/api/tickers.js" },
+    { "src": "/api/quote", "dest": "/api/quote.js" },
     { "handle": "filesystem" },
     { "src": "/", "dest": "/index.html" }
   ]

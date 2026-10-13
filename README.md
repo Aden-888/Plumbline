@@ -1,4 +1,4 @@
-# Plumbline v2.5: stock intrinsic value and business quality
+# Plumbline v2.6: stock intrinsic value and business quality
 
 A static website (no build step). Open `index.html` in a browser, or upload the folder to any static host
 (Netlify, Vercel, GitHub Pages, Cloudflare Pages).
@@ -14,6 +14,13 @@ Data sources (all free, no key): company financials from SEC EDGAR filings, pric
 Analyst estimates are not available there, so growth for the first years comes from the company's own past growth (labelled on the page).
 Optional: add `FMP_API_KEY=...` to `.env` to use Financial Modeling Prep as a backup (foreign companies), or set `DATA_SOURCE=fmp` if you pay for FMP and want its analyst estimates.
 Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example ASML) and very recent listings need the manual entry form.
+
+## v2.6 changes: live price vs intrinsic value, and a price chart
+- The top of every result now puts the latest share price (marked Live, with today's change and the update time) next to the intrinsic value, with a clear "X% undervalued" or "X% overvalued" badge. The figure is (price - value) / value, the same way most research sites quote it. The upside figure is still shown beside it.
+- A gauge shows where the price sits against the BUY, HOLD and SELL ranges around the intrinsic value.
+- New "Share price vs intrinsic value" chart (1M, 6M, 1Y, 5Y), drawn by Plumbline in the site's own style: the price line, today's intrinsic value as a dashed line, and faint BUY and SELL zones. Hover or touch to read the price and how far it was from the value on any day.
+- `/api/quote?t=TICKER&range=1y` (`api/quote.js`) returns the latest price, the previous close and the price history from Yahoo Finance, cached for one minute. The page refreshes the price every minute while a result is open, and the verdict updates with it. Built-in stocks keep their checked figures; only the price is refreshed.
+- Chose a built-in chart over an embedded TradingView widget: it matches the theme, has no third-party branding, and can draw the intrinsic value and BUY/SELL zones on the chart.
 
 ## v2.5 changes: instant search
 - Suggestions now appear on every keystroke with no wait. The matching engine (`search-core.js`) runs in the browser and is shared with the server, so both give the same answers.
@@ -151,6 +158,7 @@ Notes:
 - `edgar.js`: free data source (SEC EDGAR + Yahoo). Server only. Also collects the scorecard figures.
 - `check.js`: command-line test for one ticker.
 - `search-core.js`: the search engine (names, tickers, typos), used by the browser and the server.
+- `api/quote.js`: Vercel function for the live price and price history (`/api/quote`).
 - `api/tickers.js`: Vercel function that returns the full company list for instant suggestions (`/api/tickers`).
 - `api/search.js`: Vercel function for search suggestions (`/api/search?q=`), used until the full list has loaded.
 - `server.js`: tiny server (no dependencies) that serves the site and keeps your API key private.

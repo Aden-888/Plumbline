@@ -222,7 +222,8 @@
   }
 
   function show(inp) {
-    state.inputs = inp;
+    inp = Object.assign({}, inp); /* own copy, so a live price never changes the built-in figures */
+    state.inputs = inp; state.quote = null; state.qcache = {}; state.range = "1y"; state.seq = (state.seq || 0) + 1;
     state.defaults = Object.assign(IV.defaultSettings(inp), inp.settings || {});
     state.settings = Object.assign({}, state.defaults);
     state.open = {};
@@ -233,6 +234,7 @@
     document.title = inp.ticker + " intrinsic value | Plumbline";
     buildShell(); update(true);
     window.scrollTo({ top: 0 });
+    wirePx(); loadQuote(state.range, true);
   }
   function home() {
     $("results").classList.add("hidden"); $("loading").classList.add("hidden");
@@ -282,8 +284,13 @@
       '<nav class="tabs" aria-label="Sections"><div class="wrap tabs__in">' + tabs.map(function (t, i) { return '<a class="tab' + (i ? "" : " on") + '" href="#' + t[0] + '" data-s="' + t[0] + '">' + t[1] + "</a>"; }).join("") + "</div></nav>" +
       '<canvas class="rain rain--res" id="rainRes" aria-hidden="true"></canvas>' +
       '<div class="wrap res">' +
-      '<div class="head" id="overview"><h2>' + esc(inp.name) + ' <span class="head__tk">' + esc(inp.ticker) + '</span></h2><div class="head__meta">' + (inp.exchange ? '<span>' + esc(inp.exchange) + "</span>" : "") + '<span>Price as of ' + esc(inp.asOf) + "</span></div></div>" +
+      '<div class="head" id="overview"><h2>' + esc(inp.name) + ' <span class="head__tk">' + esc(inp.ticker) + '</span></h2><div class="head__meta">' + (inp.exchange ? '<span>' + esc(inp.exchange) + "</span>" : "") + '<span id="hdPrice">Price as of ' + esc(inp.asOf) + "</span></div></div>" +
       '<p class="bridge" style="margin:18px 0 -10px">Step 1 · What Plumbline thinks the stock is worth</p><div id="rVerdict"></div>' +
+      '<div class="pxc" id="pxCard"><div class="pxc__head"><div><h3>Share price vs intrinsic value</h3><p class="pxc__sub" id="pxSub">Loading price history…</p></div>' +
+      '<div class="seg" id="pxRange" role="group" aria-label="Time range"><button type="button" data-r="1mo">1M</button><button type="button" data-r="6mo">6M</button><button type="button" data-r="1y" class="on">1Y</button><button type="button" data-r="5y">5Y</button></div></div>' +
+      '<div class="pxc__chart" id="pxChart"><div class="pxc__skel"></div></div>' +
+      '<div class="pxc__legend" aria-hidden="true"><span><i class="lk lk--px"></i>Share price</span><span><i class="lk lk--iv"></i>Intrinsic value today</span><span><i class="lk lk--buy"></i>BUY zone</span><span><i class="lk lk--sell"></i>SELL zone</span></div>' +
+      '<p class="pxc__note">Hover or touch the chart to see the price on any day. The intrinsic value line is today\'s estimate, drawn across the whole period so you can see how far the price has moved around it.</p></div>' +
       '<section class="sec" id="quality"><p class="bridge">Step 2 · Is the business behind the stock any good?</p><h2>Business quality scorecard</h2><p class="sec__lede">The valuation above says whether the stock is cheap. This scorecard says whether the business is good. It grades the company on 13 measures across three areas, using its own financial statements. Each measure scores Strong, Good or Weak, and core measures count double.</p><div id="rQuality"></div></section>' +
       '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is the Plumbline value (the median of the nine) and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#4cb782"></i>Undervalued</span><span><i style="background:#c9a75a"></i>Fair</span><span><i style="background:#d66b63"></i>Overvalued</span><span><i class="sq" style="background:#8fb4e6"></i>Plumbline value (median)</span></div></div></section>' +
       '<section class="sec" id="methods"><p class="bridge">Step 4 · Each of the nine methods in detail</p><h2>How each method got its number</h2><p class="sec__lede">Select a method to see why it is used, where it works best and how its number was built from this company\'s own figures.</p><p class="swipe-hint">Swipe to see all nine methods. Tap one for the full calculation.</p><div class="mlist" id="rMethods"></div></section>' +
@@ -383,14 +390,11 @@
     var spread = st.max / st.min;
     var qRow = q && q.ok ? '<dt>Business quality</dt><dd><a href="#quality" class="qlink" style="color:' + scoreCol(q.score) + '">' + q.grade + " · " + Math.round(q.score) + "/100</a></dd>" : "";
     var html =
-      '<div class="verdict"><div class="verdict__main"><p class="verdict__label">Estimated intrinsic value per share</p>' +
-      '<p class="verdict__value" id="vNum">' + F.usd(st.median) + "</p>" +
-      '<p class="verdict__sum">The share price is ' + F.usd(inp.price) + ". The median value is <strong class=\"" + cls(st.upside, s) + "\">" + F.spct(st.upside) + (st.upside >= 0 ? " above" : " below").replace("+", "") + "</strong> the price. " + line + " " + st.above + " of " + st.n + " methods value the stock above its price." +
+      '<div class="verdict"><div class="verdict__main">' + pvHtml(r) +
+      '<p class="verdict__sum">The intrinsic value is <strong class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + (st.upside >= 0 ? " above" : " below").replace("+", "") + "</strong> the share price. " + line + " " + st.above + " of " + st.n + " methods value the stock above its price." +
       (st.n < r.methods.length ? " " + (r.methods.length - st.n) + " method(s) could not be calculated for this stock (" + r.methods.filter(function (m) { return !fin(m.value); }).map(function (m) { return m.short; }).join(", ") + "), so the median uses the other " + st.n + "." : "") + (spread > 3 ? " The methods are far apart (" + F.usd(st.min, 0) + " to " + F.usd(st.max, 0) + "), which is why the median is used instead of a plain average." : "") + "</p></div>" +
       '<div class="verdict__side"><span class="pill pill--' + v + '"><i></i>' + v + "</span>" +
-      '<div><div class="zone"><span class="' + (v === "SELL" ? "on-SELL" : "") + '"></span><span class="' + (v === "HOLD" ? "on-HOLD" : "") + '"></span><span class="' + (v === "BUY" ? "on-BUY" : "") + '"></span></div>' +
-      '<div class="zone__labels"><span>SELL ≤ ' + F.spct(s.sell, 0) + "</span><span>HOLD</span><span>BUY ≥ " + F.spct(s.buy, 0) + "</span></div></div>" +
-      '<dl class="kv"><dt>Share price</dt><dd>' + F.usd(inp.price) + "</dd><dt>Median value</dt><dd>" + F.usd(st.median) + "</dd><dt>Upside / (downside)</dt><dd class=\"" + cls(st.upside, s) + "\">" + F.spct(st.upside) + "</dd><dt>Average of all nine</dt><dd>" + F.usd(st.mean) + "</dd>" +
+      '<p class="verdict__rule">BUY at ' + F.spct(s.buy, 0) + ' upside or more · SELL at ' + F.spct(s.sell, 0) + ' or worse</p><dl class="kv"><dt>Upside / (downside)</dt><dd class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + "</dd><dt>Average of all nine</dt><dd>" + F.usd(st.mean) + "</dd>" +
       (inp.est.target ? "<dt>Analyst average target</dt><dd>" + F.usd(inp.est.target) + "</dd>" : "") + qRow + "</dl></div></div>";
     $("rVerdict").innerHTML = html;
     if (initial) countUp($("vNum"), st.median);
@@ -398,6 +402,72 @@
     if (dk) dk.innerHTML = '<b>' + esc(inp.ticker) + '</b><span class="dock__v">' + F.usd(st.median, 0) + '</span><span class="dock__up ' + cls(st.upside, s) + '">' + F.spct(st.upside, 0) + '</span><span class="pill pill--sm pill--' + v + '">' + v + "</span>" + (q && q.ok ? '<span class="dock__q" style="color:' + scoreCol(q.score) + '">' + q.grade + "</span>" : "") + '<span class="dock__up-arrow" aria-hidden="true">↑</span>';
   }
   /* The headline value "decodes": each digit flickers through random figures and locks in from left to right. */
+  /* ---------------- price vs intrinsic value ---------------- */
+  function pvHtml(r) {
+    var st = r.stats, inp = r.inputs, s = r.settings, v = st.verdict, iv = st.median, px = inp.price, q = state.quote;
+    var gap = (px - iv) / iv, under = gap < 0, pct = Math.abs(gap * 100);
+    var chg = q && q.prevClose ? q.price - q.prevClose : null;
+    var qd = q && q.time ? new Date(q.time) : null, today = qd && qd.toDateString() === new Date().toDateString();
+    var when = qd ? (today ? "" : qd.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", ") + qd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "As of " + esc(inp.asOf || "");
+    var sub = (chg != null ? '<span class="' + (chg >= 0 ? "pos" : "neg") + '">' + (chg >= 0 ? "+" : "−") + Math.abs(chg).toFixed(2) + " (" + (chg >= 0 ? "+" : "−") + Math.abs(chg / q.prevClose * 100).toFixed(2) + "%) today</span> · " : "") + when;
+    /* the gauge: where the price sits against the BUY, HOLD and SELL ranges around the intrinsic value */
+    var buyMax = iv / (1 + s.buy), sellMin = iv / (1 + s.sell), D = Math.max(px * 1.12, sellMin * 1.18);
+    var pc = function (v) { return Math.max(0, Math.min(100, v / D * 100)).toFixed(2) + "%"; };
+    return '<div class="pv"><div class="pv__c"><p class="pv__k"><span><span class="hide-sm">Share </span>price</span>' + (q ? ' <span class="live"><i></i>Live</span>' : "") + '</p><p class="pv__v" id="pvPrice">' + F.usd(px) + '</p><p class="pv__s">' + sub + "</p></div>" +
+      '<div class="pv__c"><p class="pv__k">Intrinsic value</p><p class="pv__v pv__v--iv" id="vNum">' + F.usd(iv) + '</p><p class="pv__s">Median of ' + st.n + " valuation methods</p></div></div>" +
+      '<div class="gapb gapb--' + v + '"><b>' + pct.toFixed(1) + "% " + (under ? "undervalued" : "overvalued") + "</b><span>The share price is " + pct.toFixed(1) + "% " + (under ? "below" : "above") + " its intrinsic value</span></div>" +
+      '<div class="gauge" role="img" aria-label="Share price ' + F.usd(px) + " against intrinsic value " + F.usd(iv) + '"><div class="gauge__bar">' +
+      '<span class="gz gz--buy" style="width:' + pc(buyMax) + '"></span><span class="gz gz--hold" style="left:' + pc(buyMax) + ";width:calc(" + pc(sellMin) + " - " + pc(buyMax) + ')"></span><span class="gz gz--sell" style="left:' + pc(sellMin) + ';right:0"></span>' +
+      '<span class="gm gm--iv" style="left:' + pc(iv) + '"><em>Value ' + F.usd(iv, 0) + '</em></span><span class="gm gm--px" style="left:' + pc(px) + '"><em>Price ' + F.usd(px, 0) + "</em></span></div>" +
+      '<div class="gauge__lab"><span>BUY</span><span>HOLD</span><span>SELL</span></div></div>';
+  }
+  function loadQuote(range, first) {
+    var inp = state.inputs, my = state.seq;
+    if (!inp || inp.manual || window.PLUMBLINE_STATIC || location.protocol.indexOf("http") !== 0) { pxFallback(); return; }
+    if (state.qcache[range] && !first) { useQuote(state.qcache[range]); return; }
+    fetch("/api/quote?t=" + encodeURIComponent(inp.ticker) + "&range=" + range).then(function (r) { return r.ok ? r.json() : null; }, function () { return null; }).then(function (q) {
+      if (my !== state.seq) return;
+      if (!q || !q.points || !q.price) { pxFallback(); return; }
+      state.qcache[range] = q; useQuote(q);
+    });
+  }
+  function useQuote(q) {
+    var inp = state.inputs;
+    if (q.range === state.range) {
+      var priceMoved = !state.quote || Math.abs(inp.price - q.price) > 1e-6;
+      if (q.prevClose || !state.quote) state.quote = q;
+      var hd = $("hdPrice"); if (hd) hd.textContent = "Live price";
+      if (priceMoved) { inp.price = q.price; update(false); }
+      else renderVerdict(state.result, false);
+      drawPx();
+    }
+  }
+  function pxFallback() {
+    var sub = $("pxSub"); if (sub) sub.textContent = "Live prices are not available here. Showing the price the valuation used.";
+    var el = $("pxChart"); if (el) el.innerHTML = '<p class="pxc__empty">Price history is not available right now.</p>';
+  }
+  function drawPx() {
+    var q = state.qcache[state.range], el = $("pxChart"), r = state.result; if (!q || !el || !r) return;
+    Charts.price(el, q.points, r.stats.median, r.settings, state.range);
+    var p0 = q.points[0][1], p1 = q.points[q.points.length - 1][1], ch = (p1 - p0) / p0;
+    var names = { "1mo": "past month", "6mo": "past 6 months", "1y": "past year", "5y": "past 5 years" };
+    $("pxSub").innerHTML = 'Price <span class="' + (ch >= 0 ? "pos" : "neg") + '">' + (ch >= 0 ? "+" : "−") + Math.abs(ch * 100).toFixed(1) + "%</span> over the " + names[state.range];
+  }
+  function wirePx() {
+    var seg = $("pxRange"); if (!seg) return;
+    seg.addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b || b.dataset.r === state.range) return;
+      seg.querySelectorAll("button").forEach(function (x) { x.classList.toggle("on", x === b); });
+      state.range = b.dataset.r; loadQuote(state.range);
+    });
+  }
+  /* keep the price fresh while a result is open (every minute, only when the tab is visible) */
+  setInterval(function () {
+    if (document.hidden || !state.inputs || $("results").classList.contains("hidden") || !state.quote) return;
+    delete state.qcache[state.range]; loadQuote(state.range);
+  }, 60000);
+  window.addEventListener("resize", function () { clearTimeout(state.pxT); state.pxT = setTimeout(drawPx, 200); });
+
   function countUp(el, to) {
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     var final = F.usd(to), t0 = performance.now(), d = 950, last = 0;

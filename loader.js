@@ -17,5 +17,6 @@ function loadAny(t) {
 function cleanTicker(s) { return String(s || "").replace(/[^A-Za-z0-9.\-&' ]/g, "").replace(/\s+/g, " ").trim().slice(0, 60); }
 function searchAny(q, n) { return Edgar.search(q, n); }
 function tickerList() { return Edgar.tickerList(); }
+function quote(t, range) { return Edgar.quote(t, range); }
 
-module.exports = { loadAny: loadAny, cleanTicker: cleanTicker, searchAny: searchAny, tickerList: tickerList };
+module.exports = { loadAny: loadAny, cleanTicker: cleanTicker, searchAny: searchAny, tickerList: tickerList, quote: quote };

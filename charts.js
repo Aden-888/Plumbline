@@ -120,6 +120,72 @@
     return el;
   }
 
+  /* Share price over time with today's intrinsic value as a reference line, and the BUY / SELL zones behind it.
+     Hover or drag a finger across the chart to read the price on any day. */
+  function price(el, pts, iv, s, range) {
+    var W = Math.max(300, el.clientWidth || 900), narrow = W < 560, H = narrow ? 230 : 300;
+    var L = 8, R = narrow ? 58 : 72, T = 14, B = 26, iw = W - L - R, ih = H - T - B;
+    if (!pts || pts.length < 2) { el.innerHTML = '<p class="pxc__empty">Price history is not available right now.</p>'; return; }
+    var buyMax = iv / (1 + s.buy), sellMin = iv / (1 + s.sell);
+    var vals = pts.map(function (p) { return p[1]; }), lo = Math.min.apply(null, vals.concat([iv])), hi = Math.max.apply(null, vals.concat([iv]));
+    var pad = (hi - lo) * .08 || hi * .05; lo = Math.max(0, lo - pad); hi = hi + pad;
+    var t0 = pts[0][0], t1 = pts[pts.length - 1][0];
+    var x = function (t) { return L + (t - t0) / Math.max(1, t1 - t0) * iw; }, y = function (v) { return T + (1 - (v - lo) / (hi - lo)) * ih; };
+    var clampY = function (v) { return Math.max(T, Math.min(T + ih, y(v))); };
+    var o = ['<svg viewBox="0 0 ' + W + " " + H + '" width="' + W + '" height="' + H + '" class="pxsvg">',
+      '<defs><linearGradient id="pxFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#e7edf6" stop-opacity=".14"/><stop offset="1" stop-color="#e7edf6" stop-opacity="0"/></linearGradient></defs>'];
+    /* zones */
+    if (buyMax > lo) o.push('<rect x="' + L + '" y="' + clampY(buyMax) + '" width="' + iw + '" height="' + (T + ih - clampY(buyMax)) + '" fill="' + C.buy + '" opacity=".07"/>');
+    if (sellMin < hi) o.push('<rect x="' + L + '" y="' + T + '" width="' + iw + '" height="' + (clampY(sellMin) - T) + '" fill="' + C.sell + '" opacity=".07"/>');
+    /* grid and price axis */
+    var step = niceStep(hi - lo, narrow ? 3 : 4), g0 = Math.ceil(lo / step) * step;
+    for (var g = g0; g <= hi; g += step) {
+      o.push('<line class="grid" x1="' + L + '" x2="' + (L + iw) + '" y1="' + y(g) + '" y2="' + y(g) + '"/>');
+      o.push('<text x="' + (W - 4) + '" y="' + (y(g) + 4) + '" text-anchor="end" class="ax">' + usd0(g) + "</text>");
+    }
+    /* date labels */
+    var n = narrow ? 3 : 5, fmt = function (t) { var d = new Date(t); return range === "5y" ? String(d.getFullYear()) : range === "1y" ? d.toLocaleDateString("en-US", { month: "short", year: "2-digit" }) : d.toLocaleDateString("en-US", { month: "short", day: "numeric" }); };
+    for (var k = 0; k < n; k++) { var tt = t0 + (t1 - t0) * (k + .5) / n; o.push('<text x="' + x(tt) + '" y="' + (H - 6) + '" text-anchor="middle" class="ax">' + fmt(tt) + "</text>"); }
+    /* price line and area */
+    var d = pts.map(function (p, i) { return (i ? "L" : "M") + x(p[0]).toFixed(1) + " " + y(p[1]).toFixed(1); }).join("");
+    o.push('<path d="' + d + "L" + x(t1).toFixed(1) + " " + (T + ih) + "L" + x(t0).toFixed(1) + " " + (T + ih) + 'Z" fill="url(#pxFill)"/>');
+    o.push('<path d="' + d + '" fill="none" stroke="#e7edf6" stroke-width="1.8" stroke-linejoin="round" class="pxline"/>');
+    /* intrinsic value line */
+    o.push('<line x1="' + L + '" x2="' + (L + iw) + '" y1="' + y(iv) + '" y2="' + y(iv) + '" stroke="' + C.accent + '" stroke-width="1.6" stroke-dasharray="6 5"/>');
+    o.push('<rect x="' + (L + iw + 4) + '" y="' + (y(iv) - 10) + '" width="' + (R - 6) + '" height="20" rx="5" fill="' + C.accent + '"/>');
+    o.push('<text x="' + (L + iw + 4 + (R - 6) / 2) + '" y="' + (y(iv) + 4) + '" text-anchor="middle" class="tag tag--iv">' + usd0(iv) + "</text>");
+    /* last price */
+    var last = pts[pts.length - 1];
+    o.push('<circle cx="' + x(last[0]) + '" cy="' + y(last[1]) + '" r="4" fill="#e7edf6" stroke="#08111f" stroke-width="2"/>');
+    if (Math.abs(y(last[1]) - y(iv)) > 22) {
+      o.push('<rect x="' + (L + iw + 4) + '" y="' + (y(last[1]) - 10) + '" width="' + (R - 6) + '" height="20" rx="5" fill="#e7edf6"/>');
+      o.push('<text x="' + (L + iw + 4 + (R - 6) / 2) + '" y="' + (y(last[1]) + 4) + '" text-anchor="middle" class="tag tag--px">' + usd0(last[1]) + "</text>");
+    }
+    /* hover read-out */
+    o.push('<line class="pxhair" x1="0" x2="0" y1="' + T + '" y2="' + (T + ih) + '" visibility="hidden"/><circle class="pxdot" r="4.5" cx="0" cy="0" visibility="hidden"/>');
+    o.push('<rect class="pxhit" x="' + L + '" y="' + T + '" width="' + iw + '" height="' + ih + '" fill="transparent"/></svg><div class="pxtip" hidden></div>');
+    el.innerHTML = o.join("");
+    var svg = el.querySelector("svg"), hair = el.querySelector(".pxhair"), dot = el.querySelector(".pxdot"), tip = el.querySelector(".pxtip");
+    function at(ev) {
+      var r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * (W / r.width);
+      var tt = t0 + (px - L) / iw * (t1 - t0), a = 0, b = pts.length - 1;
+      while (b - a > 1) { var m = (a + b) >> 1; if (pts[m][0] < tt) a = m; else b = m; }
+      var p = Math.abs(pts[a][0] - tt) < Math.abs(pts[b][0] - tt) ? pts[a] : pts[b], cx = x(p[0]), cy = y(p[1]);
+      hair.setAttribute("x1", cx); hair.setAttribute("x2", cx); hair.setAttribute("visibility", "visible");
+      dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("visibility", "visible");
+      var gap = (p[1] - iv) / iv, dd = new Date(p[0]);
+      tip.innerHTML = "<span>" + dd.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }) + "</span><b>$" + p[1].toFixed(2) + "</b><em>" + Math.abs(gap * 100).toFixed(0) + "% " + (gap < 0 ? "below" : "above") + " value</em>";
+      tip.hidden = false;
+      var tw = tip.offsetWidth, left = cx / W * r.width;
+      tip.style.left = Math.max(0, Math.min(r.width - tw, left - tw / 2)) + "px";
+      tip.style.top = "0px";
+    }
+    function off() { hair.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); tip.hidden = true; }
+    var hit = el.querySelector(".pxhit");
+    hit.addEventListener("pointermove", at); hit.addEventListener("pointerdown", at); hit.addEventListener("pointerleave", off);
+    hit.addEventListener("touchend", function () { setTimeout(off, 1400); });
+  }
+
   /* Dots slide in from the left and settle. Used once, on the landing page. */
   function settle(el) {
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -237,5 +303,5 @@
       '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="2.6" fill="' + color + '"/></svg>';
   }
 
-  window.Charts = { strip: strip, dotplot: dotplot, bars: bars, settle: settle, lines: lines, ring: ring, spark: spark };
+  window.Charts = { strip: strip, dotplot: dotplot, price: price, bars: bars, settle: settle, lines: lines, ring: ring, spark: spark };
 })();

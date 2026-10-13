@@ -1,1 +1,1 @@
-{ "name": "plumbline", "version": "2.5.0", "private": true, "scripts": { "start": "node server.js" }, "engines": { "node": ">=18" } }
+{ "name": "plumbline", "version": "2.6.0", "private": true, "scripts": { "start": "node server.js" }, "engines": { "node": ">=18" } }

@@ -185,6 +185,23 @@ function yahoo(sym, range) {
     return { meta: r.meta || {}, bars: bars, splits: splits };
   });
 }
+/* Latest price and price history for the chart. range: 1mo, 6mo, 1y or 5y (5y uses weekly points). */
+var QUOTE_INT = { "1mo": "1d", "6mo": "1d", "1y": "1d", "5y": "1wk" };
+function quote(sym, range) {
+  range = QUOTE_INT[range] ? range : "1y";
+  var url = YF + "v8/finance/chart/" + encodeURIComponent(String(sym).toUpperCase().replace(/\./g, "-")) + "?range=" + range + "&interval=" + QUOTE_INT[range];
+  return getJSON(url, BROWSER_UA, "the price data source").then(function (j) {
+    var r = j && j.chart && j.chart.result && j.chart.result[0];
+    if (!r || !r.timestamp) throw fail("No price data was found for " + sym + ".");
+    var m = r.meta || {}, c = r.indicators.quote[0].close, pts = [];
+    r.timestamp.forEach(function (ts, i) { if (c[i] != null) pts.push([ts * 1000, Math.round(c[i] * 100) / 100]); });
+    var price = m.regularMarketPrice != null ? m.regularMarketPrice : (pts.length ? pts[pts.length - 1][1] : null);
+    /* the day's change needs daily points: the close before the latest one */
+    var prev = QUOTE_INT[range] === "1d" && pts.length > 1 ? pts[pts.length - 2][1] : (m.previousClose != null ? m.previousClose : null);
+    return { symbol: m.symbol || sym, price: price, prevClose: prev, time: (m.regularMarketTime || 0) * 1000, currency: m.currency || "USD",
+      exchange: m.fullExchangeName || m.exchangeName || "", range: range, points: pts };
+  });
+}
 function monthKey(ms) { var d = new Date(ms); return d.getUTCFullYear() * 12 + d.getUTCMonth(); }
 function barAt(bars, endDate) {
   var k = monthKey(Date.parse(endDate)), best = null;
@@ -413,4 +430,4 @@ function load(input) {
   });
 }
 
-module.exports = { load: load, resolve: resolve, search: search, tickerList: tickerList, _setTickers: _setTickers, _build: build, _ttm: ttm, _collect: collect };
+module.exports = { load: load, quote: quote, resolve: resolve, search: search, tickerList: tickerList, _setTickers: _setTickers, _build: build, _ttm: ttm, _collect: collect };
