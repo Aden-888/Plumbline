@@ -20,7 +20,8 @@ Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example
 - `api/stock.js` and `api/health.js` are Vercel serverless functions. Vercel serves the other files as a normal website, so the page works unchanged.
 - Each ticker is cached at Vercel's edge for 10 minutes.
 - Setup: put these files in a GitHub repository (never `.env`), import it at vercel.com (Framework Preset: Other, no build command), add the environment variable `SEC_CONTACT` = your email, and deploy.
-- Vercel Hobby (free) is for personal, non-commercial use. Functions stop after 60 seconds; `vercel.json` sets 30.
+- Vercel Hobby (free) is for personal, non-commercial use. Functions stop after 60 seconds.
+- `vercel.json` lists exactly what to build: the files in `api/` run as functions, and every other file is served as-is. Without it, Vercel mistakes `server.js` / `app.js` for a Node server and the home page fails with FUNCTION_INVOCATION_FAILED.
 - `SITE_PASSWORD` only applies to `server.js`, not to Vercel.
 
 ## v1.9.3 changes (hosting)
