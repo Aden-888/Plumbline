@@ -148,7 +148,7 @@
         if (sub) o.push('<text class="nm2" x="' + labW + '" y="' + (cy + 12) + '" text-anchor="end">' + esc(sub) + "</text>");
       }
       if (!fin(v)) { o.push('<text x="' + (x0 + 8) + '" y="' + (cy + 4) + '">Not available</text>'); return; }
-      o.push('<rect x="' + x0 + '" y="' + (cy - bh / 2) + '" width="' + Math.max(2, x(v) - x0) + '" height="' + bh + '" rx="3" fill="' + col + '" stroke="#e9eef5" stroke-opacity=".55"><title>' + esc(name) + ": " + usd0(v) + "</title></rect>");
+      o.push('<rect class="barr" style="animation-delay:' + (i * 55) + 'ms" x="' + x0 + '" y="' + (cy - bh / 2) + '" width="' + Math.max(2, x(v) - x0) + '" height="' + bh + '" rx="3" fill="' + col + '" stroke="#e9eef5" stroke-opacity=".35"><title>' + esc(name) + ": " + usd0(v) + "</title></rect>");
       o.push('<text class="val" x="' + (x(v) + 8) + '" y="' + (cy + 4) + '">' + usd2(v) + "</text>");
     }
     ms.forEach(function (m, i) {
@@ -171,8 +171,8 @@
   function ring(score, color) {
     var R = 54, c = 2 * Math.PI * R, k = Math.max(0, Math.min(100, score)) / 100;
     return '<svg viewBox="0 0 140 140" width="140" height="140" aria-hidden="true">' +
-      '<circle cx="70" cy="70" r="' + R + '" fill="none" stroke="#14293f" stroke-width="12"/>' +
-      '<circle cx="70" cy="70" r="' + R + '" fill="none" stroke="' + color + '" stroke-width="12" stroke-linecap="round" stroke-dasharray="' + (c * k).toFixed(1) + " " + c.toFixed(1) + '" transform="rotate(-90 70 70)"/></svg>';
+      '<circle cx="70" cy="70" r="' + R + '" fill="none" stroke="#132238" stroke-width="10"/>' +
+      '<circle class="ringarc" style="--off:' + c.toFixed(1) + '" cx="70" cy="70" r="' + R + '" fill="none" stroke="' + color + '" stroke-width="10" stroke-linecap="round" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + (c * (1 - k)).toFixed(1) + '" transform="rotate(-90 70 70)"/></svg>';
   }
   function spark(values, color) {
     var v = values.filter(fin);

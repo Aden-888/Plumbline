@@ -6,9 +6,10 @@
 <title>Plumbline: what is a stock actually worth?</title>
 <meta name="description" content="Plumbline values a stock nine different ways, takes the middle value and grades the quality of the business, showing every step in plain language.">
 <meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#050b14">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700;800&family=Hanken+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -52,7 +53,14 @@
     </div>
   </section>
 
-  <div id="loading" class="loading hidden" role="status"><div class="spinner"></div><span id="loadingText">Loading data…</span></div>
+  <div id="loading" class="loading hidden" role="status">
+    <div class="wrap skel" aria-hidden="true">
+      <div class="skel__line skel__line--title"></div>
+      <div class="skel__card"><div class="skel__line skel__line--sm"></div><div class="skel__line skel__line--big"></div><div class="skel__line"></div><div class="skel__line skel__line--short"></div></div>
+      <div class="skel__row"><div class="skel__card skel__card--sm"></div><div class="skel__card skel__card--sm"></div><div class="skel__card skel__card--sm"></div></div>
+    </div>
+    <p class="loading__text"><span class="spinner"></span><span id="loadingText">Loading data…</span></p>
+  </div>
 
   <!-- results -->
   <div id="results" class="hidden"></div>

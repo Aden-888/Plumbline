@@ -133,6 +133,7 @@
   function home() {
     $("results").classList.add("hidden"); $("loading").classList.add("hidden");
     $("hero").classList.remove("hidden"); $("barForm").classList.add("hidden");
+    closeSheet();
     try { history.replaceState(null, "", location.pathname); } catch (e) {}
     document.title = "Plumbline: what is a stock actually worth?";
     drawHero(true); window.scrollTo({ top: 0 });
@@ -178,7 +179,7 @@
       '<p class="bridge" style="margin:18px 0 -10px">Step 1 · The answer: what Plumbline thinks the stock is worth</p><div id="rVerdict"></div>' +
       '<section class="sec" id="quality"><p class="bridge">Step 2 · Is the business behind the stock any good?</p><h2>Business quality scorecard</h2><p class="sec__lede">The valuation above says whether the stock is cheap. This scorecard says whether the business is good. It grades the company on 13 measures across three areas, using its own financial statements. Each measure scores Strong, Good or Weak, and core measures count double.</p><div id="rQuality"></div></section>' +
       '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is the Plumbline value (the median of the nine) and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#46b86e"></i>Undervalued</span><span><i style="background:#f2cf4a"></i>Fair</span><span><i style="background:#e0594a"></i>Overvalued</span><span><i class="sq" style="background:#a9d4a0"></i>Plumbline value (median)</span></div></div></section>' +
-      '<section class="sec" id="methods"><p class="bridge">Step 4 · Each of the nine methods in detail</p><h2>How each method got its number</h2><p class="sec__lede">Select a method to see why it is used, where it works best and how its number was built from this company\'s own figures.</p><div class="mlist" id="rMethods"></div></section>' +
+      '<section class="sec" id="methods"><p class="bridge">Step 4 · Each of the nine methods in detail</p><h2>How each method got its number</h2><p class="sec__lede">Select a method to see why it is used, where it works best and how its number was built from this company\'s own figures.</p><p class="swipe-hint">Swipe to see all nine methods. Tap one for the full calculation.</p><div class="mlist" id="rMethods"></div></section>' +
       '<section class="sec" id="average"><p class="bridge">Step 5 · The methods disagree, so here\'s how one number is chosen</p><h2>How nine values become one</h2><div id="rAvgText"></div><div class="card"><div class="chart" id="rStats"></div></div><div class="avg" id="rAvg"></div></section>' +
       '<section class="sec" id="forecast"><p class="bridge">Step 6 · The cash flow methods depend on a forecast. Here\'s what it assumes</p><h2>What the forecast assumes</h2><p class="sec__lede" id="rProjText"></p>' +
       '<div class="card tscroll"><table class="tbl tbl--proj" id="rProjTbl"></table></div>' +
@@ -190,7 +191,8 @@
       '<details class="more" id="dataMore"><summary><span>Source data for analysts</span><small>Valuation ratios, the company figures used, and how the discount rate was built</small></summary><div class="more__body">' +
       '<p class="tlabel">How the market priced the stock at each year-end. The "mean multiple" methods use these averages.</p><div class="card tscroll" id="rRatios"></div>' +
       '<div class="two" style="margin-top:16px"><div><p class="tlabel">The company figures every calculation starts from.</p><div class="card" id="rIn"></div></div><div><p class="tlabel">How the discount rate (the yearly return investors expect) was built.</p><div class="card" id="rWacc"></div></div></div></div></details></section>' +
-      "</div>";
+      "</div>" +
+      '<button class="dock" id="dock" type="button" aria-label="Back to the verdict"></button>';
     $("results").querySelectorAll("input[type=range]").forEach(function (el) {
       el.addEventListener("input", function () { state.settings[el.dataset.k] = parseFloat(el.value); sync(); schedule(); });
     });
@@ -202,10 +204,47 @@
     links.forEach(function (l) { l.addEventListener("click", function () { links.forEach(function (x) { x.classList.toggle("on", x === l); }); }); });
     if ("IntersectionObserver" in window) {
       var io = new IntersectionObserver(function (es) {
-        es.forEach(function (e) { if (e.isIntersecting) links.forEach(function (l) { l.classList.toggle("on", l.dataset.s === e.target.id); }); });
+        es.forEach(function (e) { if (e.isIntersecting) links.forEach(function (l) { var on = l.dataset.s === e.target.id; l.classList.toggle("on", on); if (on) followTab(l); }); });
       }, { rootMargin: "-130px 0px -65% 0px" });
       SECTIONS.forEach(function (id) { var el = $(id); if (el) io.observe(el); });
+      /* sections ease in as they reach the screen (skipped when the device asks for reduced motion) */
+      var rv = new IntersectionObserver(function (es) {
+        es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add("in"); rv.unobserve(e.target); } });
+      }, { rootMargin: "0px 0px -8% 0px" });
+      $("results").querySelectorAll(".sec").forEach(function (el) { el.classList.add("rv"); rv.observe(el); });
+      /* on phones, a slim verdict bar appears once the verdict card has scrolled away */
+      var dv = new IntersectionObserver(function (es) {
+        es.forEach(function (e) { $("dock").classList.toggle("show", !e.isIntersecting && e.boundingClientRect.top < 0); });
+      });
+      dv.observe($("rVerdict"));
     }
+    $("dock").addEventListener("click", function () { window.scrollTo({ top: 0, behavior: smooth() }); });
+    $("rMethods").addEventListener("click", function (e) {
+      var sm = e.target.closest && e.target.closest("details.m > summary");
+      if (!sm || !phone()) return;
+      e.preventDefault();
+      var d = sm.parentNode, body = d.querySelector(".m__body"), nm = d.querySelector(".m__name");
+      openSheet(nm ? nm.innerHTML : "", '<div class="sheet__val">' + d.querySelector(".m__valcell").innerHTML + "</div>" + (body ? body.innerHTML : ""));
+    });
+  }
+  function phone() { return window.matchMedia && window.matchMedia("(max-width: 860px)").matches; }
+  function smooth() { return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"; }
+  function followTab(l) {
+    var box = l.parentNode; if (!box || box.scrollWidth <= box.clientWidth) return;
+    box.scrollTo({ left: Math.max(0, l.offsetLeft - box.clientWidth / 2 + l.clientWidth / 2), behavior: smooth() });
+  }
+  /* bottom sheet: method details slide up from the bottom on phones */
+  function openSheet(title, html) {
+    var sh = $("sheet"); if (!sh) return;
+    $("sheetTitle").innerHTML = title; $("sheetBody").innerHTML = html; $("sheetBody").scrollTop = 0;
+    sh.hidden = false; requestAnimationFrame(function () { sh.classList.add("open"); });
+    document.documentElement.classList.add("noscroll");
+    $("sheetClose").focus();
+  }
+  function closeSheet() {
+    var sh = $("sheet"); if (!sh || sh.hidden) return;
+    sh.classList.remove("open"); document.documentElement.classList.remove("noscroll");
+    setTimeout(function () { if (!sh.classList.contains("open")) sh.hidden = true; }, 260);
   }
   var raf = null;
   function schedule() { if (raf) return; raf = requestAnimationFrame(function () { raf = null; update(false); }); }
@@ -225,6 +264,7 @@
     renderVerdict(r, initial); renderQuality(r); renderMethods(r); renderAvg(r); renderProj(r); renderData(r);
     Charts.bars($("rBars"), r); Charts.strip($("rStats"), r, { stats: true });
     if ($("projMore") && $("projMore").open) drawProj(r);
+    if (initial) { var rb = $("rBars"), rq = $("rQuality"); rb.classList.add("grow"); if (rq) rq.classList.add("grow"); setTimeout(function () { rb.classList.remove("grow"); if (rq) rq.classList.remove("grow"); }, 1600); }
   }
 
   function renderVerdict(r, initial) {
@@ -246,6 +286,8 @@
       (inp.est.target ? "<dt>Analyst average target</dt><dd>" + F.usd(inp.est.target) + "</dd>" : "") + qRow + "</dl></div></div>";
     $("rVerdict").innerHTML = html;
     if (initial) countUp($("vNum"), st.median);
+    var dk = $("dock");
+    if (dk) dk.innerHTML = '<b>' + esc(inp.ticker) + '</b><span class="dock__v">' + F.usd(st.median, 0) + '</span><span class="dock__up ' + cls(st.upside, s) + '">' + F.spct(st.upside, 0) + '</span><span class="pill pill--sm pill--' + v + '">' + v + "</span>" + (q && q.ok ? '<span class="dock__q" style="color:' + scoreCol(q.score) + '">' + q.grade + "</span>" : "") + '<span class="dock__up-arrow" aria-hidden="true">↑</span>';
   }
   function countUp(el, to) {
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -408,6 +450,23 @@
         if (!$("hero").classList.contains("hidden")) drawHero(false);
         else if (state.result) update(false);
       }, 150);
+    });
+    /* the bottom sheet used on phones */
+    var sh = document.createElement("div");
+    sh.className = "sheet"; sh.id = "sheet"; sh.hidden = true;
+    sh.innerHTML = '<div class="sheet__scrim" data-close="1"></div><div class="sheet__panel" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">' +
+      '<div class="sheet__grip" data-close="1" aria-hidden="true"></div><div class="sheet__head"><h3 id="sheetTitle"></h3><button type="button" class="sheet__x" id="sheetClose" aria-label="Close">×</button></div><div class="sheet__body" id="sheetBody"></div></div>';
+    document.body.appendChild(sh);
+    sh.addEventListener("click", function (e) { if (e.target.dataset && e.target.dataset.close) closeSheet(); });
+    $("sheetClose").addEventListener("click", closeSheet);
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeSheet(); });
+    /* drag the panel down to close it */
+    var y0 = null, panel = sh.querySelector(".sheet__panel");
+    panel.addEventListener("touchstart", function (e) { if ($("sheetBody").scrollTop <= 0) y0 = e.touches[0].clientY; }, { passive: true });
+    panel.addEventListener("touchmove", function (e) { if (y0 == null) return; var dy = e.touches[0].clientY - y0; if (dy > 0) panel.style.transform = "translateY(" + dy + "px)"; }, { passive: true });
+    panel.addEventListener("touchend", function (e) {
+      if (y0 == null) return; var dy = e.changedTouches[0].clientY - y0; y0 = null; panel.style.transform = "";
+      if (dy > 90) closeSheet();
     });
     var q = new URLSearchParams(location.search).get("t");
     var hm = $("heroManual"); if (hm) hm.addEventListener("click", function () { showManual({}); });
