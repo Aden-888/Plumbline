@@ -6,6 +6,8 @@
     { "src": "*.js", "use": "@vercel/static" }
   ],
   "routes": [
+    { "src": "/api/stock", "dest": "/api/stock.js" },
+    { "src": "/api/health", "dest": "/api/health.js" },
     { "handle": "filesystem" },
     { "src": "/", "dest": "/index.html" }
   ]

@@ -27,6 +27,7 @@
           if (r.ok) return r.json();
           return r.json().catch(function () { return {}; }).then(function (j) {
             if (r.status === 502 || r.status === 400) { var er = new Error(j.error || "Could not load data."); er.suggest = j.suggest; throw er; }
+            if (r.status >= 500) throw new Error("The live data service is not responding right now (error " + r.status + "). Try again in a minute, or enter the numbers yourself.");
             return null; /* 404 (static host) or 503 (server has no key): use the visitor's key */
           });
         }, function () { return null; })
