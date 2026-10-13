@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plumbline: what is a stock actually worth?</title>
+<meta name="description" content="Plumbline values a stock nine different ways, takes the middle value and grades the quality of the business, showing every step in plain language.">
+<meta name="color-scheme" content="dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap bar__in">
+    <button class="brand" id="home" aria-label="Plumbline home">
+      <svg width="22" height="26" viewBox="0 0 22 26" aria-hidden="true"><path d="M11 0v16" stroke="#d9bf86" stroke-width="1.6"/><path d="M11 15l5 5-5 6-5-6z" fill="#d9bf86"/></svg>
+      <span>Plumbline</span>
+    </button>
+    <form class="search bar__search hidden" id="barForm" autocomplete="off" role="search">
+      <input id="barInput" aria-label="Stock ticker" placeholder="Ticker, e.g. NVDA" maxlength="10" spellcheck="false">
+      <button type="submit">Value it</button>
+    </form>
+    <nav class="bar__nav" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#glossary">Glossary</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- landing -->
+  <section class="hero" id="hero">
+    <div class="wrap hero__grid">
+      <div>
+        <h1>What is this stock actually worth?</h1>
+        <p class="hero__lede">Plumbline values a company nine different ways, takes the middle value and grades the quality of the business. Type a ticker to see the answer, and every step behind it, in plain language.</p>
+        <form class="search search--big" id="heroForm" autocomplete="off" role="search">
+          <input id="heroInput" aria-label="Stock ticker" placeholder="Type a ticker, e.g. NVDA" maxlength="10" spellcheck="false" autofocus>
+          <button type="submit">Value this stock</button>
+        </form>
+        <div class="try">Try one: <button class="chip" data-t="NVDA">NVDA</button><button class="chip" data-t="CRM">CRM</button></div>
+        <p class="try" style="margin-top:10px">Stock not loading? <button class="btn" id="heroManual" type="button">Enter the numbers yourself</button></p>
+        <div id="heroMsg"></div>
+      </div>
+      <figure class="hero__fig" style="margin:0">
+        <div class="chart" id="heroChart" role="img" aria-label="Nine valuation estimates for NVIDIA placed on a price line, with the median marked"></div>
+        <figcaption class="hero__cap">Each dot is one valuation method for NVIDIA (NVDA). They disagree, so Plumbline uses the middle value instead of trusting any single one.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <div id="loading" class="loading hidden" role="status"><div class="spinner"></div><span id="loadingText">Loading data…</span></div>
+
+  <!-- results -->
+  <div id="results" class="hidden"></div>
+
+  <!-- how it works -->
+  <section class="sec" id="how">
+    <div class="wrap">
+      <h2>How Plumbline works</h2>
+      <p class="sec__lede">A stock's price is what people pay today. Its intrinsic value is what the business is worth based on the cash and profit it is expected to make. Plumbline estimates that value in four steps.</p>
+      <ol class="steps">
+        <li><h3>Collect the numbers</h3><p>Price, shares, cash, debt, sales, profit and cash flow for the last 12 months, plus five years of valuation ratios and analyst forecasts.</p></li>
+        <li><h3>Forecast the future</h3><p>Growth for the next two years comes from analyst forecasts. After that it fades step by step towards long-run economic growth (3%) over 20 years.</p></li>
+        <li><h3>Value it nine ways</h3><p>Four cash-flow and profit models, three "normal multiple" checks and two growth-adjusted checks. Each method looks at the company from a different angle.</p></li>
+        <li><h3>Take the middle</h3><p>The median of the nine values is the headline. If it is 20% or more above the price the model says BUY. If it is 20% or more below, SELL. Otherwise, HOLD.</p></li>
+      </ol>
+      <div class="sec" style="padding-top:44px">
+        <h2>Why average nine methods?</h2>
+        <p class="sec__lede">Every method rests on assumptions, and each can be wrong in its own way. A cash-flow model is very sensitive to the discount rate. A multiple-based method assumes the past repeats. A growth-adjusted method depends on a benchmark that is partly a judgement call. When several independent methods land in a similar place, you can trust the answer more. When they are far apart, that spread is itself a warning. Using the median means one extreme method cannot drag the result.</p>
+      </div>
+      <div class="sec" style="padding-top:44px">
+        <h2>How the business quality score works</h2>
+        <p class="sec__lede">A cheap stock is only a good buy if the business behind it is sound. The scorecard grades the company on 13 measures taken from its own financial statements. Each measure scores Strong (2 points), Good (1 point) or Weak (0 points). The four core measures (ROIC, ROE, free cash flow to net income and free cash flow growth) count double, because profit that turns into cash is the clearest sign of a healthy business.</p>
+        <ol class="steps steps--3">
+          <li><h3>Earnings &amp; cash flow (45%)</h3><p>ROIC, ROE, free cash flow to net income, free cash flow growth, net profit margin and gross profit margin.</p></li>
+          <li><h3>Balance sheet (30%)</h3><p>Debt to equity, debt to EBITDA, interest coverage and retained earnings. Can the company repay its debts and still fund growth?</p></li>
+          <li><h3>Growth outlook (25%)</h3><p>Yearly growth in earnings per share and revenue, and how consistently revenue has grown.</p></li>
+        </ol>
+        <p class="sec__lede" style="margin-top:18px">The three areas combine into a score out of 100 and a grade from A to F. The grade sits next to the BUY, HOLD or SELL verdict, so you can tell a good business at a good price apart from a weak business that is only cheap.</p>
+      </div>
+      <div class="sec" id="glossary" style="padding-top:44px">
+        <h2>Glossary</h2>
+        <div class="gloss">
+          <details><summary>Intrinsic value</summary><p>An estimate of what a business is really worth, based on the cash and profit it can produce, rather than on the day-to-day share price.</p></details>
+          <details><summary>Discount rate and WACC</summary><p>Money received in the future is worth less than money today. The discount rate converts future cash into today's value. WACC (weighted average cost of capital) blends the return shareholders expect with the cost of the company's debt. A higher WACC gives a lower value.</p></details>
+          <details><summary>Cost of equity and CAPM</summary><p>The return shareholders expect for owning a risky stock. CAPM calculates it as the risk-free rate plus beta times the equity risk premium.</p></details>
+          <details><summary>Beta</summary><p>How much a stock tends to move compared with the overall market. A beta of 2 means it has tended to move about twice as much.</p></details>
+          <details><summary>Terminal value</summary><p>The value of all the cash flows after the forecast period ends. It is estimated by assuming the company grows at a steady, modest rate forever.</p></details>
+          <details><summary>Free cash flow</summary><p>Operating cash flow minus capital spending. It is the cash left for shareholders after the company has paid to maintain and grow its business.</p></details>
+          <details><summary>Non-recurring items</summary><p>One-off gains or costs, such as a gain from selling an investment. Plumbline removes them from earnings so the valuation reflects what the business earns in a normal year.</p></details>
+          <details><summary>P/E, P/S and P/B</summary><p>Price divided by earnings, sales or book value (net assets) per share. They show how much investors pay for each dollar of each.</p></details>
+          <details><summary>PEG and PSG</summary><p>P/E or P/S divided by the growth rate. They check whether a high multiple is justified by fast growth.</p></details>
+          <details><summary>Median and trimmed mean</summary><p>The median is the middle value when all nine are sorted. The trimmed mean drops the highest and lowest values and averages the rest. Both are less affected by outliers than a plain average.</p></details>
+          <details><summary>ROIC (return on invested capital)</summary><p>After-tax operating profit divided by all the money invested in the business (shareholders' equity plus debt, minus spare cash). It shows how well management turns invested money into profit, whether that money came from owners or lenders.</p></details>
+          <details><summary>ROE (return on equity)</summary><p>Net profit divided by shareholders' equity. It shows the return on the owners' money. High debt can push ROE up artificially, so it is best read next to ROIC and debt to equity.</p></details>
+          <details><summary>EBITDA</summary><p>Earnings before interest, tax, depreciation and amortisation. It is a rough measure of the cash profit from operations, often used to judge how much debt a company can carry.</p></details>
+          <details><summary>Interest coverage</summary><p>Operating profit divided by interest expense. A value of 5x means profit could pay the interest bill five times over.</p></details>
+          <details><summary>Retained earnings</summary><p>All the profit a company has kept over its life instead of paying it out as dividends or buybacks. A growing balance means the company can fund new projects from its own money.</p></details>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p><strong>For education only.</strong> Plumbline is a model, not investment advice and not a recommendation to buy or sell any security. The results depend on forecasts and assumptions that may be wrong. Do your own research and consider speaking to a licensed adviser before you invest.</p>
+    <p>Pre-loaded stocks use data from S&amp;P Global Market Intelligence via stockanalysis.com (prices as of Oct 9, 2026; scorecard figures checked Oct 11, 2026). Other tickers use SEC filings and Yahoo Finance prices, or a data provider API that you connect with your own key.</p>
+  </div>
+</footer>
+
+<script src="engine.js"></script>
+<script src="quality.js"></script>
+<script src="data.js"></script>
+<script src="content.js"></script>
+<script src="api.js"></script>
+<script src="charts.js"></script>
+<script src="manual.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
