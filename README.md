@@ -1,4 +1,4 @@
-# Plumbline v2.9: stock intrinsic value and business quality
+# Plumbline v2.10: stock intrinsic value and business quality
 
 A static website (no build step). Open `index.html` in a browser, or upload the folder to any static host
 (Netlify, Vercel, GitHub Pages, Cloudflare Pages).
@@ -14,6 +14,12 @@ Data sources (all free, no key): company financials from SEC EDGAR filings, pric
 Analyst estimates are not available there, so growth for the first years comes from the company's own past growth (labelled on the page).
 Optional: add `FMP_API_KEY=...` to `.env` to use Financial Modeling Prep as a backup (foreign companies), or set `DATA_SOURCE=fmp` if you pay for FMP and want its analyst estimates.
 Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example ASML) and very recent listings need the manual entry form.
+
+## v2.10: model fixes, step 3 - growth inputs
+- When analyst forecasts are missing (always on the free SEC + Yahoo source, and in the backtest), revenue growth now blends the last 3 and 5 years; earnings growth is half anchored to revenue growth and may not run more than 10 points ahead of it; both are kept between -5% and +25% a year (was 35%).
+- Faster fade for every stock: by year 5 growth keeps 60% of its lead over long-run growth (3%), by year 10 30% (g5 = 3% + 0.6 x (g2 - 3%), max 20%; g10 = 3% + 0.3 x (g2 - 3%)). Was g5 = 0.85 x g2 (max 25%), g10 = 0.5 x g5. Reason: research on company growth rates finds fast growth rarely persists.
+- Example: a company that grew 34% a year for 3 years (25% over 5) was projected to multiply revenue 16.9x over 20 years; now 8.4x. A steady 10% grower is unchanged (3.0x).
+- The built-in NVDA and CRM keep their checked growth settings from the Excel models, so their values do not change.
 
 ## v2.9: model fixes, step 2 - method families
 - The fair value is no longer the median of all nine methods. Methods are grouped: cash flow & earnings models (DCF-20, DFCF-20, DNI-20, DFCF-Terminal) and valuation multiples (Mean P/S, P/E, P/B). Each group gives its median, and the fair value is the average of the two group medians, so the four similar discounting models cannot outvote the three multiples.

@@ -80,16 +80,24 @@
       cagrRev = Math.pow(rv[n - 1] / R0, 1 / n) - 1;
       cagrEps = E0 > 0 && ev[n - 1] > 0 ? Math.pow(ev[n - 1] / E0, 1 / n) - 1 : 0;
     } else {
-      /* fallback: past growth (capped) in place of analyst estimates */
-      var old = fyArr[Math.min(fyArr.length - 1, 3)], yrs = Math.min(fyArr.length - 1, 3);
+      /* fallback: past growth in place of analyst estimates.
+         Revenue growth blends the last 3 and 5 years, so one unusual stretch does not dominate. Earnings growth is
+         noisier, so it is half anchored to revenue growth and may not run more than 10 points ahead of it.
+         Both are capped between -5% and +25% a year, because very fast growth rarely lasts. */
+      var yrs = Math.min(fyArr.length - 1, 3), yrs5 = Math.min(fyArr.length - 1, 5);
+      var old = fyArr[yrs], old5 = fyArr[yrs5];
       if (yrs < 1 || !(num(old.revenue) > 0)) throw new Error("Analyst estimates are not available for " + t + " on your plan, and there is not enough history to estimate growth.");
-      var hg = Math.pow(num(fy.revenue) / num(old.revenue), 1 / yrs) - 1;
-      var eo = X * num(old.epsDiluted, old.eps);
-      var he = E0 > 0 && eo > 0 ? Math.pow(E0 / eo, 1 / yrs) - 1 : hg;
-      cagrRev = Math.max(-0.05, Math.min(0.35, hg)); cagrEps = Math.max(-0.05, Math.min(0.35, he));
+      var cg = function (a, b, n) { return a > 0 && b > 0 && n > 0 ? Math.pow(a / b, 1 / n) - 1 : NaN; };
+      var hg3 = cg(num(fy.revenue), num(old.revenue), yrs), hg5 = yrs5 >= 5 ? cg(num(fy.revenue), num(old5.revenue), yrs5) : NaN;
+      var hg = isFinite(hg5) ? 0.5 * hg3 + 0.5 * hg5 : hg3;
+      var eo = X * num(old.epsDiluted, old.eps), eo5 = X * num(old5.epsDiluted, old5.eps);
+      var he3 = cg(E0, eo, yrs), he5 = yrs5 >= 5 ? cg(E0, eo5, yrs5) : NaN;
+      var heRaw = isFinite(he3) && isFinite(he5) ? 0.5 * he3 + 0.5 * he5 : (isFinite(he3) ? he3 : NaN);
+      var he = isFinite(heRaw) ? 0.5 * hg + 0.5 * Math.max(-0.05, Math.min(hg + 0.10, heRaw)) : hg;
+      cagrRev = Math.max(-0.05, Math.min(0.25, hg)); cagrEps = Math.max(-0.05, Math.min(0.25, he));
       rv = [1, 2, 3].map(function (k) { return R0 * Math.pow(1 + cagrRev, k); });
       ev = [1, 2, 3].map(function (k) { return E0 * Math.pow(1 + cagrEps, k); });
-      caveats.push((R.estNote || "Analyst estimates are not included in your data plan.") + " Growth for the next few years is based on the company's own growth over the last " + yrs + " years (revenue " + (cagrRev * 100).toFixed(1) + "% a year, earnings " + (cagrEps * 100).toFixed(1) + "% a year, capped between -5% and 35%). Treat the growth-based methods with extra caution.");
+      caveats.push((R.estNote || "Analyst estimates are not included in your data plan.") + " Growth for the next few years is based on the company's own past growth (" + (isFinite(hg5) ? "an average of the last 3 and 5 years" : "the last " + yrs + " years") + ", kept between -5% and +25% a year): revenue " + (cagrRev * 100).toFixed(1) + "% a year, earnings " + (cagrEps * 100).toFixed(1) + "% a year). Treat the growth-based methods with extra caution.");
     }
     var R3 = rv.length > 2 ? rv[2] : rv[1] * (1 + cagrRev), E3 = ev.length > 2 ? ev[2] : ev[1] * (1 + cagrEps);
 

@@ -17,8 +17,11 @@
   function defaultSettings(inp) {
     var g2 = inp.est ? growthPath(inp).cf[1] : 0.05;
     var gT = 0.03;
-    var g5 = Math.min(0.25, Math.max(gT, 0.85 * g2));
-    var g10 = Math.max(gT, 0.5 * g5);
+    /* Fast growth rarely lasts: studies of company growth rates find it drifts back towards the economy's pace
+       within a few years. So by year 5 growth keeps 60% of its lead over long-run growth, and by year 10 only 30%. */
+    var g5 = Math.min(0.20, gT + 0.6 * (g2 - gT));
+    var g10 = Math.max(gT, gT + 0.3 * (g2 - gT));
+    if (g5 < gT) g5 = Math.max(0, gT + 0.6 * (g2 - gT)); /* shrinking companies recover towards long-run growth too */
     return {
       rf: 0.05, erp: 0.05, spread: 0.006, beta: adjBeta(inp.beta), capexNorm: 1,
       g5: g5, g10: g10, gT: gT,
