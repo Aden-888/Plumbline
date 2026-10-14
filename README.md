@@ -1,4 +1,4 @@
-# Plumbline v2.10: stock intrinsic value and business quality
+# Plumbline v2.11: stock intrinsic value and business quality
 
 A static website (no build step). Open `index.html` in a browser, or upload the folder to any static host
 (Netlify, Vercel, GitHub Pages, Cloudflare Pages).
@@ -14,6 +14,11 @@ Data sources (all free, no key): company financials from SEC EDGAR filings, pric
 Analyst estimates are not available there, so growth for the first years comes from the company's own past growth (labelled on the page).
 Optional: add `FMP_API_KEY=...` to `.env` to use Financial Modeling Prep as a backup (foreign companies), or set `DATA_SOURCE=fmp` if you pay for FMP and want its analyst estimates.
 Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example ASML) and very recent listings need the manual entry form.
+
+## v2.11: model fixes, step 4 - quality check on the verdict
+- A BUY now also needs a Business Quality grade of C or better (IV.applyQuality in engine.js, used by the site and the backtest). A stock that is 20%+ undervalued but graded D or F is held at HOLD and flagged "Undervalued, but weak business" (a likely value trap). Companies the scorecard cannot grade (banks, insurers, missing data) are judged on value alone. SELL is unchanged.
+- The backtest records the value-only verdict and a value-trap flag, and summary section 6 reports how the held-back value traps performed.
+- Remaining "intrinsic value" / "median" labels on the result page now say "fair value".
 
 ## v2.10: model fixes, step 3 - growth inputs
 - When analyst forecasts are missing (always on the free SEC + Yahoo source, and in the backtest), revenue growth now blends the last 3 and 5 years; earnings growth is half anchored to revenue growth and may not run more than 10 points ahead of it; both are kept between -5% and +25% a year (was 35%).

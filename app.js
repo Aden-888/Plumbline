@@ -248,7 +248,7 @@
   /* ---------------- hero ---------------- */
   function drawHero(animate) {
     var p = window.PRESETS.NVDA, s = Object.assign(IV.defaultSettings(p), p.settings);
-    var r = IV.compute(p, s), el = $("heroChart");
+    var r = IV.applyQuality(IV.compute(p, s), QS.compute(p)), el = $("heroChart");
     Charts.dotplot(el, r);
     if (animate) Charts.settle(el);
     var hs = $("heroStats"), st = r.stats;
@@ -286,11 +286,11 @@
       '<div class="wrap res">' +
       '<div class="head" id="overview"><h2>' + esc(inp.name) + ' <span class="head__tk">' + esc(inp.ticker) + '</span></h2><div class="head__meta">' + (inp.exchange ? '<span>' + esc(inp.exchange) + "</span>" : "") + '<span id="hdPrice">Price as of ' + esc(inp.asOf) + "</span></div></div>" +
       '<p class="bridge" style="margin:18px 0 -10px">Step 1 · What Plumbline thinks the stock is worth</p><div id="rVerdict"></div>' +
-      '<div class="pxc" id="pxCard"><div class="pxc__head"><div><h3>Share price vs intrinsic value</h3><p class="pxc__sub" id="pxSub">Loading price history…</p></div>' +
+      '<div class="pxc" id="pxCard"><div class="pxc__head"><div><h3>Share price vs fair value</h3><p class="pxc__sub" id="pxSub">Loading price history…</p></div>' +
       '<div class="seg" id="pxRange" role="group" aria-label="Time range"><button type="button" data-r="1mo">1M</button><button type="button" data-r="6mo">6M</button><button type="button" data-r="1y" class="on">1Y</button><button type="button" data-r="5y">5Y</button></div></div>' +
       '<div class="pxc__chart" id="pxChart"><div class="pxc__skel"></div></div>' +
-      '<div class="pxc__legend" aria-hidden="true"><span><i class="lk lk--px"></i>Share price</span><span><i class="lk lk--iv"></i>Intrinsic value today</span><span><i class="lk lk--buy"></i>BUY zone</span><span><i class="lk lk--sell"></i>SELL zone</span></div>' +
-      '<p class="pxc__note">Hover or touch the chart to see the price on any day. The intrinsic value line is today\'s estimate, drawn across the whole period so you can see how far the price has moved around it.</p></div>' +
+      '<div class="pxc__legend" aria-hidden="true"><span><i class="lk lk--px"></i>Share price</span><span><i class="lk lk--iv"></i>Fair value today</span><span><i class="lk lk--buy"></i>BUY zone</span><span><i class="lk lk--sell"></i>SELL zone</span></div>' +
+      '<p class="pxc__note">Hover or touch the chart to see the price on any day. The fair value line is today\'s estimate, drawn across the whole period so you can see how far the price has moved around it.</p></div>' +
       '<section class="sec" id="quality"><p class="bridge">Step 2 · Is the business behind the stock any good?</p><h2>Business quality scorecard</h2><p class="sec__lede">The valuation above says whether the stock is cheap. This scorecard says whether the business is good. It grades the company on 13 measures across three areas, using its own financial statements. Each measure scores Strong, Good or Weak, and core measures count double.</p><div id="rQuality"></div></section>' +
       '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is Plumbline\'s fair value and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method. The two growth-adjusted checks are faded because they are not counted in the fair value.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#4cb782"></i>Undervalued</span><span><i style="background:#c9a75a"></i>Fair</span><span><i style="background:#d66b63"></i>Overvalued</span><span><i class="sq" style="background:#8fb4e6"></i>Plumbline fair value</span></div></div></section>' +
       '<section class="sec" id="methods"><p class="bridge">Step 4 · Each valuation method in detail</p><h2>How each method got its number</h2><p class="sec__lede">Select a method to see why it is used, where it works best and how its number was built from this company\'s own figures. Methods marked "Side check" are shown for context but not counted in the fair value.</p><p class="swipe-hint">Swipe to see all the methods. Tap one for the full calculation.</p><div class="mlist" id="rMethods"></div></section>' +
@@ -373,7 +373,7 @@
   /* ---------------- render ---------------- */
   function update(initial) {
     var inp = state.inputs, s = state.settings;
-    var r = state.result = IV.compute(inp, s);
+    var r = state.result = IV.applyQuality(IV.compute(inp, s), state.quality);
     sync();
     if (!r.stats.n) { $("rVerdict").innerHTML = '<div class="notice notice--error"><h3>Not enough data</h3><p>None of the nine methods could be calculated for this stock.</p></div>'; renderQuality(r); return; }
     renderVerdict(r, initial); renderQuality(r); renderMethods(r); renderAvg(r); renderProj(r); renderData(r);
@@ -384,7 +384,8 @@
 
   function renderVerdict(r, initial) {
     var st = r.stats, inp = r.inputs, s = r.settings, v = st.verdict, q = state.quality;
-    var line = v === "BUY" ? "That is above the " + F.spct(s.buy, 0) + " BUY line."
+    var line = st.trap ? "That would normally be a BUY, but the business quality grade is " + st.grade + ". Cheap stocks with weak businesses are often cheap for a reason (a value trap), so Plumbline holds back at HOLD."
+      : v === "BUY" ? "That is above the " + F.spct(s.buy, 0) + " BUY line" + (st.grade ? " and the business quality grade (" + st.grade + ") passes the C-or-better check." : ".")
       : v === "SELL" ? "That is below the " + F.spct(s.sell, 0) + " SELL line."
       : "That sits between the SELL line (" + F.spct(s.sell, 0) + ") and the BUY line (" + F.spct(s.buy, 0) + ").";
     var spread = st.max / st.min;
@@ -394,7 +395,7 @@
       '<p class="verdict__sum">The fair value is <strong class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + (st.upside >= 0 ? " above" : " below").replace("+", "") + "</strong> the share price. " + line + " " + st.above + " of " + st.n + " counted methods value the stock above its price." +
       (st.n < st.nCounted ? " " + (st.nCounted - st.n) + " method(s) could not be calculated for this stock (" + r.methods.filter(function (m) { return m.counted && !fin(m.value); }).map(function (m) { return m.short; }).join(", ") + "), so the fair value uses the other " + st.n + "." : "") + (st.oneFamily ? " Only the " + st.oneFamily.toLowerCase() + " could be calculated, so the fair value rests on that group alone." : "") + (spread > 3 ? " The methods are far apart (" + F.usd(st.min, 0) + " to " + F.usd(st.max, 0) + "), which is why Plumbline takes the middle value of each group rather than a plain average." : "") + "</p></div>" +
       '<div class="verdict__side"><span class="pill pill--' + v + '"><i></i>' + v + "</span>" +
-      '<p class="verdict__rule">BUY at ' + F.spct(s.buy, 0) + ' upside or more · SELL at ' + F.spct(s.sell, 0) + ' or worse</p><dl class="kv"><dt>Upside / (downside)</dt><dd class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + "</dd><dt>Average of all nine</dt><dd>" + F.usd(st.mean) + "</dd>" +
+      '<p class="verdict__rule">BUY: ' + F.spct(s.buy, 0) + ' upside or more and quality grade C or better · SELL: ' + F.spct(s.sell, 0) + ' or worse</p>' + (st.trap ? '<p class="trapnote">Undervalued, but weak business</p>' : "") + '<dl class="kv"><dt>Upside / (downside)</dt><dd class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + "</dd><dt>Average of the counted methods</dt><dd>" + F.usd(st.mean) + "</dd>" +
       (inp.est.target ? "<dt>Analyst average target</dt><dd>" + F.usd(inp.est.target) + "</dd>" : "") + qRow + "</dl></div></div>";
     $("rVerdict").innerHTML = html;
     if (initial) countUp($("vNum"), st.median);
@@ -415,7 +416,7 @@
     var pc = function (v) { return Math.max(0, Math.min(100, v / D * 100)).toFixed(2) + "%"; };
     return '<div class="pv"><div class="pv__c"><p class="pv__k"><span><span class="hide-sm">Share </span>price</span>' + (q ? ' <span class="live"><i></i>Live</span>' : "") + '</p><p class="pv__v" id="pvPrice">' + F.usd(px) + '</p><p class="pv__s">' + sub + "</p></div>" +
       '<div class="pv__c"><p class="pv__k">Fair value</p><p class="pv__v pv__v--iv" id="vNum">' + F.usd(iv) + '</p><p class="pv__s">Cash flow models and multiples combined</p></div></div>' +
-      '<div class="gapb gapb--' + v + '"><b>' + pct.toFixed(1) + "% " + (under ? "undervalued" : "overvalued") + "</b><span>The share price is " + pct.toFixed(1) + "% " + (under ? "below" : "above") + " its intrinsic value</span></div>" +
+      '<div class="gapb gapb--' + v + '"><b>' + pct.toFixed(1) + "% " + (under ? "undervalued" : "overvalued") + "</b><span>The share price is " + pct.toFixed(1) + "% " + (under ? "below" : "above") + " its fair value</span></div>" +
       '<div class="gauge" role="img" aria-label="Share price ' + F.usd(px) + " against intrinsic value " + F.usd(iv) + '"><div class="gauge__bar">' +
       '<span class="gz gz--buy" style="width:' + pc(buyMax) + '"></span><span class="gz gz--hold" style="left:' + pc(buyMax) + ";width:calc(" + pc(sellMin) + " - " + pc(buyMax) + ')"></span><span class="gz gz--sell" style="left:' + pc(sellMin) + ';right:0"></span>' +
       '<span class="gm gm--iv" style="left:' + pc(iv) + '"><em>Value ' + F.usd(iv, 0) + '</em></span><span class="gm gm--px" style="left:' + pc(px) + '"><em>Price ' + F.usd(px, 0) + "</em></span></div>" +

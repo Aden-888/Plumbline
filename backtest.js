@@ -161,9 +161,10 @@ async function main() {
         var s = Object.assign(IV.defaultSettings(inp), inp.settings || {});
         var tb = tnx && barBefore(tnx.bars, D);
         if (tb && tb.close > 0.05 && tb.close < 15) s.rf = tb.close / 100; else row.note = "10-year yield not found, 5% used";
-        var r = IV.compute(inp, s);
+        var qq = null; try { qq = QS.compute(inp); } catch (e) {}
+        var r = IV.applyQuality(IV.compute(inp, s), qq);
         if (!r.stats.n) throw new Error("none of the nine methods could be calculated");
-        row.price = inp.price; row.value = r.stats.median; row.upside = r.stats.upside; row.verdict = r.stats.verdict;
+        row.price = inp.price; row.value = r.stats.median; row.upside = r.stats.upside; row.verdict = r.stats.verdict; row.verdictValue = r.stats.verdictValue; row.trap = r.stats.trap ? "yes" : "";
         row.methods = r.stats.n; row.beta = s.beta; row.rf = s.rf; row.financialsTo = inp.ttmEnd;
         row.m = {}; r.methods.forEach(function (mm) { if (isFinite(mm.value) && mm.value != null) row.m[mm.short] = mm.upside; });
         try { var q = QS.compute(inp); if (q.ok) { row.grade = q.grade; row.score = q.score; } } catch (e) {}
@@ -187,8 +188,8 @@ async function main() {
   /* ---------- write every call ---------- */
   var MN = ["DCF-20", "DFCF-20", "DNI-20", "DFCF-Terminal", "Mean P/S", "Mean P/E", "Mean P/B", "PSG", "PEG"];
   rows.forEach(function (r) { MN.forEach(function (n) { r["m_" + n] = r.m && r.m[n] != null ? r.m[n] : null; }); });
-  var cols = ["date", "ticker", "name", "price", "value", "upside", "verdict", "grade", "score", "ret", "spy", "excess", "beat", "methods", "beta", "rf", "financialsTo", "note"].concat(MN.map(function (n) { return "m_" + n; }));
-  var head = ["Test date", "Ticker", "Company", "Price", "Intrinsic value", "Upside", "Verdict", "Quality grade", "Quality score", HOLD + "m stock return", HOLD + "m SPY return", "Excess return", "Beat SPY", "Methods used", "Beta", "Risk-free rate", "Financials to", "Notes"].concat(MN.map(function (n) { return n + " upside"; }));
+  var cols = ["date", "ticker", "name", "price", "value", "upside", "verdict", "verdictValue", "trap", "grade", "score", "ret", "spy", "excess", "beat", "methods", "beta", "rf", "financialsTo", "note"].concat(MN.map(function (n) { return "m_" + n; }));
+  var head = ["Test date", "Ticker", "Company", "Price", "Fair value", "Upside", "Verdict", "Verdict on value alone", "Value trap (cheap, grade D/F)", "Quality grade", "Quality score", HOLD + "m stock return", HOLD + "m SPY return", "Excess return", "Beat SPY", "Methods used", "Beta", "Risk-free rate", "Financials to", "Notes"].concat(MN.map(function (n) { return n + " upside"; }));
   var fmt = function (c, v) { if (v == null || v === "") return ""; if (["upside", "ret", "spy", "excess", "rf"].indexOf(c) >= 0 || c.indexOf("m_") === 0) return (v * 100).toFixed(2) + "%"; if (c === "score") return v.toFixed(0); if (c === "price" || c === "value") return v.toFixed(2); if (c === "beta") return v.toFixed(2); return v; };
   fs.writeFileSync(path.join(OUT, "results.csv"), [head.join(",")].concat(rows.map(function (r) { return cols.map(function (c) { return csvCell(fmt(c, r[c])); }).join(","); })).join("\n"));
   fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify({ settings: { from: FROM, to: TO, month: MONTH, hold: HOLD, tickers: TICKERS, buy: 0.2, sell: -0.2 }, generated: new Date().toISOString(), rows: rows }, null, 1));
@@ -201,7 +202,7 @@ async function main() {
   L.push("Stocks: " + TICKERS.length + (TOP ? " (largest US-listed companies today)" : "") + " | Test dates: 1 " + MONTHS.map(function (mo) { return new Date(Date.UTC(2000, mo - 1, 1)).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }); }).join(", ") + ", " + FROM + " to " + TO + " | Holding period: " + HOLD + " months | Benchmark: SPY (S&P 500, dividends included)");
   L.push("Valuations made: " + rows.filter(function (r) { return r.verdict; }).length + " | With a finished holding period: " + done.length);
   L.push("");
-  L.push("1) RESULTS BY VERDICT (BUY at +20% upside or more, SELL at -20% or worse)");
+  L.push("1) RESULTS BY VERDICT (BUY at +20% upside or more and quality grade C or better, SELL at -20% or worse)");
   L.push(pad("Verdict", 9, true) + pad("Calls", 7) + pad("Avg return", 12) + pad("Avg vs SPY", 12) + pad("Median vs SPY", 15) + pad("% beat SPY", 12));
   var groups = { BUY: [], HOLD: [], SELL: [] }; done.forEach(function (r) { groups[r.verdict].push(r); });
   ["BUY", "HOLD", "SELL"].forEach(function (v) {
@@ -266,6 +267,8 @@ async function main() {
     var list = done.filter(function (r) { return r.grade === g; }), ex = list.map(function (r) { return r.excess; });
     L.push("  Grade " + g + "  " + pad(list.length, 4) + " calls   avg vs SPY " + pad(pct(mean(ex)), 8) + "   median vs SPY " + pad(pct(median(ex)), 8) + "   beat SPY " + (list.length ? (list.filter(function (r) { return r.excess > 0; }).length / list.length * 100).toFixed(0) + "%" : "n/a"));
   });
+  var traps = done.filter(function (r) { return r.trap === "yes"; });
+  L.push("  Value traps held back (cheap on value, grade D or F): " + traps.length + " calls, avg vs SPY " + pct(mean(traps.map(function (r) { return r.excess; }))) + ", median " + pct(median(traps.map(function (r) { return r.excess; }))) + "  <- if these did worse than BUY, the quality check helped");
   var combo = done.filter(function (r) { return r.verdict === "BUY" && (r.grade === "A" || r.grade === "B"); });
   L.push("  BUY and grade A/B: " + combo.length + " calls, avg vs SPY " + pct(mean(combo.map(function (r) { return r.excess; }))) + ", median " + pct(median(combo.map(function (r) { return r.excess; }))));
   L.push("");

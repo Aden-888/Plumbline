@@ -197,7 +197,17 @@
     return out;
   }
 
-  var api = { compute: compute, adjBeta: adjBeta, capexInfo: capexInfo, defaultSettings: defaultSettings, growthPath: growthPath, avg: avg, median: median, fin: fin };
+  /* Quality check on the verdict: a BUY also needs a Business Quality grade of C or better. A cheap stock with a
+     D or F grade is often cheap for a reason (a "value trap"), so it is held at HOLD and flagged instead.
+     Companies the scorecard cannot grade (banks, insurers, missing data) are judged on value alone. */
+  function applyQuality(r, q) {
+    var st = r && r.stats; if (!st || !st.verdict) return r;
+    st.verdictValue = st.verdict; st.trap = false; st.grade = q && q.ok ? q.grade : null;
+    if (st.verdict === "BUY" && st.grade && (st.grade === "D" || st.grade === "F")) { st.verdict = "HOLD"; st.trap = true; }
+    return r;
+  }
+
+  var api = { compute: compute, applyQuality: applyQuality, adjBeta: adjBeta, capexInfo: capexInfo, defaultSettings: defaultSettings, growthPath: growthPath, avg: avg, median: median, fin: fin };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.IV = api;
 })(typeof window !== "undefined" ? window : globalThis);

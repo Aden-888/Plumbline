@@ -81,5 +81,5 @@ http.createServer(function (req, res) {
     res.end(buf);
   });
 }).listen(PORT, function () {
-  console.log("Plumbline v2.10 is running at http://localhost:" + PORT + "\nData source: " + (SOURCE === "fmp" ? "FMP only" : "SEC filings + Yahoo prices (free), " + (KEY ? "FMP as backup" : "no key needed")) + (process.env.SEC_CONTACT ? "" : "\nTip: add SEC_CONTACT=your@email to a .env file. The SEC asks apps to identify themselves.") + (PASS ? "\nPassword protection is on." : ""));
+  console.log("Plumbline v2.11 is running at http://localhost:" + PORT + "\nData source: " + (SOURCE === "fmp" ? "FMP only" : "SEC filings + Yahoo prices (free), " + (KEY ? "FMP as backup" : "no key needed")) + (process.env.SEC_CONTACT ? "" : "\nTip: add SEC_CONTACT=your@email to a .env file. The SEC asks apps to identify themselves.") + (PASS ? "\nPassword protection is on." : ""));
 });

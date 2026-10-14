@@ -934,3 +934,6 @@ a, .jump a, .m summary::after, .qmore > summary { color: var(--accent); }
 .m__type--side { color: var(--muted); border-style: dashed; }
 .chart .dp__side { fill: var(--muted); }
 .avg__c h3 .tag { white-space: nowrap; }
+
+/* v2.11: value-trap flag */
+.trapnote { margin: 0; display: inline-flex; align-self: flex-start; padding: 5px 12px; border-radius: 999px; border: 1px solid rgba(201, 167, 90, .45); color: var(--hold); font-size: 12.5px; font-weight: 600; }
