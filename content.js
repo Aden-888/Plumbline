@@ -125,7 +125,7 @@
         what: "Matches the price-to-sales ratio to the company's expected sales growth. Faster growth earns a higher fair multiple.",
         why: "A plain P/S ratio treats a fast grower and a slow grower the same. PSG fixes this by asking what multiple the growth rate can justify.",
         fit: "Gives a growth-based view that is separate from the company's own history.",
-        watch: "There is no official target PSG. The 0.10 default is a judgement call, so this is the lowest-confidence method. It is also the one most likely to be an outlier.",
+        watch: "There is no official target PSG. The 0.10 default is a judgement call, so this is the lowest-confidence method and the one most likely to be an outlier. That is why it is a side check and is not counted in the fair value.",
         steps: function (r, m) {
           var d = m.d;
           return [
@@ -141,7 +141,7 @@
         what: "Matches the price-to-earnings ratio to the company's expected earnings growth. A fair P/E equals the growth rate, so 15% growth supports a P/E of 15.",
         why: "This is Peter Lynch's well-known rule of thumb. It stops investors from calling a stock expensive just because its P/E is high when its profits are growing very fast.",
         fit: "Good for growth companies where a plain P/E looks too high.",
-        watch: "It rewards high growth heavily. If the growth forecast is too optimistic, the value will be too high.",
+        watch: "It rewards high growth heavily. If the growth forecast is too optimistic, the value will be too high. Because the target PEG of 1.0 is a rule of thumb, it is a side check and is not counted in the fair value.",
         steps: function (r, m) {
           var d = m.d;
           return [

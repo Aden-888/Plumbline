@@ -252,7 +252,7 @@
     Charts.dotplot(el, r);
     if (animate) Charts.settle(el);
     var hs = $("heroStats"), st = r.stats;
-    if (hs) hs.innerHTML = "<div><dt>Share price</dt><dd>" + F.usd(p.price, 0) + "</dd></div><div><dt>Median value</dt><dd>" + F.usd(st.median, 0) + '</dd></div><div><dt>Verdict</dt><dd><span class="pill pill--sm pill--' + st.verdict + '">' + st.verdict + "</span></dd></div>";
+    if (hs) hs.innerHTML = "<div><dt>Share price</dt><dd>" + F.usd(p.price, 0) + "</dd></div><div><dt>Fair value</dt><dd>" + F.usd(st.median, 0) + '</dd></div><div><dt>Verdict</dt><dd><span class="pill pill--sm pill--' + st.verdict + '">' + st.verdict + "</span></dd></div>";
   }
 
   /* ---------------- results shell (built once per stock) ---------------- */
@@ -266,7 +266,7 @@
     ["peg", "Target PEG", "Fair P/E divided by growth. 1.0 is Peter Lynch's rule of thumb.", .5, 2, .05, function (v) { return v.toFixed(2); }],
     ["psg", "Target PSG", "Fair P/S divided by growth. No official standard exists, so this is a judgement call.", .02, .3, .01, function (v) { return v.toFixed(2); }],
     ["peCap", "Ignore P/E readings above", "Very high P/E readings usually mean profit was close to zero that year.", 30, 300, 10, function (v) { return v.toFixed(0) + "x"; }],
-    ["buy", "BUY if upside is at least", "The margin of safety the median value needs over the price.", .05, .5, .05, pc],
+    ["buy", "BUY if upside is at least", "The margin of safety the fair value needs over the price.", .05, .5, .05, pc],
     ["sell", "SELL if downside is at least", "The mirror image. Anything between the two lines is HOLD.", -.5, -.05, .05, pc]
   ];
   function pc(v) { return (v * 100).toFixed(v * 100 % 1 ? 2 : 1).replace(/\.?0+$/, "") + "%"; }
@@ -292,9 +292,9 @@
       '<div class="pxc__legend" aria-hidden="true"><span><i class="lk lk--px"></i>Share price</span><span><i class="lk lk--iv"></i>Intrinsic value today</span><span><i class="lk lk--buy"></i>BUY zone</span><span><i class="lk lk--sell"></i>SELL zone</span></div>' +
       '<p class="pxc__note">Hover or touch the chart to see the price on any day. The intrinsic value line is today\'s estimate, drawn across the whole period so you can see how far the price has moved around it.</p></div>' +
       '<section class="sec" id="quality"><p class="bridge">Step 2 · Is the business behind the stock any good?</p><h2>Business quality scorecard</h2><p class="sec__lede">The valuation above says whether the stock is cheap. This scorecard says whether the business is good. It grades the company on 13 measures across three areas, using its own financial statements. Each measure scores Strong, Good or Weak, and core measures count double.</p><div id="rQuality"></div></section>' +
-      '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is the Plumbline value (the median of the nine) and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#4cb782"></i>Undervalued</span><span><i style="background:#c9a75a"></i>Fair</span><span><i style="background:#d66b63"></i>Overvalued</span><span><i class="sq" style="background:#8fb4e6"></i>Plumbline value (median)</span></div></div></section>' +
-      '<section class="sec" id="methods"><p class="bridge">Step 4 · Each of the nine methods in detail</p><h2>How each method got its number</h2><p class="sec__lede">Select a method to see why it is used, where it works best and how its number was built from this company\'s own figures.</p><p class="swipe-hint">Swipe to see all nine methods. Tap one for the full calculation.</p><div class="mlist" id="rMethods"></div></section>' +
-      '<section class="sec" id="average"><p class="bridge">Step 5 · The methods disagree, so here\'s how one number is chosen</p><h2>How nine values become one</h2><div id="rAvgText"></div><div class="card"><div class="chart" id="rStats"></div></div><div class="avg" id="rAvg"></div></section>' +
+      '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is Plumbline\'s fair value and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method. The two growth-adjusted checks are faded because they are not counted in the fair value.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#4cb782"></i>Undervalued</span><span><i style="background:#c9a75a"></i>Fair</span><span><i style="background:#d66b63"></i>Overvalued</span><span><i class="sq" style="background:#8fb4e6"></i>Plumbline fair value</span></div></div></section>' +
+      '<section class="sec" id="methods"><p class="bridge">Step 4 · Each valuation method in detail</p><h2>How each method got its number</h2><p class="sec__lede">Select a method to see why it is used, where it works best and how its number was built from this company\'s own figures. Methods marked "Side check" are shown for context but not counted in the fair value.</p><p class="swipe-hint">Swipe to see all the methods. Tap one for the full calculation.</p><div class="mlist" id="rMethods"></div></section>' +
+      '<section class="sec" id="average"><p class="bridge">Step 5 · The methods disagree, so here\'s how one fair value is reached</p><h2>How the methods become one value</h2><div id="rAvgText"></div><div class="card"><div class="chart" id="rStats"></div></div><div class="avg" id="rAvg"></div></section>' +
       '<section class="sec" id="forecast"><p class="bridge">Step 6 · The cash flow methods depend on a forecast. Here\'s what it assumes</p><h2>What the forecast assumes</h2><p class="sec__lede" id="rProjText"></p>' +
       '<div class="card tscroll"><table class="tbl tbl--proj" id="rProjTbl"></table></div>' +
       '<p class="card__note">Free cash flow is the cash left after the company pays for its equipment and buildings. Profit excludes one-off gains. B = billion. Why does growth slow down? Very few companies can grow faster than the whole economy forever, so growth is assumed to settle at about the economy\'s long-run rate.</p>' +
@@ -391,8 +391,8 @@
     var qRow = q && q.ok ? '<dt>Business quality</dt><dd><a href="#quality" class="qlink" style="color:' + scoreCol(q.score) + '">' + q.grade + " · " + Math.round(q.score) + "/100</a></dd>" : "";
     var html =
       '<div class="verdict"><div class="verdict__main">' + pvHtml(r) +
-      '<p class="verdict__sum">The intrinsic value is <strong class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + (st.upside >= 0 ? " above" : " below").replace("+", "") + "</strong> the share price. " + line + " " + st.above + " of " + st.n + " methods value the stock above its price." +
-      (st.n < r.methods.length ? " " + (r.methods.length - st.n) + " method(s) could not be calculated for this stock (" + r.methods.filter(function (m) { return !fin(m.value); }).map(function (m) { return m.short; }).join(", ") + "), so the median uses the other " + st.n + "." : "") + (spread > 3 ? " The methods are far apart (" + F.usd(st.min, 0) + " to " + F.usd(st.max, 0) + "), which is why the median is used instead of a plain average." : "") + "</p></div>" +
+      '<p class="verdict__sum">The fair value is <strong class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + (st.upside >= 0 ? " above" : " below").replace("+", "") + "</strong> the share price. " + line + " " + st.above + " of " + st.n + " counted methods value the stock above its price." +
+      (st.n < st.nCounted ? " " + (st.nCounted - st.n) + " method(s) could not be calculated for this stock (" + r.methods.filter(function (m) { return m.counted && !fin(m.value); }).map(function (m) { return m.short; }).join(", ") + "), so the fair value uses the other " + st.n + "." : "") + (st.oneFamily ? " Only the " + st.oneFamily.toLowerCase() + " could be calculated, so the fair value rests on that group alone." : "") + (spread > 3 ? " The methods are far apart (" + F.usd(st.min, 0) + " to " + F.usd(st.max, 0) + "), which is why Plumbline takes the middle value of each group rather than a plain average." : "") + "</p></div>" +
       '<div class="verdict__side"><span class="pill pill--' + v + '"><i></i>' + v + "</span>" +
       '<p class="verdict__rule">BUY at ' + F.spct(s.buy, 0) + ' upside or more · SELL at ' + F.spct(s.sell, 0) + ' or worse</p><dl class="kv"><dt>Upside / (downside)</dt><dd class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + "</dd><dt>Average of all nine</dt><dd>" + F.usd(st.mean) + "</dd>" +
       (inp.est.target ? "<dt>Analyst average target</dt><dd>" + F.usd(inp.est.target) + "</dd>" : "") + qRow + "</dl></div></div>";
@@ -414,7 +414,7 @@
     var buyMax = iv / (1 + s.buy), sellMin = iv / (1 + s.sell), D = Math.max(px * 1.12, sellMin * 1.18);
     var pc = function (v) { return Math.max(0, Math.min(100, v / D * 100)).toFixed(2) + "%"; };
     return '<div class="pv"><div class="pv__c"><p class="pv__k"><span><span class="hide-sm">Share </span>price</span>' + (q ? ' <span class="live"><i></i>Live</span>' : "") + '</p><p class="pv__v" id="pvPrice">' + F.usd(px) + '</p><p class="pv__s">' + sub + "</p></div>" +
-      '<div class="pv__c"><p class="pv__k">Intrinsic value</p><p class="pv__v pv__v--iv" id="vNum">' + F.usd(iv) + '</p><p class="pv__s">Median of ' + st.n + " valuation methods</p></div></div>" +
+      '<div class="pv__c"><p class="pv__k">Fair value</p><p class="pv__v pv__v--iv" id="vNum">' + F.usd(iv) + '</p><p class="pv__s">Cash flow models and multiples combined</p></div></div>' +
       '<div class="gapb gapb--' + v + '"><b>' + pct.toFixed(1) + "% " + (under ? "undervalued" : "overvalued") + "</b><span>The share price is " + pct.toFixed(1) + "% " + (under ? "below" : "above") + " its intrinsic value</span></div>" +
       '<div class="gauge" role="img" aria-label="Share price ' + F.usd(px) + " against intrinsic value " + F.usd(iv) + '"><div class="gauge__bar">' +
       '<span class="gz gz--buy" style="width:' + pc(buyMax) + '"></span><span class="gz gz--hold" style="left:' + pc(buyMax) + ";width:calc(" + pc(sellMin) + " - " + pc(buyMax) + ')"></span><span class="gz gz--sell" style="left:' + pc(sellMin) + ';right:0"></span>' +
@@ -536,27 +536,31 @@
 
   function renderMethods(r) {
     document.querySelectorAll("#rMethods details.m").forEach(function (d) { state.open[d.dataset.id] = d.open; });
-    var s = r.settings, price = r.inputs.price, axis = Math.max(price, r.stats.max) * 1.05;
+    var s = r.settings, price = r.inputs.price, axis = Math.max(price, r.stats.maxAll || r.stats.max) * 1.05;
     $("rMethods").innerHTML = r.methods.map(function (m) {
       var c = window.CONTENT.methods[m.id], ok = fin(m.value);
       var bar = ok ? '<div class="m__bar"><b style="width:' + Math.max(1, m.value / axis * 100).toFixed(1) + "%;background:" + barCol(m.upside, s) + '"></b><u style="left:' + (price / axis * 100).toFixed(1) + '%" title="Current price"></u></div>' : '<span class="na">Not available</span>';
       var steps = ok ? c.steps(r, m).map(function (x) { return "<tr><td>" + esc(x[0]) + "</td><td>" + esc(x[1]) + "</td></tr>"; }).join("") : "";
-      return '<details class="m" data-id="' + m.id + '"' + (state.open[m.id] ? " open" : "") + '><summary><div class="m__name">' + esc(m.name) + "<small>" + esc(m.short) + '</small></div><span class="m__type">' + esc(m.type) + '</span><div class="m__barcell">' + bar + '</div><div class="m__valcell"><div class="m__val">' + (ok ? F.usd(m.value) : "n/a") + '</div><div class="m__up ' + (ok ? cls(m.upside, s) : "") + '">' + (ok ? F.spct(m.upside, 0) : "") + '</div></div><span class="m__chev" aria-hidden="true">›</span></summary>' +
+      return '<details class="m" data-id="' + m.id + '"' + (state.open[m.id] ? " open" : "") + '><summary><div class="m__name">' + esc(m.name) + "<small>" + esc(m.short) + '</small></div><span class="m__type' + (m.counted === false ? " m__type--side" : "") + '">' + esc(m.counted === false ? "Side check" : m.type) + '</span><div class="m__barcell">' + bar + '</div><div class="m__valcell"><div class="m__val">' + (ok ? F.usd(m.value) : "n/a") + '</div><div class="m__up ' + (ok ? cls(m.upside, s) : "") + '">' + (ok ? F.spct(m.upside, 0) : "") + '</div></div><span class="m__chev" aria-hidden="true">›</span></summary>' +
         '<div class="m__body"><div><h4>What it is</h4><p>' + esc(c.what) + "</p><h4>Why it is used</h4><p>" + esc(c.why) + "</p><h4>Where it works best</h4><p>" + esc(c.fit) + "</p><h4>What to watch</h4><p>" + esc(c.watch) + "</p></div>" +
         "<div><h4>How this number was built</h4>" + (ok ? '<table class="calc">' + steps + "</table>" : '<p class="na">This method could not run: ' + esc(m.why || "missing data") + ".</p>") + "</div></div></details>";
     }).join("");
   }
 
   function renderAvg(r) {
-    var st = r.stats, s = r.settings;
-    $("rAvgText").innerHTML = '<p class="sec__lede">The nine methods rarely agree, so one number has to be chosen. Plumbline uses the <strong>median</strong>, which is the middle value when the nine are lined up from lowest to highest. It is the headline because a single extreme method, high or low, cannot pull it far. The mean and trimmed mean are shown so you can see how much the choice matters.</p>';
-    function card(t, v, p, main) {
-      return '<div class="avg__c' + (main ? " is-main" : "") + '"><h3>' + t + (main ? '<span class="tag">Headline</span>' : "") + '</h3><div class="avg__n">' + F.usd(v) + '</div><p class="' + cls(v / r.inputs.price - 1, s) + '" style="font-weight:700;margin-bottom:6px">' + F.spct(v / r.inputs.price - 1) + " vs price</p><p>" + p + "</p></div>";
+    var st = r.stats, s = r.settings, F3 = st.families || [];
+    var cf = F3[0] || {}, mu = F3[1] || {}, gr = F3[2] || {};
+    $("rAvgText").innerHTML = '<p class="sec__lede">The methods rarely agree, so Plumbline combines them in two steps. First it groups similar methods and takes the <strong>middle value (median)</strong> of each group, so one extreme result cannot pull it far. Then it <strong>averages the groups</strong>, so the four similar cash flow models cannot outvote the three multiples. The growth-adjusted checks rely on rule-of-thumb targets, so they are shown but not counted.</p>';
+    function card(f, note, main) {
+      var ok = fin(f.median), up = ok ? f.median / r.inputs.price - 1 : null;
+      return '<div class="avg__c' + (main ? " is-main" : "") + (f.counted === false ? " is-side" : "") + '"><h3>' + esc(f.name) + (main ? '<span class="tag">Fair value</span>' : f.counted === false ? '<span class="tag tag--side">Not counted</span>' : "") + '</h3><div class="avg__n">' + (ok ? F.usd(f.median) : "n/a") + '</div>' +
+        (ok ? '<p class="' + cls(up, s) + '" style="font-weight:700;margin-bottom:6px">' + F.spct(up) + " vs price</p>" : "") + "<p>" + note + "</p></div>";
     }
     $("rAvg").innerHTML =
-      card("Median", st.median, "The middle of the " + st.n + " values. Not affected by how extreme the highest and lowest are.", true) +
-      card("Mean (simple average)", st.mean, "Adds all " + st.n + " values and divides. Easy to understand, but one outlier can pull it a long way.") +
-      card("Trimmed mean", st.trimmed, "Drops the single highest and lowest values, then averages the rest.");
+      card(cf, "Middle value of " + (cf.n || 0) + " of " + (cf.total || 4) + " models that discount future cash flow or profit.") +
+      card(mu, "Middle value of " + (mu.n || 0) + " of " + (mu.total || 3) + " checks against the stock\'s usual P/S, P/E and P/B.") +
+      card({ name: "Plumbline fair value", median: st.median }, st.oneFamily ? "Only one group could be calculated, so the fair value is that group\'s middle value." : "The average of the two groups above.", true) +
+      card(gr, "Middle value of the PSG and PEG checks. Shown for context only.");
   }
 
   function bn(v) { return v >= 1e6 ? "$" + (v / 1e6).toFixed(1) + "T" : v >= 1e3 ? "$" + (v / 1e3).toFixed(0) + "B" : "$" + v.toFixed(0) + "M"; }

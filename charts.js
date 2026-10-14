@@ -19,7 +19,7 @@
     var L = 22, Rm = 22, axisY = H - 52, dotY = axisY - 16;
     var ms = r.methods.filter(function (m) { return fin(m.value); });
     var price = r.inputs.price, med = r.stats.median;
-    var max = Math.max(price, r.stats.max) * 1.07;
+    var max = Math.max(price, r.stats.maxAll || r.stats.max) * 1.07;
     var step = niceStep(max, narrow ? 4 : 6);
     var top = Math.ceil(max / step) * step;
     var x = function (v) { return L + (v / top) * (W - L - Rm); };
@@ -63,11 +63,12 @@
     if (opt.stats) {
       var st = r.stats;
       var mk = [
-        { v: st.mean, n: "Mean", y: 24, shape: "tri" },
-        { v: st.trimmed, n: "Trimmed mean", y: 46, shape: "ring" },
-        { v: st.median, n: "Median", y: 68, shape: "dia", main: true }
+        { v: (st.families && st.families[0] || {}).median, n: "Cash flow models", y: 24, shape: "tri" },
+        { v: (st.families && st.families[1] || {}).median, n: "Multiples", y: 46, shape: "ring" },
+        { v: st.median, n: "Fair value", y: 68, shape: "dia", main: true }
       ];
       mk.forEach(function (k) {
+        if (!fin(k.v)) return;
         var cx = x(k.v);
         s.splice(dotsAt++, 0, '<line x1="' + cx + '" x2="' + cx + '" y1="' + k.y + '" y2="' + (axisY) + '" stroke="' + (k.main ? C.accent : "#93a3ba") + '" stroke-width="' + (k.main ? 2 : 1) + '" opacity="' + (k.main ? 1 : .5) + '"/>');
         s.push('<rect x="' + (cx - 5) + '" y="' + (k.y - 5) + '" width="10" height="10" transform="rotate(45 ' + cx + " " + k.y + ')" fill="' + (k.main ? C.accent : "#040a16") + '" stroke="' + (k.main ? C.accent : "#93a3ba") + '" stroke-width="1.5"/>');
@@ -79,7 +80,7 @@
       s.splice(dotsAt, 0, '<line x1="' + mx + '" x2="' + mx + '" y1="14" y2="' + axisY + '" stroke="' + C.accent + '" stroke-width="2"/>');
       s.push('<rect x="' + (mx - 6) + '" y="8" width="12" height="12" transform="rotate(45 ' + mx + ' 14)" fill="' + C.accent + '"/>');
       var right = mx < W * .72;
-      s.push('<text x="' + (mx + (right ? 14 : -14)) + '" y="18" text-anchor="' + (right ? "start" : "end") + '" class="lbl" style="fill:' + C.accent + '">Median ' + usd0(med) + "</text>");
+      s.push('<text x="' + (mx + (right ? 14 : -14)) + '" y="18" text-anchor="' + (right ? "start" : "end") + '" class="lbl" style="fill:' + C.accent + '">Fair value ' + usd0(med) + "</text>");
     }
     s.push("</svg>");
     el.innerHTML = s.join("");
@@ -94,7 +95,7 @@
     var rowH = narrow ? 30 : 32, top = 40, bot = 56, H = top + ms.length * rowH + bot;
     var labW = narrow ? 92 : 132, valW = narrow ? 50 : 64, x0 = labW + 12, x1 = W - valW - 8;
     var price = r.inputs.price, med = r.stats.median, s = r.settings;
-    var max = Math.max(price, r.stats.max) * 1.05, step = niceStep(max, narrow ? 3 : 5), topV = narrow ? max : Math.ceil(max / step) * step;
+    var max = Math.max(price, r.stats.maxAll || r.stats.max) * 1.05, step = niceStep(max, narrow ? 3 : 5), topV = narrow ? max : Math.ceil(max / step) * step;
     var x = function (v) { return x0 + (v / topV) * (x1 - x0); }, axisY = top + ms.length * rowH + 6;
     var o = ['<svg viewBox="0 0 ' + W + " " + H + '" width="' + W + '" height="' + H + '">'];
     for (var t = 0; t <= topV + 1e-9; t += step) {
@@ -105,14 +106,14 @@
     o.push('<line x1="' + x(med) + '" x2="' + x(med) + '" y1="' + (top - 14) + '" y2="' + axisY + '" stroke="' + C.accent + '" stroke-width="2"/>');
     o.push('<rect x="' + (x(med) - 5) + '" y="' + (top - 19) + '" width="10" height="10" transform="rotate(45 ' + x(med) + " " + (top - 14) + ')" fill="' + C.accent + '"/>');
     var mr = x(med) < W * .7;
-    o.push('<text class="lbl" x="' + (x(med) + (mr ? 12 : -12)) + '" y="' + (top - 10) + '" text-anchor="' + (mr ? "start" : "end") + '" style="fill:' + C.accent + '">Median ' + usd0(med) + "</text>");
+    o.push('<text class="lbl" x="' + (x(med) + (mr ? 12 : -12)) + '" y="' + (top - 10) + '" text-anchor="' + (mr ? "start" : "end") + '" style="fill:' + C.accent + '">Fair value ' + usd0(med) + "</text>");
     o.push('<line x1="' + x(price) + '" x2="' + x(price) + '" y1="' + (top - 8) + '" y2="' + axisY + '" stroke="#e8ecf5" stroke-width="1.4" stroke-dasharray="4 4" opacity=".75"/>');
     o.push('<text class="lbl" x="' + x(price) + '" y="' + (axisY + 38) + '" text-anchor="middle">Price ' + usd0(price) + "</text>");
     ms.forEach(function (m, i) {
       var cy = top + i * rowH + rowH / 2, col = dotColor(m.upside, s);
       o.push('<line x1="' + x0 + '" x2="' + x1 + '" y1="' + cy + '" y2="' + cy + '" stroke="#182841" stroke-width="1"/>');
-      o.push('<text x="' + labW + '" y="' + (cy + 4) + '" text-anchor="end" class="dp__nm">' + esc(m.short) + "</text>");
-      o.push('<g class="dotg" data-i="' + i + '"><title>' + esc(m.short + ": " + usd0(m.value)) + '</title><circle cx="' + x(m.value) + '" cy="' + cy + '" r="' + (narrow ? 6 : 6.5) + '" fill="' + col + '" stroke="#08111f" stroke-width="2"/></g>');
+      o.push('<text x="' + labW + '" y="' + (cy + 4) + '" text-anchor="end" class="dp__nm' + (m.counted === false ? " dp__side" : "") + '">' + esc(m.short) + "</text>");
+      o.push('<g class="dotg" data-i="' + i + '"><title>' + esc(m.short + ": " + usd0(m.value)) + '</title><circle cx="' + x(m.value) + '" cy="' + cy + '" r="' + (narrow ? 6 : 6.5) + '" fill="' + col + '"' + (m.counted === false ? ' fill-opacity=".35"' : "") + ' stroke="#08111f" stroke-width="2"/></g>');
       o.push('<text x="' + (W - 4) + '" y="' + (cy + 4) + '" text-anchor="end" class="dp__v">' + usd0(m.value) + "</text>");
     });
     o.push("</svg>");
@@ -242,7 +243,7 @@
     var ms = r.methods, n = ms.length + 1, H = top + n * rowH + bot;
     var price = r.inputs.price, med = r.stats.median, s = r.settings;
     var x0 = labW + 14, x1 = W - (narrow ? 58 : 76);
-    var max = Math.max(price, r.stats.max) * 1.04, step = niceStep(max, narrow ? 3 : 5), topV = Math.ceil(max / step) * step;
+    var max = Math.max(price, r.stats.maxAll || r.stats.max) * 1.04, step = niceStep(max, narrow ? 3 : 5), topV = Math.ceil(max / step) * step;
     var x = function (v) { return x0 + v / topV * (x1 - x0); };
     var o = ['<svg viewBox="0 0 ' + W + " " + H + '" width="' + W + '" height="' + H + '">'];
     for (var t = 0; t <= topV + 1e-9; t += step) {
@@ -250,22 +251,22 @@
       o.push('<text x="' + x(t) + '" y="' + (H - bot + 20) + '" text-anchor="middle">' + usd0(t) + "</text>");
     }
     o.push('<line class="axis" x1="' + x0 + '" x2="' + x0 + '" y1="' + top + '" y2="' + (H - bot + 4) + '"/>');
-    function row(i, name, sub, v, col, main) {
+    function row(i, name, sub, v, col, main, faded) {
       var cy = top + i * rowH + rowH / 2, bh = narrow ? 16 : 20;
-      if (narrow) o.push('<text class="nm" x="' + labW + '" y="' + (cy + 4) + '" text-anchor="end">' + esc(main ? "Median" : sub.replace(/[()]/g, "")) + "</text>");
+      if (narrow) o.push('<text class="nm" x="' + labW + '" y="' + (cy + 4) + '" text-anchor="end">' + esc(main ? "Fair value" : sub.replace(/[()]/g, "")) + "</text>");
       else {
         o.push('<text class="nm" x="' + labW + '" y="' + (cy - 2) + '" text-anchor="end"' + (main ? ' style="fill:#8fb4e6;font-weight:700"' : "") + ">" + esc(name) + "</text>");
         if (sub) o.push('<text class="nm2" x="' + labW + '" y="' + (cy + 12) + '" text-anchor="end">' + esc(sub) + "</text>");
       }
       if (!fin(v)) { o.push('<text x="' + (x0 + 8) + '" y="' + (cy + 4) + '">Not available</text>'); return; }
-      o.push('<rect class="barr" style="animation-delay:' + (i * 55) + 'ms" x="' + x0 + '" y="' + (cy - bh / 2) + '" width="' + Math.max(2, x(v) - x0) + '" height="' + bh + '" rx="3" fill="' + col + '" stroke="#e9eef5" stroke-opacity=".35"><title>' + esc(name) + ": " + usd0(v) + "</title></rect>");
+      o.push('<rect class="barr" style="animation-delay:' + (i * 55) + 'ms" x="' + x0 + '" y="' + (cy - bh / 2) + '" width="' + Math.max(2, x(v) - x0) + '" height="' + bh + '" rx="3" fill="' + col + '"' + (faded ? ' fill-opacity=".35"' : "") + ' stroke="#e9eef5" stroke-opacity=".35"><title>' + esc(name) + ": " + usd0(v) + "</title></rect>");
       o.push('<text class="val" x="' + (x(v) + 8) + '" y="' + (cy + 4) + '">' + usd2(v) + "</text>");
     }
     ms.forEach(function (m, i) {
       var long = m.name.replace(/, 20 years/, " 20-year").replace(/, 10 years \+ terminal value/, " Terminal").replace(/^Discounted /, "Discounted ").replace(/ \(excluding one-offs\)/, " (ex-NRI)");
-      row(i, long, "(" + m.short + ")", m.value, fin(m.value) ? dotColor(m.upside, s) : "#5e6f88");
+      row(i, long, "(" + m.short + (m.counted === false ? ", side check" : "") + ")", m.value, fin(m.value) ? dotColor(m.upside, s) : "#5e6f88", false, m.counted === false);
     });
-    row(ms.length, "Plumbline value (median)", "", med, "#8fb4e6", true);
+    row(ms.length, "Plumbline fair value", "", med, "#8fb4e6", true);
     var yTop = top - 6, yBot = H - bot + 4;
     o.push('<line x1="' + x(med) + '" x2="' + x(med) + '" y1="' + yTop + '" y2="' + yBot + '" stroke="#e9eef5" stroke-width="1.6" stroke-dasharray="5 4"/>');
     o.push('<line x1="' + x(price) + '" x2="' + x(price) + '" y1="' + yTop + '" y2="' + yBot + '" stroke="#4cb782" stroke-width="1.6" stroke-dasharray="5 4"/>');
@@ -276,7 +277,7 @@
       if (right && px + 8 + w > W - 4) right = false; else if (!right && px - 8 - w < 4) right = true;
       return '<text class="lbl" x="' + (px + (right ? 8 : -8)) + '" y="' + y + '" text-anchor="' + (right ? "start" : "end") + '"' + (style ? ' style="' + style + '"' : "") + ">" + text + "</text>";
     }
-    o.push(edgeLabel(x(med), medRight, top - 16, (narrow ? "Median: " : "Plumbline value: ") + usd2(med)));
+    o.push(edgeLabel(x(med), medRight, top - 16, (narrow ? "Fair value: " : "Plumbline fair value: ") + usd2(med)));
     o.push(edgeLabel(x(price), !medRight, H - 12, (narrow ? "Price: " : "Stock price: ") + usd2(price), "fill:#4cb782"));
     o.push("</svg>");
     el.innerHTML = o.join("");

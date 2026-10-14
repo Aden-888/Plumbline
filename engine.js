@@ -155,19 +155,40 @@
       value: cagrEps > 0 && epsEx > 0 ? cagrEps * s.peg * epsEx : null, why: "Earnings growth forecast or earnings are not positive",
       d: { growth: cagrEps, target: s.peg, fairPE: cagrEps * s.peg, eps: epsEx } });
 
-    /* ---- averages and verdict ---- */
-    var vals = out.methods.filter(function (x) { return fin(x.value); }).map(function (x) { return x.value; });
-    var sorted = vals.slice().sort(function (x, y) { return x - y; });
-    var stats = { n: vals.length };
-    if (vals.length) {
-      stats.mean = avg(vals);
-      stats.median = median(vals);
-      stats.trimmed = vals.length > 2 ? (sum(vals) - sorted[0] - sorted[sorted.length - 1]) / (vals.length - 2) : stats.mean;
+    /* ---- fair value and verdict ----
+       The methods are grouped into families. Cash flow & earnings models (4) and valuation multiples (3) each give
+       their middle value (median); the fair value is the average of those two, so the four similar discounting
+       models cannot outvote the rest. Growth-adjusted checks (PSG, PEG) depend on arbitrary targets, so they are
+       shown as side checks and not counted. */
+    var FAM = [
+      { id: "cf", name: "Cash flow & earnings models", ids: ["dcf20", "dfcf20", "dni20", "dfcft"], counted: true },
+      { id: "mult", name: "Valuation multiples", ids: ["ps", "pe", "pb"], counted: true },
+      { id: "growth", name: "Growth-adjusted checks", ids: ["psg", "peg"], counted: false }
+    ];
+    var fams = FAM.map(function (f) {
+      var ms = out.methods.filter(function (x) { return f.ids.indexOf(x.id) >= 0; });
+      ms.forEach(function (x) { x.family = f.id; x.counted = f.counted; });
+      var v = ms.filter(function (x) { return fin(x.value); }).map(function (x) { return x.value; });
+      return { id: f.id, name: f.name, counted: f.counted, n: v.length, total: ms.length, median: v.length ? median(v) : NaN };
+    });
+    var used = fams.filter(function (f) { return f.counted && fin(f.median); });
+    var head = out.methods.filter(function (x) { return x.counted && fin(x.value); }).map(function (x) { return x.value; });
+    var allV = out.methods.filter(function (x) { return fin(x.value); }).map(function (x) { return x.value; });
+    var sorted = head.slice().sort(function (x, y) { return x - y; });
+    var stats = { n: head.length, nCounted: out.methods.filter(function (x) { return x.counted; }).length, families: fams };
+    if (used.length) {
+      stats.median = avg(used.map(function (f) { return f.median; })); /* the headline fair value (name kept for compatibility) */
+      stats.value = stats.median;
+      stats.mean = avg(head);
+      stats.medianAll = median(allV);
+      stats.trimmed = head.length > 2 ? (sum(head) - sorted[0] - sorted[sorted.length - 1]) / (head.length - 2) : stats.mean;
       stats.min = sorted[0]; stats.max = sorted[sorted.length - 1];
-      stats.above = vals.filter(function (x) { return x > inp.price; }).length;
+      stats.maxAll = Math.max.apply(null, allV); stats.minAll = Math.min.apply(null, allV);
+      stats.above = head.filter(function (x) { return x > inp.price; }).length;
       stats.upside = stats.median / inp.price - 1;
       stats.verdict = stats.upside >= s.buy ? "BUY" : stats.upside <= s.sell ? "SELL" : "HOLD";
-    }
+      stats.oneFamily = used.length === 1 ? used[0].name : null;
+    } else stats.n = 0;
     function sum(a) { return a.reduce(function (p, q) { return p + q; }, 0); }
     out.stats = stats;
     return out;

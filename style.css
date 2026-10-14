@@ -924,3 +924,13 @@ a, .jump a, .m summary::after, .qmore > summary { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .pxsvg .pxline { animation: none; stroke-dashoffset: 0; } .live i { animation: none; } .pxc__skel { animation: none; } }
 .pv__k > span:first-child { white-space: nowrap; }
 @media (max-width: 480px) { .pv__k .hide-sm { display: none; } }
+
+/* v2.9: method families */
+.avg { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1000px) { .avg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .avg { grid-template-columns: 1fr; } }
+.avg__c.is-side { opacity: .72; }
+.tag--side { background: rgba(149, 164, 187, .15) !important; color: var(--muted) !important; }
+.m__type--side { color: var(--muted); border-style: dashed; }
+.chart .dp__side { fill: var(--muted); }
+.avg__c h3 .tag { white-space: nowrap; }

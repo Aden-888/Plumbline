@@ -1,4 +1,4 @@
-# Plumbline v2.8: stock intrinsic value and business quality
+# Plumbline v2.9: stock intrinsic value and business quality
 
 A static website (no build step). Open `index.html` in a browser, or upload the folder to any static host
 (Netlify, Vercel, GitHub Pages, Cloudflare Pages).
@@ -14,6 +14,12 @@ Data sources (all free, no key): company financials from SEC EDGAR filings, pric
 Analyst estimates are not available there, so growth for the first years comes from the company's own past growth (labelled on the page).
 Optional: add `FMP_API_KEY=...` to `.env` to use Financial Modeling Prep as a backup (foreign companies), or set `DATA_SOURCE=fmp` if you pay for FMP and want its analyst estimates.
 Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example ASML) and very recent listings need the manual entry form.
+
+## v2.9: model fixes, step 2 - method families
+- The fair value is no longer the median of all nine methods. Methods are grouped: cash flow & earnings models (DCF-20, DFCF-20, DNI-20, DFCF-Terminal) and valuation multiples (Mean P/S, P/E, P/B). Each group gives its median, and the fair value is the average of the two group medians, so the four similar discounting models cannot outvote the three multiples.
+- PSG and PEG depend on rule-of-thumb targets, so they are side checks: shown (faded, labelled) but not counted.
+- Effect (with step 1): NVDA $306.97 -> $302.28 (BUY, +32%), CRM $351.08 -> $365.95 (BUY, +60%; its PSG and PEG were far below the rest).
+- Step 5 on the result page now shows the two group values, the fair value and the side checks. "Median" wording replaced by "fair value" across the site; engine keeps stats.median as the headline for compatibility and adds stats.families, stats.medianAll, stats.maxAll.
 
 ## v2.8: model fixes, step 1 (after the backtest)
 - Adjusted beta: the discount rate now uses 0.67 x measured beta + 0.33 (the Blume adjustment used by Bloomberg), so extreme betas are pulled towards 1. NVDA 2.22 -> 1.82 (WACC 16.0% -> 14.0%), CRM 1.26 -> 1.17.
