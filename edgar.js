@@ -387,7 +387,10 @@ function build(t, co, facts, sub, px, mkt, today) {
     cashTTM: [{ operatingCashFlow: tOcf.value, capitalExpenditure: -((tCap ? tCap.value : 0) + (tSoft ? tSoft.value : 0)) }],
     ratios: ratioRows,
     incomeFY: fyRows,
-    cashFY: [],
+    cashFY: Object.keys(rA).sort().reverse().slice(0, 5).map(function (end) {
+      var cA = annualMap(capex)[end], sA = annualMap(soft)[end];
+      return cA ? { date: end, capitalExpenditure: -((cA.last.val) + (sA ? sA.last.val : 0)) } : null;
+    }).filter(Boolean),
     estimates: [],
     fx: 1,
     calWeight: calWeight,

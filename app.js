@@ -257,7 +257,7 @@
 
   /* ---------------- results shell (built once per stock) ---------------- */
   var SETTINGS = [
-    ["beta", "Beta", "How jumpy the stock is compared with the market. Higher beta means a higher discount rate and a lower value.", .3, 3, .01, function (v) { return v.toFixed(2); }],
+    ["beta", "Beta (adjusted)", "How jumpy the stock is compared with the market. Plumbline uses adjusted beta: the measured beta pulled one third of the way towards 1, because extreme betas rarely last. Higher beta means a higher discount rate and a lower value.", .3, 3, .01, function (v) { return v.toFixed(2); }],
     ["rf", "Risk-free rate", "What safe government bonds pay. Part of the discount rate.", .01, .08, .0025, pc],
     ["erp", "Equity risk premium", "The extra return investors expect for owning stocks instead of bonds.", .03, .08, .0025, pc],
     ["g5", "Growth in year 5", "After two years of analyst estimates, growth fades to this rate by year 5.", 0, .4, .005, pc],
@@ -600,10 +600,12 @@
     var row = function (a, b2) { return "<tr><td>" + a + "</td><td>" + b2 + "</td></tr>"; };
     $("rIn").innerHTML = '<table class="tbl"><thead><tr><th>Inputs used (last 12 months)</th><th></th></tr></thead><tbody>' +
       row("Revenue", F.mm(T.rev)) + row("Net income (reported)", F.mm(T.ni)) + row("One-off investment gains (before tax)", F.mm(T.gain)) + row("Net income excluding one-offs", F.mm(b.niEx)) +
-      row("Earnings per share excluding one-offs", F.usd(b.epsEx)) + row("Operating cash flow", F.mm(T.ocf)) + row("Capital spending", F.mm(T.capex)) + row("Free cash flow", F.mm(b.fcf)) +
+      row("Earnings per share excluding one-offs", F.usd(b.epsEx)) + row("Operating cash flow", F.mm(T.ocf)) + row("Capital spending (last 12 months)", F.mm(T.capex)) +
+      (r.capex && r.capex.normalised ? row("Capital spending used (normalised: " + F.pct(r.capex.info.ratio, 1) + " of revenue, the " + r.capex.info.years + "-year average)", F.mm(r.capex.used)) : "") +
+      row("Free cash flow" + (r.capex && r.capex.normalised ? " (with normalised capital spending)" : ""), F.mm(b.fcf)) +
       row("Cash and investments", F.mm(inp.cash)) + row("Total debt", F.mm(inp.debt)) + row("Shareholders' equity", F.mm(inp.equity)) + row("Shares outstanding", F.num(inp.shares) + " million") + "</tbody></table>";
     $("rWacc").innerHTML = '<table class="tbl"><thead><tr><th>Discount rate build</th><th></th></tr></thead><tbody>' +
-      row("Risk-free rate", F.pct(w.rf, 2)) + row("Beta", w.beta.toFixed(2)) + row("Equity risk premium", F.pct(w.erp, 2)) + row("Cost of equity = risk-free + beta × premium", F.pct(w.coe, 2)) +
+      row("Risk-free rate", F.pct(w.rf, 2)) + row("Beta (adjusted" + (fin(inp.beta) ? " from a measured " + inp.beta.toFixed(2) : "") + ")", w.beta.toFixed(2)) + row("Equity risk premium", F.pct(w.erp, 2)) + row("Cost of equity = risk-free + beta × premium", F.pct(w.coe, 2)) +
       row("Cost of debt (risk-free + spread)", F.pct(w.kd, 2)) + row("Share of equity in funding (market value)", F.pct(w.we, 1)) + row("Tax rate", F.pct(w.tax, 1)) + row("WACC", "<strong>" + F.pct(w.wacc, 2) + "</strong>") + "</tbody></table>" +
       '<p style="color:var(--muted);font-size:14px;margin:12px 0 0">WACC is used for the cash flow methods. The net income method uses the cost of equity.</p>';
   }

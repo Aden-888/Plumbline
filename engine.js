@@ -20,11 +20,27 @@
     var g5 = Math.min(0.25, Math.max(gT, 0.85 * g2));
     var g10 = Math.max(gT, 0.5 * g5);
     return {
-      rf: 0.05, erp: 0.05, spread: 0.006, beta: fin(inp.beta) ? inp.beta : 1,
+      rf: 0.05, erp: 0.05, spread: 0.006, beta: adjBeta(inp.beta), capexNorm: 1,
       g5: g5, g10: g10, gT: gT,
       peg: 1, psg: 0.1, peCap: 100,
       buy: 0.2, sell: -0.2
     };
+  }
+
+  /* Adjusted beta (Blume): the measured beta pulled one third of the way towards 1, because extreme betas rarely last.
+     Standard practice at data providers such as Bloomberg. */
+  function adjBeta(b) { return fin(b) ? 0.67 * b + 0.33 : 1; }
+
+  /* Normalised capital spending: latest revenue x the average capex-to-revenue ratio of the last five years
+     (including the latest twelve months). A one-off spending surge, such as a data-centre build-out,
+     then no longer wipes out free cash flow, and an unusually quiet year does not flatter it. */
+  function capexInfo(inp) {
+    var T = inp.ttm, h = (inp.capexHist || []).filter(function (x) { return x.rev > 0 && fin(x.capex); });
+    var ratios = h.map(function (x) { return x.capex / x.rev; });
+    if (T.rev > 0 && fin(T.capex)) ratios.push(T.capex / T.rev);
+    if (ratios.length < 3 || !(T.rev > 0)) return { ok: false, ttm: T.capex, used: T.capex, years: ratios.length };
+    var r = avg(ratios.slice(-6));
+    return { ok: true, ttm: T.capex, used: T.rev * r, ratio: r, ratioTTM: T.rev > 0 ? T.capex / T.rev : null, years: Math.min(6, ratios.length) };
   }
 
   /* Years 1-2 growth from analyst estimates, calendarised to line up with the trailing twelve months. */
@@ -64,7 +80,9 @@
     var epsEx = niEx / inp.dilShares;
     var salesPS = T.rev / inp.shares;
     var bookPS = inp.equity / inp.shares;
-    var fcf = T.ocf - T.capex;
+    var cx = capexInfo(inp), capexUsed = s.capexNorm && cx.ok ? cx.used : T.capex;
+    var fcf = T.ocf - capexUsed;
+    out.capex = { info: cx, used: capexUsed, normalised: !!(s.capexNorm && cx.ok) };
     var mcap = inp.price * inp.shares;
 
     /* ---- discount rate (CAPM + after-tax cost of debt) ---- */
@@ -73,7 +91,7 @@
     var we = mcap / (mcap + inp.debt);
     var wacc = we * coe + (1 - we) * kd * (1 - T.tax);
     out.wacc = { rf: s.rf, beta: s.beta, erp: s.erp, coe: coe, kd: kd, we: we, tax: T.tax, wacc: wacc, mcap: mcap };
-    out.base = { niEx: niEx, epsEx: epsEx, salesPS: salesPS, bookPS: bookPS, fcf: fcf, ocf: T.ocf, mcap: mcap };
+    out.base = { niEx: niEx, epsEx: epsEx, salesPS: salesPS, bookPS: bookPS, fcf: fcf, ocf: T.ocf, mcap: mcap, capex: capexUsed };
 
     /* ---- 20-year projections ---- */
     var gCF = fade(gp.cf[0], gp.cf[1], s);
@@ -155,7 +173,7 @@
     return out;
   }
 
-  var api = { compute: compute, defaultSettings: defaultSettings, growthPath: growthPath, avg: avg, median: median, fin: fin };
+  var api = { compute: compute, adjBeta: adjBeta, capexInfo: capexInfo, defaultSettings: defaultSettings, growthPath: growthPath, avg: avg, median: median, fin: fin };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.IV = api;
 })(typeof window !== "undefined" ? window : globalThis);

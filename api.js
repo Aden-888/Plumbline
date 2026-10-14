@@ -94,6 +94,10 @@
     var R3 = rv.length > 2 ? rv[2] : rv[1] * (1 + cagrRev), E3 = ev.length > 2 ? ev[2] : ev[1] * (1 + cagrEps);
 
     var revTTM = X * num(inc.revenue) / M, equity = X * num(bs.totalStockholdersEquity, 0) / M;
+    /* past capital spending as a share of revenue (up to five fiscal years), used to normalise capex */
+    var revBy = {}; fyArr.forEach(function (r) { revBy[String(r.date).slice(0, 7)] = num(r.revenue); });
+    var capexHist = (R.cashFY || []).map(function (c) { var rv = revBy[String(c.date).slice(0, 7)]; return { year: String(c.date).slice(0, 4), rev: X * rv / M, capex: X * Math.abs(num(c.capitalExpenditure, NaN)) / M }; })
+      .filter(function (h) { return h.rev > 0 && isFinite(h.capex); }).sort(function (a, b) { return a.year < b.year ? -1 : 1; }).slice(-5);
     var epsTTM = X * num(inc.epsDiluted, inc.eps);
     return {
       ticker: t, name: (p && p.companyName) || t, exchange: (p && (p.exchange || p.exchangeFullName)) || "", sector: (p && p.sector) || "",
@@ -103,7 +107,7 @@
       cash: X * num(bs.cashAndShortTermInvestments, num(bs.cashAndCashEquivalents, 0)) / M,
       debt: X * num(bs.totalDebt, 0) / M, equity: equity, beta: num(p && p.beta, 1),
       ttm: { rev: revTTM, ni: X * num(inc.netIncome) / M, gain: 0, tax: tax, ocf: ocf / M, capex: capex / M, epsGaap: epsTTM },
-      hist: hist,
+      hist: hist, capexHist: capexHist,
       cur: { pe: epsTTM > 0 ? price / epsTTM : null, ps: revTTM > 0 ? mcap / M / revTTM : null, pb: equity > 0 ? mcap / M / equity : null },
       est: { rev: [R0, rv[0], rv[1], R3], eps: [E0, ev[0], ev[1], E3], cagrRev: cagrRev, cagrEps: cagrEps, cfG1: null, calWeight: R.calWeight != null ? R.calWeight : (annualBase ? 1 : 0.5) },
       settings: {},

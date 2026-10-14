@@ -1,4 +1,4 @@
-# Plumbline v2.7: stock intrinsic value and business quality
+# Plumbline v2.8: stock intrinsic value and business quality
 
 A static website (no build step). Open `index.html` in a browser, or upload the folder to any static host
 (Netlify, Vercel, GitHub Pages, Cloudflare Pages).
@@ -14,6 +14,13 @@ Data sources (all free, no key): company financials from SEC EDGAR filings, pric
 Analyst estimates are not available there, so growth for the first years comes from the company's own past growth (labelled on the page).
 Optional: add `FMP_API_KEY=...` to `.env` to use Financial Modeling Prep as a backup (foreign companies), or set `DATA_SOURCE=fmp` if you pay for FMP and want its analyst estimates.
 Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example ASML) and very recent listings need the manual entry form.
+
+## v2.8: model fixes, step 1 (after the backtest)
+- Adjusted beta: the discount rate now uses 0.67 x measured beta + 0.33 (the Blume adjustment used by Bloomberg), so extreme betas are pulled towards 1. NVDA 2.22 -> 1.82 (WACC 16.0% -> 14.0%), CRM 1.26 -> 1.17.
+- Normalised capex: free cash flow uses latest revenue x the average capex-to-revenue ratio of the last five fiscal years plus the latest twelve months, so a temporary spending surge (data centres) no longer wipes out free cash flow. Needs at least 3 years of capex history (SEC and FMP data); the built-in NVDA and CRM figures have no capex history, so they use the latest twelve months as before.
+- Effect on the built-in stocks: NVDA median $282.13 -> $306.97 (BUY), CRM $330.49 -> $351.08 (BUY).
+- The quality scorecard still uses actual (not normalised) free cash flow, because it measures what the business really produced.
+- The backtest uses the same engine, so it picks these changes up automatically.
 
 ## v2.7: backtest (how would past calls have done?)
 - `node backtest.js` values a fixed list of 54 large US companies on 1 April of each year from 2016 to 2025, using only SEC filings submitted before each date, the share price on that date (later stock splits undone), 5-year beta before the date and the 10-year Treasury yield of that date. It then measures each stock's 12-month total return against SPY.

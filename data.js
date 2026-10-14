@@ -28,7 +28,7 @@ window.PRESETS = {
     caveats: [
       "About $30.6 billion of the last 12 months of net income came from investment gains. The P/E, PEG and net income methods remove these.",
       "Cash conversion has weakened. Operating cash flow in the latest quarter fell to $24.1 billion from $50.3 billion as receivables rose.",
-      "The 20-year methods depend mostly on the growth path and the discount rate. The discount rate here is high (about 16%) because the stock's beta is 2.2.",
+      "The 20-year methods depend mostly on the growth path and the discount rate. The discount rate here is high (about 14%) because the stock's measured beta is 2.2 (1.8 after adjustment towards 1).",
       "The mean-multiple methods assume the stock returns to its own five-year average. Those years were a period of very fast growth."
     ]
   },

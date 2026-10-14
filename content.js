@@ -49,10 +49,10 @@
         steps: function (r, m) { return dcfSteps("Operating cash flow", "ocf", r, m, r.wacc.wacc, "WACC", true, 20); }
       },
       dfcf20: {
-        what: "The same 20-year cash flow calculation, but using free cash flow. Free cash flow is operating cash flow minus capital spending (capex).",
+        what: "The same 20-year cash flow calculation, but using free cash flow. Free cash flow is operating cash flow minus capital spending (capex). Capex is normalised: Plumbline uses the company's average capex as a share of revenue over the last five years, so a one-off spending surge (for example a data-centre build-out) does not wipe out the value.",
         why: "Capex is money the company must spend to keep running and growing. Free cash flow is what is really left for shareholders, so it is a stricter and more honest measure than operating cash flow.",
         fit: "Better than DCF-20 for companies that spend a lot on equipment, data centres or stores.",
-        watch: "Free cash flow can be lumpy from year to year. It also does not subtract stock-based pay, which is a real cost to shareholders.",
+        watch: "Free cash flow can be lumpy from year to year, which is why capex is averaged. If a company's heavy spending is permanent rather than temporary, the average flatters it. It also does not subtract stock-based pay, which is a real cost to shareholders.",
         steps: function (r, m) { return dcfSteps("Free cash flow", "fcf", r, m, r.wacc.wacc, "WACC", true, 20); }
       },
       dni20: {
