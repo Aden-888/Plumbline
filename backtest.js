@@ -21,7 +21,7 @@
 "use strict";
 var fs = require("fs"), path = require("path");
 try { fs.readFileSync(path.join(__dirname, ".env"), "utf8").split(/\r?\n/).forEach(function (l) { var m = l.match(/^\s*SEC_CONTACT\s*=\s*(.+?)\s*$/); if (m && !process.env.SEC_CONTACT) process.env.SEC_CONTACT = m[1].replace(/^["']|["']$/g, ""); }); } catch (e) {}
-var Edgar = require("./edgar.js"), IV = require("./engine.js");
+var Edgar = require("./edgar.js"), IV = require("./engine.js"), QS = require("./quality.js");
 
 /* ---------- settings ---------- */
 var DEFAULT_TICKERS = ("AAPL MSFT NVDA GOOGL AMZN META AVGO TSLA ORCL CSCO ADBE CRM INTC AMD QCOM TXN IBM NFLX INTU AMAT MU LRCX " +
@@ -74,6 +74,32 @@ function pricesAsOf(px, date) {
   var meta = Object.assign({}, px.meta, { regularMarketPrice: last ? last.close : null });
   return { meta: meta, bars: bars, splits: px.splits.filter(function (s) { return s.t <= t; }) };
 }
+/* Daily prices from Yahoo, turned into clean month-end bars (one per calendar month, dated the 1st).
+   Asking Yahoo for monthly bars over the "max" range can return irregular dates, which left many returns blank. */
+var YF = process.env.YAHOO_BASE || "https://query1.finance.yahoo.com/";
+function yahooDaily(sym) {
+  var url = YF + "v8/finance/chart/" + encodeURIComponent(sym) + "?period1=1104537600&period2=" + Math.floor(Date.now() / 1000) + "&interval=1d&events=split";
+  return fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36", "Accept": "application/json" } }).then(function (r) {
+    if (!r.ok) throw new Error("Yahoo price data returned an error (" + r.status + ") for " + sym);
+    return r.json();
+  }).then(function (j) {
+    var r = j && j.chart && j.chart.result && j.chart.result[0];
+    if (!r || !r.timestamp) throw new Error("no price data for " + sym);
+    var q = r.indicators.quote[0].close, a = r.indicators.adjclose && r.indicators.adjclose[0] && r.indicators.adjclose[0].adjclose, months = {}, order = [];
+    r.timestamp.forEach(function (ts, i) {
+      if (q[i] == null) return;
+      var d = new Date(ts * 1000), k = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+      if (!months[k]) { months[k] = {}; order.push(k); }
+      months[k].close = q[i]; months[k].adj = a && a[i] != null ? a[i] : q[i];
+    });
+    var bars = order.map(function (k) { return { t: k, close: months[k].close, adj: months[k].adj }; });
+    var splits = [];
+    if (r.events && r.events.splits) Object.keys(r.events.splits).forEach(function (k) { var x = r.events.splits[k]; if (x.numerator > 0 && x.denominator > 0) splits.push({ t: x.date * 1000, f: x.numerator / x.denominator }); });
+    return { meta: Object.assign({}, r.meta || {}, { currency: (r.meta && r.meta.currency) || "USD" }), bars: bars, splits: splits };
+  });
+}
+function rank(a) { var idx = a.map(function (v, i) { return [v, i]; }).sort(function (x, y) { return x[0] - y[0]; }), r = new Array(a.length); idx.forEach(function (p, k) { r[p[1]] = k; }); return r; }
+function corr(x, y) { var n = x.length; if (n < 3) return NaN; var mx = mean(x), my = mean(y), c = 0, vx = 0, vy = 0; for (var i = 0; i < n; i++) { c += (x[i] - mx) * (y[i] - my); vx += (x[i] - mx) * (x[i] - mx); vy += (y[i] - my) * (y[i] - my); } return vx && vy ? c / Math.sqrt(vx * vy) : NaN; }
 function mean(a) { return a.length ? a.reduce(function (s, v) { return s + v; }, 0) / a.length : NaN; }
 function median(a) { if (!a.length) return NaN; var b = a.slice().sort(function (x, y) { return x - y; }), m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; }
 function pct(v, d) { return isFinite(v) ? (v >= 0 ? "+" : "") + (v * 100).toFixed(d == null ? 1 : d) + "%" : "n/a"; }
@@ -84,9 +110,9 @@ function csvCell(v) { var s = v == null ? "" : String(v); return /[",\n]/.test(s
 async function main() {
   var dates = []; for (var y = FROM; y <= TO; y++) dates.push(new Date(Date.UTC(y, MONTH - 1, 1)));
   console.log("Plumbline backtest: " + TICKERS.length + " stocks x " + dates.length + " dates (" + iso(dates[0]) + " to " + iso(dates[dates.length - 1]) + "), holding " + HOLD + " months.\n");
-  var spy = await cached("yahoo_SPY", function () { return Edgar.yahoo("SPY", "max"); });
-  var gspc = await cached("yahoo_GSPC", function () { return Edgar.yahoo("^GSPC", "max"); });
-  var tnx = await cached("yahoo_TNX", function () { return Edgar.yahoo("^TNX", "max"); }).catch(function () { return null; });
+  var spy = await cached("yd_SPY", function () { return yahooDaily("SPY"); });
+  var gspc = await cached("yd_GSPC", function () { return yahooDaily("^GSPC"); });
+  var tnx = await cached("yd_TNX", function () { return yahooDaily("^TNX"); }).catch(function () { return null; });
   var rows = [], now = Date.now();
 
   for (var i = 0; i < TICKERS.length; i++) {
@@ -96,7 +122,7 @@ async function main() {
     try {
       co = await Edgar.resolve(t);
       raw = await cached("sec_" + co.ticker, function () { return Edgar.rawCompany(co); });
-      px = await cached("yahoo_" + co.ticker, function () { return Edgar.yahoo(co.ticker, "max"); });
+      px = await cached("yd_" + co.ticker, function () { return yahooDaily(co.ticker); });
     } catch (e) { console.log("skipped: " + e.message); rows.push({ date: "", ticker: t, note: "download failed: " + e.message }); continue; }
     var ok = 0;
     for (var k = 0; k < dates.length; k++) {
@@ -113,6 +139,8 @@ async function main() {
         if (!r.stats.n) throw new Error("none of the nine methods could be calculated");
         row.price = inp.price; row.value = r.stats.median; row.upside = r.stats.upside; row.verdict = r.stats.verdict;
         row.methods = r.stats.n; row.beta = s.beta; row.rf = s.rf; row.financialsTo = inp.ttmEnd;
+        row.m = {}; r.methods.forEach(function (mm) { if (isFinite(mm.value) && mm.value != null) row.m[mm.short] = mm.upside; });
+        try { var q = QS.compute(inp); if (q.ok) { row.grade = q.grade; row.score = q.score; } } catch (e) {}
         /* what happened next: total return (adjusted close includes dividends) over the holding period */
         var D2 = addMonths(D, HOLD);
         if (D2.getTime() > now - 3 * 864e5) row.note = (row.note ? row.note + "; " : "") + "holding period not finished yet";
@@ -130,9 +158,11 @@ async function main() {
   }
 
   /* ---------- write every call ---------- */
-  var cols = ["date", "ticker", "name", "price", "value", "upside", "verdict", "ret", "spy", "excess", "beat", "methods", "beta", "rf", "financialsTo", "note"];
-  var head = ["Test date", "Ticker", "Company", "Price", "Intrinsic value", "Upside", "Verdict", HOLD + "m stock return", HOLD + "m SPY return", "Excess return", "Beat SPY", "Methods used", "Beta", "Risk-free rate", "Financials to", "Notes"];
-  var fmt = function (c, v) { if (v == null || v === "") return ""; if (["upside", "ret", "spy", "excess", "rf"].indexOf(c) >= 0) return (v * 100).toFixed(2) + "%"; if (c === "price" || c === "value") return v.toFixed(2); if (c === "beta") return v.toFixed(2); return v; };
+  var MN = ["DCF-20", "DFCF-20", "DNI-20", "DFCF-Terminal", "Mean P/S", "Mean P/E", "Mean P/B", "PSG", "PEG"];
+  rows.forEach(function (r) { MN.forEach(function (n) { r["m_" + n] = r.m && r.m[n] != null ? r.m[n] : null; }); });
+  var cols = ["date", "ticker", "name", "price", "value", "upside", "verdict", "grade", "score", "ret", "spy", "excess", "beat", "methods", "beta", "rf", "financialsTo", "note"].concat(MN.map(function (n) { return "m_" + n; }));
+  var head = ["Test date", "Ticker", "Company", "Price", "Intrinsic value", "Upside", "Verdict", "Quality grade", "Quality score", HOLD + "m stock return", HOLD + "m SPY return", "Excess return", "Beat SPY", "Methods used", "Beta", "Risk-free rate", "Financials to", "Notes"].concat(MN.map(function (n) { return n + " upside"; }));
+  var fmt = function (c, v) { if (v == null || v === "") return ""; if (["upside", "ret", "spy", "excess", "rf"].indexOf(c) >= 0 || c.indexOf("m_") === 0) return (v * 100).toFixed(2) + "%"; if (c === "score") return v.toFixed(0); if (c === "price" || c === "value") return v.toFixed(2); if (c === "beta") return v.toFixed(2); return v; };
   fs.writeFileSync(path.join(OUT, "results.csv"), [head.join(",")].concat(rows.map(function (r) { return cols.map(function (c) { return csvCell(fmt(c, r[c])); }).join(","); })).join("\n"));
   fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify({ settings: { from: FROM, to: TO, month: MONTH, hold: HOLD, tickers: TICKERS, buy: 0.2, sell: -0.2 }, generated: new Date().toISOString(), rows: rows }, null, 1));
 
@@ -201,6 +231,35 @@ async function main() {
     var b = done.filter(function (r) { return r.upside >= th; }), s2 = done.filter(function (r) { return r.upside <= -th; });
     L.push("  +/-" + pad((th * 100).toFixed(0) + "%", 4, true) + "  BUY " + pad(b.length, 4) + " calls " + pad(pct(mean(b.map(function (r) { return r.excess; }))), 8) + " vs SPY   |   SELL " + pad(s2.length, 4) + " calls " + pad(pct(mean(s2.map(function (r) { return r.excess; }))), 8) + " vs SPY");
   });
+  L.push("");
+
+  L.push("6) DOES THE BUSINESS QUALITY GRADE PREDICT RETURNS?");
+  ["A", "B", "C", "D", "F"].forEach(function (g) {
+    var list = done.filter(function (r) { return r.grade === g; }), ex = list.map(function (r) { return r.excess; });
+    L.push("  Grade " + g + "  " + pad(list.length, 4) + " calls   avg vs SPY " + pad(pct(mean(ex)), 8) + "   median vs SPY " + pad(pct(median(ex)), 8) + "   beat SPY " + (list.length ? (list.filter(function (r) { return r.excess > 0; }).length / list.length * 100).toFixed(0) + "%" : "n/a"));
+  });
+  var combo = done.filter(function (r) { return r.verdict === "BUY" && (r.grade === "A" || r.grade === "B"); });
+  L.push("  BUY and grade A/B: " + combo.length + " calls, avg vs SPY " + pct(mean(combo.map(function (r) { return r.excess; }))) + ", median " + pct(median(combo.map(function (r) { return r.excess; }))));
+  L.push("");
+  L.push("7) EACH METHOD ON ITS OWN (rank correlation between the method's upside and the next 12 months vs SPY, averaged over the years)");
+  L.push("  Above 0 = more upside tended to mean better returns. Around 0 = no signal. Below 0 = the opposite. Values beyond +/-0.10 are worth noticing.");
+  MN.forEach(function (n) {
+    var ics = [];
+    Object.keys(byYear).forEach(function (yr) {
+      var g = byYear[yr].filter(function (r) { return r["m_" + n] != null; });
+      if (g.length >= 8) ics.push(corr(rank(g.map(function (r) { return r["m_" + n]; })), rank(g.map(function (r) { return r.excess; }))));
+    });
+    var pos = ics.filter(function (v) { return v > 0; }).length;
+    L.push("  " + pad(n, 18, true) + " average " + pad(isFinite(mean(ics)) ? (mean(ics) >= 0 ? "+" : "") + mean(ics).toFixed(2) : "n/a", 6) + "   positive in " + pos + " of " + ics.length + " years");
+  });
+  var icsAll = [];
+  Object.keys(byYear).forEach(function (yr) { var g = byYear[yr]; if (g.length >= 8) icsAll.push(corr(rank(g.map(function (r) { return r.upside; })), rank(g.map(function (r) { return r.excess; })))); });
+  L.push("  " + pad("Median (headline)", 18, true) + " average " + pad(isFinite(mean(icsAll)) ? (mean(icsAll) >= 0 ? "+" : "") + mean(icsAll).toFixed(2) : "n/a", 6) + "   positive in " + icsAll.filter(function (v) { return v > 0; }).length + " of " + icsAll.length + " years");
+  L.push("");
+  L.push("8) WHY SOME STOCK-DATES HAVE NO RESULT");
+  var why = {}; rows.forEach(function (r) { if (r.note && !(r.verdict && isFinite(r.excess) && !/skipped|failed|no price/.test(r.note))) { var k = r.note.replace(/[0-9.$,]+/g, "#").slice(0, 90); why[k] = (why[k] || 0) + 1; } });
+  var wk = Object.keys(why).sort(function (a, b) { return why[b] - why[a]; });
+  if (!wk.length) L.push("  None."); else wk.slice(0, 12).forEach(function (k) { L.push("  " + pad(why[k], 4) + "  " + k); });
   L.push("");
 
   L.push("LIMITS (state these whenever you share the results)");
