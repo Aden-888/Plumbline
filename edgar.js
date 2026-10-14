@@ -439,4 +439,4 @@ function rawCompany(co) {
   ]).then(function (r) { return { facts: r[0], sub: r[1] || {} }; });
 }
 
-module.exports = { load: load, quote: quote, rawCompany: rawCompany, yahoo: yahoo, resolve: resolve, search: search, tickerList: tickerList, _setTickers: _setTickers, _build: build, _ttm: ttm, _collect: collect };
+module.exports = { load: load, quote: quote, rawCompany: rawCompany, yahoo: yahoo, _concepts: C, resolve: resolve, search: search, tickerList: tickerList, _setTickers: _setTickers, _build: build, _ttm: ttm, _collect: collect };

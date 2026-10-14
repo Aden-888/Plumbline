@@ -20,6 +20,7 @@ Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example
 - Options: `--from 2016 --to 2025 --month 4 --hold 12 --tickers AAPL,MSFT --fresh`.
 - Output in `backtest-output/`: `results.csv` (every call, opens in Excel), `summary.txt` (results by verdict, year by year, growth of $10,000, upside groups, other BUY/SELL lines, limits) and `results.json`. Downloads are saved in `backtest-cache/` so reruns are quick. Both folders are ignored by git.
 - Run it on your own computer: the SEC and Yahoo cannot be reached from Claude's workspace.
+- v2.7.2: `--top 500` tests the 500 largest US-listed companies (SEC list order, one ticker per company) and `--freq quarterly` tests on 1 Jan, Apr, Jul and Oct. Saved SEC downloads keep only the figures the model reads (about 30 KB per company). Cross-sections are grouped by test date; growth of $10,000 uses one non-overlapping date per year.
 - v2.7.1: prices now come from daily Yahoo data turned into clean month-end bars (monthly bars over the "max" range had irregular dates, which left about 40% of 12-month returns blank in the first run). New summary sections: 6) results by Business Quality grade, 7) each of the nine methods tested on its own (rank correlation with next-year returns), 8) why any stock-dates have no result. results.csv also lists the grade and each method's upside.
 
 ## v2.6 changes: live price vs intrinsic value, and a price chart

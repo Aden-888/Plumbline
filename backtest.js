@@ -7,6 +7,8 @@
        --month 4                  test date is the 1st of this month each year (4 = 1 April)
        --hold 12                  months to hold each stock after the call
        --tickers AAPL,MSFT,NVDA   use your own list instead of the default 54 stocks
+       --top 500                  use the 500 largest US-listed companies in the SEC list instead
+       --freq quarterly           test on 1 Jan, Apr, Jul and Oct each year (4x more valuations; holding periods overlap)
        --fresh                    ignore saved downloads and fetch everything again
 
    For every stock and every test date it:
@@ -29,6 +31,8 @@ var DEFAULT_TICKERS = ("AAPL MSFT NVDA GOOGL AMZN META AVGO TSLA ORCL CSCO ADBE 
 function arg(name, def) { var i = process.argv.indexOf("--" + name); return i > 0 && process.argv[i + 1] && process.argv[i + 1].indexOf("--") !== 0 ? process.argv[i + 1] : def; }
 var FROM = +arg("from", 2016), TO = +arg("to", 2025), MONTH = +arg("month", 4), HOLD = +arg("hold", 12);
 var TICKERS = arg("tickers", null) ? arg("tickers").toUpperCase().split(/[,\s]+/).filter(Boolean) : DEFAULT_TICKERS;
+var TOP = +arg("top", 0), FREQ = String(arg("freq", "annual")).toLowerCase();
+var MONTHS = FREQ.indexOf("q") === 0 ? [1, 4, 7, 10] : [MONTH];
 var FRESH = process.argv.indexOf("--fresh") > 0;
 var CACHE = path.join(__dirname, "backtest-cache"), OUT = path.join(__dirname, "backtest-output");
 [CACHE, OUT].forEach(function (d) { if (!fs.existsSync(d)) fs.mkdirSync(d); });
@@ -100,6 +104,17 @@ function yahooDaily(sym) {
 }
 function rank(a) { var idx = a.map(function (v, i) { return [v, i]; }).sort(function (x, y) { return x[0] - y[0]; }), r = new Array(a.length); idx.forEach(function (p, k) { r[p[1]] = k; }); return r; }
 function corr(x, y) { var n = x.length; if (n < 3) return NaN; var mx = mean(x), my = mean(y), c = 0, vx = 0, vy = 0; for (var i = 0; i < n; i++) { c += (x[i] - mx) * (y[i] - my); vx += (x[i] - mx) * (x[i] - mx); vy += (y[i] - my) * (y[i] - my); } return vx && vy ? c / Math.sqrt(vx * vy) : NaN; }
+/* keep only the figures the model reads, so 500 companies take megabytes instead of gigabytes */
+var KEEP = {}; Object.keys(Edgar._concepts).forEach(function (k) { Edgar._concepts[k].forEach(function (n) { KEEP[n] = 1; }); });
+["LongTermDebtCurrent", "DebtCurrent", "AccountsReceivableNetCurrent", "ContractWithCustomerLiabilityCurrent", "DeferredRevenueCurrent"].forEach(function (n) { KEEP[n] = 1; });
+function slim(raw) {
+  var f = raw.facts || {}, ug = (f.facts && f.facts["us-gaap"]) || {}, out = {};
+  Object.keys(ug).forEach(function (n) { if (KEEP[n]) out[n] = ug[n]; });
+  var dei = f.facts && f.facts.dei && f.facts.dei.EntityCommonStockSharesOutstanding;
+  var sub = raw.sub || {};
+  return { facts: { cik: f.cik, entityName: f.entityName, facts: { "us-gaap": out, dei: dei ? { EntityCommonStockSharesOutstanding: dei } : {} } },
+    sub: { name: sub.name, exchanges: sub.exchanges, sicDescription: sub.sicDescription, sic: sub.sic } };
+}
 function mean(a) { return a.length ? a.reduce(function (s, v) { return s + v; }, 0) / a.length : NaN; }
 function median(a) { if (!a.length) return NaN; var b = a.slice().sort(function (x, y) { return x - y; }), m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; }
 function pct(v, d) { return isFinite(v) ? (v >= 0 ? "+" : "") + (v * 100).toFixed(d == null ? 1 : d) + "%" : "n/a"; }
@@ -108,7 +123,14 @@ function csvCell(v) { var s = v == null ? "" : String(v); return /[",\n]/.test(s
 
 /* ---------- main ---------- */
 async function main() {
-  var dates = []; for (var y = FROM; y <= TO; y++) dates.push(new Date(Date.UTC(y, MONTH - 1, 1)));
+  var dates = []; for (var y = FROM; y <= TO; y++) MONTHS.forEach(function (mo) { dates.push(new Date(Date.UTC(y, mo - 1, 1))); });
+  if (TOP > 0) {
+    /* the largest companies first, as ordered in the SEC list; one ticker per company */
+    var seenName = {}, list = await Edgar.tickerList();
+    TICKERS = [];
+    list.forEach(function (r) { var nm = String(r[1]).toLowerCase(); if (TICKERS.length < TOP && !seenName[nm] && /^[A-Z][A-Z.\-]{0,5}$/.test(r[0])) { seenName[nm] = 1; TICKERS.push(r[0]); } });
+  }
+  var t0 = Date.now();
   console.log("Plumbline backtest: " + TICKERS.length + " stocks x " + dates.length + " dates (" + iso(dates[0]) + " to " + iso(dates[dates.length - 1]) + "), holding " + HOLD + " months.\n");
   var spy = await cached("yd_SPY", function () { return yahooDaily("SPY"); });
   var gspc = await cached("yd_GSPC", function () { return yahooDaily("^GSPC"); });
@@ -121,7 +143,11 @@ async function main() {
     var co, raw, px;
     try {
       co = await Edgar.resolve(t);
-      raw = await cached("sec_" + co.ticker, function () { return Edgar.rawCompany(co); });
+      raw = await cached("sec2_" + co.ticker, function () {
+        var old = path.join(CACHE, "sec_" + co.ticker.replace(/[^A-Za-z0-9_.\-]/g, "_") + ".json");
+        var get = !FRESH && fs.existsSync(old) ? Promise.resolve(JSON.parse(fs.readFileSync(old, "utf8"))) : Edgar.rawCompany(co);
+        return get.then(slim);
+      });
       px = await cached("yd_" + co.ticker, function () { return yahooDaily(co.ticker); });
     } catch (e) { console.log("skipped: " + e.message); rows.push({ date: "", ticker: t, note: "download failed: " + e.message }); continue; }
     var ok = 0;
@@ -153,8 +179,9 @@ async function main() {
       } catch (e) { row.note = "skipped: " + e.message; }
       rows.push(row);
     }
-    console.log(ok + " of " + dates.length + " dates valued");
-    await sleep(250);
+    var el = (Date.now() - t0) / 1000, left = el / (i + 1) * (TICKERS.length - i - 1);
+    console.log(ok + " of " + dates.length + " dates valued" + (TICKERS.length > 20 ? "   (about " + Math.ceil(left / 60) + " min left)" : ""));
+    await sleep(150);
   }
 
   /* ---------- write every call ---------- */
@@ -171,7 +198,7 @@ async function main() {
   var L = [];
   L.push("PLUMBLINE BACKTEST SUMMARY");
   L.push("Generated " + new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC");
-  L.push("Stocks: " + TICKERS.length + " | Test dates: 1 " + new Date(Date.UTC(2000, MONTH - 1, 1)).toLocaleDateString("en-US", { month: "long", timeZone: "UTC" }) + ", " + FROM + " to " + TO + " | Holding period: " + HOLD + " months | Benchmark: SPY (S&P 500, dividends included)");
+  L.push("Stocks: " + TICKERS.length + (TOP ? " (largest US-listed companies today)" : "") + " | Test dates: 1 " + MONTHS.map(function (mo) { return new Date(Date.UTC(2000, mo - 1, 1)).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }); }).join(", ") + ", " + FROM + " to " + TO + " | Holding period: " + HOLD + " months | Benchmark: SPY (S&P 500, dividends included)");
   L.push("Valuations made: " + rows.filter(function (r) { return r.verdict; }).length + " | With a finished holding period: " + done.length);
   L.push("");
   L.push("1) RESULTS BY VERDICT (BUY at +20% upside or more, SELL at -20% or worse)");
@@ -191,6 +218,7 @@ async function main() {
   L.push("2) YEAR BY YEAR (average return vs SPY)");
   L.push(pad("Year", 6, true) + pad("BUY", 6) + pad("BUY vs SPY", 12) + pad("SELL", 6) + pad("SELL vs SPY", 13) + pad("All vs SPY", 12) + pad("BUY - SELL", 12));
   var byYear = {}; done.forEach(function (r) { (byYear[r.date.slice(0, 4)] = byYear[r.date.slice(0, 4)] || []).push(r); });
+  var byDate = {}; done.forEach(function (r) { (byDate[r.date] = byDate[r.date] || []).push(r); });
   Object.keys(byYear).sort().forEach(function (yr) {
     var g = byYear[yr], b = g.filter(function (r) { return r.verdict === "BUY"; }), s2 = g.filter(function (r) { return r.verdict === "SELL"; });
     var be = mean(b.map(function (r) { return r.excess; })), se = mean(s2.map(function (r) { return r.excess; }));
@@ -198,10 +226,10 @@ async function main() {
   });
   L.push("");
 
-  L.push("3) GROWTH OF $10,000 (equal amounts in each stock, rebalanced on each test date)");
-  var pv = { BUY: 10000, SELL: 10000, ALL: 10000, SPY: 10000 };
-  Object.keys(byYear).sort().forEach(function (yr) {
-    var g = byYear[yr];
+  L.push("3) GROWTH OF $10,000 (equal amounts in each stock, rebalanced once a year on 1 " + new Date(Date.UTC(2000, (MONTHS.indexOf(MONTH) >= 0 ? MONTH : MONTHS[0]) - 1, 1)).toLocaleDateString("en-US", { month: "long", timeZone: "UTC" }) + ")");
+  var pv = { BUY: 10000, SELL: 10000, ALL: 10000, SPY: 10000 }, mainMonth = MONTHS.indexOf(MONTH) >= 0 ? MONTH : MONTHS[0];
+  Object.keys(byDate).sort().filter(function (d) { return +d.slice(5, 7) === mainMonth; }).forEach(function (dk) {
+    var g = byDate[dk];
     var r = function (list) { return list.length ? mean(list.map(function (x) { return x.ret; })) : 0; };
     pv.BUY *= 1 + r(g.filter(function (x) { return x.verdict === "BUY"; }));
     pv.SELL *= 1 + r(g.filter(function (x) { return x.verdict === "SELL"; }));
@@ -214,10 +242,10 @@ async function main() {
   L.push("  (A year with no BUY or SELL stocks is counted as cash at 0%. No trading costs or taxes.)");
   L.push("");
 
-  L.push("4) DOES MORE UPSIDE MEAN BETTER RETURNS? (each year's calls split into five equal groups by upside)");
+  L.push("4) DOES MORE UPSIDE MEAN BETTER RETURNS? (each test date's calls split into five equal groups by upside)");
   var qs = [[], [], [], [], []];
-  Object.keys(byYear).forEach(function (yr) {
-    var g = byYear[yr].slice().sort(function (a, b) { return a.upside - b.upside; });
+  Object.keys(byDate).forEach(function (dk) {
+    var g = byDate[dk].slice().sort(function (a, b) { return a.upside - b.upside; });
     g.forEach(function (r, i) { qs[Math.min(4, Math.floor(i / g.length * 5))].push(r); });
   });
   ["Lowest upside (most overvalued)", "Low", "Middle", "High", "Highest upside (most undervalued)"].forEach(function (n, i) {
@@ -241,20 +269,20 @@ async function main() {
   var combo = done.filter(function (r) { return r.verdict === "BUY" && (r.grade === "A" || r.grade === "B"); });
   L.push("  BUY and grade A/B: " + combo.length + " calls, avg vs SPY " + pct(mean(combo.map(function (r) { return r.excess; }))) + ", median " + pct(median(combo.map(function (r) { return r.excess; }))));
   L.push("");
-  L.push("7) EACH METHOD ON ITS OWN (rank correlation between the method's upside and the next 12 months vs SPY, averaged over the years)");
+  L.push("7) EACH METHOD ON ITS OWN (rank correlation between the method's upside and the next 12 months vs SPY, averaged over the test dates)");
   L.push("  Above 0 = more upside tended to mean better returns. Around 0 = no signal. Below 0 = the opposite. Values beyond +/-0.10 are worth noticing.");
   MN.forEach(function (n) {
     var ics = [];
-    Object.keys(byYear).forEach(function (yr) {
-      var g = byYear[yr].filter(function (r) { return r["m_" + n] != null; });
+    Object.keys(byDate).forEach(function (dk) {
+      var g = byDate[dk].filter(function (r) { return r["m_" + n] != null; });
       if (g.length >= 8) ics.push(corr(rank(g.map(function (r) { return r["m_" + n]; })), rank(g.map(function (r) { return r.excess; }))));
     });
     var pos = ics.filter(function (v) { return v > 0; }).length;
-    L.push("  " + pad(n, 18, true) + " average " + pad(isFinite(mean(ics)) ? (mean(ics) >= 0 ? "+" : "") + mean(ics).toFixed(2) : "n/a", 6) + "   positive in " + pos + " of " + ics.length + " years");
+    L.push("  " + pad(n, 18, true) + " average " + pad(isFinite(mean(ics)) ? (mean(ics) >= 0 ? "+" : "") + mean(ics).toFixed(2) : "n/a", 6) + "   positive on " + pos + " of " + ics.length + " test dates");
   });
   var icsAll = [];
-  Object.keys(byYear).forEach(function (yr) { var g = byYear[yr]; if (g.length >= 8) icsAll.push(corr(rank(g.map(function (r) { return r.upside; })), rank(g.map(function (r) { return r.excess; })))); });
-  L.push("  " + pad("Median (headline)", 18, true) + " average " + pad(isFinite(mean(icsAll)) ? (mean(icsAll) >= 0 ? "+" : "") + mean(icsAll).toFixed(2) : "n/a", 6) + "   positive in " + icsAll.filter(function (v) { return v > 0; }).length + " of " + icsAll.length + " years");
+  Object.keys(byDate).forEach(function (dk) { var g = byDate[dk]; if (g.length >= 8) icsAll.push(corr(rank(g.map(function (r) { return r.upside; })), rank(g.map(function (r) { return r.excess; })))); });
+  L.push("  " + pad("Median (headline)", 18, true) + " average " + pad(isFinite(mean(icsAll)) ? (mean(icsAll) >= 0 ? "+" : "") + mean(icsAll).toFixed(2) : "n/a", 6) + "   positive on " + icsAll.filter(function (v) { return v > 0; }).length + " of " + icsAll.length + " test dates");
   L.push("");
   L.push("8) WHY SOME STOCK-DATES HAVE NO RESULT");
   var why = {}; rows.forEach(function (r) { if (r.note && !(r.verdict && isFinite(r.excess) && !/skipped|failed|no price/.test(r.note))) { var k = r.note.replace(/[0-9.$,]+/g, "#").slice(0, 90); why[k] = (why[k] || 0) + 1; } });
@@ -267,6 +295,8 @@ async function main() {
   L.push("- Survivorship bias: the stock list is today's large companies, which all survived. Compare BUY with ALL stocks, not only with SPY.");
   L.push("- No past analyst forecasts: growth comes from each company's own past results, as on the free live site.");
   L.push("- Monthly prices: the price used is the last close of the month before the test date.");
+  if (MONTHS.length > 1) L.push("- Quarterly test dates: 12-month holding periods overlap, so the calls are not all independent. Treat the extra calls as more detail, not 4x more proof.");
+  if (TOP) L.push("- The list is today's largest companies, chosen with hindsight. That flatters every group, so judge BUY against ALL stocks.");
   L.push("- No trading costs, taxes or currency effects.");
   var skipped = rows.filter(function (r) { return r.note && /skipped|failed/.test(r.note); }).length;
   L.push("- " + skipped + " stock-dates could not be valued (see the Notes column in results.csv).");
