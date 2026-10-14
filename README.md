@@ -1,4 +1,4 @@
-# Plumbline v2.11: stock intrinsic value and business quality
+# Plumbline v3.0: stock intrinsic value and business quality
 
 A static website (no build step). Open `index.html` in a browser, or upload the folder to any static host
 (Netlify, Vercel, GitHub Pages, Cloudflare Pages).
@@ -14,6 +14,14 @@ Data sources (all free, no key): company financials from SEC EDGAR filings, pric
 Analyst estimates are not available there, so growth for the first years comes from the company's own past growth (labelled on the page).
 Optional: add `FMP_API_KEY=...` to `.env` to use Financial Modeling Prep as a backup (foreign companies), or set `DATA_SOURCE=fmp` if you pay for FMP and want its analyst estimates.
 Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example ASML) and very recent listings need the manual entry form.
+
+## v3.0: built for value investors (only the company's own record counts)
+- The user chose a strict value-investing philosophy: valuations rest only on past figures; future prospects, turnarounds and hype do not count until they show up in the accounts. The backtest showed this approach lags in boom years (2016-2025 rewarded companies whose figures did not yet justify their prices); that trade-off is accepted, and Plumbline must not claim to beat the market.
+- Growth comes only from past results (IV.pastGrowth / IV.pastEst in engine.js): revenue growth blends the last 3 years with the longest period available (up to 5), earnings growth is half anchored to revenue growth (no more than 10 points above it), both kept between -5% and +25% a year, then the v2.10 fade. Analyst forecasts are no longer used anywhere: not from the paid data source, not for the built-in stocks (their analyst figures are kept as estAnalyst for reference only), and the manual form now asks for 3-5 years of past revenue, EPS and free cash flow instead of forecasts. The built-in stocks' hand-set growth settings were removed.
+- The value test (IV.valueTest / applyValueTest): at least 3 years of results; profitable over the last 12 months (net income excluding one-offs); positive operating cash flow; positive equity; profitable in at least 60% of recent years; positive free cash flow in at least 60% of recent years (cash flow checks skipped for banks and insurers). A company that fails gets the verdict "FAILS VALUE TEST" whatever its price, with the failed checks listed. The checklist is shown on every result.
+- Verdict order: value test, then fair value vs price (+/-20%), then the quality check (BUY needs grade C or better).
+- Analyst price target removed from the result page.
+- Effect: CRM fair value $382 (BUY); NVDA $220 (HOLD) because its 68% past growth is capped at 25% and analyst forecasts are no longer used. A loss-making microcap with fast sales growth fails the value test.
 
 ## v2.11: model fixes, step 4 - quality check on the verdict
 - A BUY now also needs a Business Quality grade of C or better (IV.applyQuality in engine.js, used by the site and the backtest). A stock that is 20%+ undervalued but graded D or F is held at HOLD and flagged "Undervalued, but weak business" (a likely value trap). Companies the scorecard cannot grade (banks, insurers, missing data) are judged on value alone. SELL is unchanged.

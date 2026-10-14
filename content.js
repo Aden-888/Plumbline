@@ -22,7 +22,7 @@
     var P = r.proj, base = r.base, d = m.d, i = r.inputs, g = baseKey === "ni" ? P.gEPS : P.gCF;
     var s = [
       [label + " over the last 12 months", F.mm(P[baseKey][0])],
-      ["Growth in year 1 and year 2 (analyst estimates)", F.pct(g[0]) + " and " + F.pct(g[1])],
+      ["Growth in year 1 and year 2 (from past growth)", F.pct(g[0]) + " and " + F.pct(g[1])],
       ["Growth then fades to " + F.pct(r.settings.g5) + " (year 5), " + F.pct(r.settings.g10) + " (year 10) and " + F.pct(r.settings.gT) + " (year " + yrs + ")", ""],
       [label + " in year " + yrs, F.mm(P[baseKey][yrs])],
       ["Discount rate (" + discName + ")", F.pct(disc, 2)],
@@ -129,7 +129,7 @@
         steps: function (r, m) {
           var d = m.d;
           return [
-            ["Expected yearly revenue growth over the next 3 years (analyst consensus)", d.growth.toFixed(1) + "% a year"],
+            ["Yearly revenue growth used (from the company's past growth)", d.growth.toFixed(1) + "% a year"],
             ["Target PSG (setting)", r.settings.psg.toFixed(2)],
             ["Fair price-to-sales = growth × target PSG", F.x(d.fairPS, 2)],
             ["Sales per share", F.usd(d.salesPS)],
@@ -145,7 +145,7 @@
         steps: function (r, m) {
           var d = m.d;
           return [
-            ["Expected yearly earnings growth over the next 3 years (analyst consensus)", d.growth.toFixed(1) + "% a year"],
+            ["Yearly earnings growth used (from the company's past growth)", d.growth.toFixed(1) + "% a year"],
             ["Target PEG (setting)", r.settings.peg.toFixed(2)],
             ["Fair price-to-earnings = growth × target PEG", F.x(d.fairPE, 1)],
             ["Earnings per share excluding one-off gains", F.usd(d.eps)],

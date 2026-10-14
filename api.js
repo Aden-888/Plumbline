@@ -73,32 +73,15 @@
     if (!fy) throw new Error("Income statement history is missing for " + t + ".");
     var R0 = X * num(fy.revenue) / M, E0 = X * num(fy.epsDiluted, fy.eps);
     var rv, ev, cagrRev, cagrEps;
-    var estOK = fut.length >= 2 && fut.every(function (e) { return isFinite(num(e.revenueAvg)) && isFinite(num(e.epsAvg)); });
-    if (estOK) {
-      rv = fut.map(function (e) { return X * num(e.revenueAvg) / M; }); ev = fut.map(function (e) { return X * num(e.epsAvg); });
-      var n = Math.min(3, rv.length);
-      cagrRev = Math.pow(rv[n - 1] / R0, 1 / n) - 1;
-      cagrEps = E0 > 0 && ev[n - 1] > 0 ? Math.pow(ev[n - 1] / E0, 1 / n) - 1 : 0;
-    } else {
-      /* fallback: past growth in place of analyst estimates.
-         Revenue growth blends the last 3 and 5 years, so one unusual stretch does not dominate. Earnings growth is
-         noisier, so it is half anchored to revenue growth and may not run more than 10 points ahead of it.
-         Both are capped between -5% and +25% a year, because very fast growth rarely lasts. */
-      var yrs = Math.min(fyArr.length - 1, 3), yrs5 = Math.min(fyArr.length - 1, 5);
-      var old = fyArr[yrs], old5 = fyArr[yrs5];
-      if (yrs < 1 || !(num(old.revenue) > 0)) throw new Error("Analyst estimates are not available for " + t + " on your plan, and there is not enough history to estimate growth.");
-      var cg = function (a, b, n) { return a > 0 && b > 0 && n > 0 ? Math.pow(a / b, 1 / n) - 1 : NaN; };
-      var hg3 = cg(num(fy.revenue), num(old.revenue), yrs), hg5 = yrs5 >= 5 ? cg(num(fy.revenue), num(old5.revenue), yrs5) : NaN;
-      var hg = isFinite(hg5) ? 0.5 * hg3 + 0.5 * hg5 : hg3;
-      var eo = X * num(old.epsDiluted, old.eps), eo5 = X * num(old5.epsDiluted, old5.eps);
-      var he3 = cg(E0, eo, yrs), he5 = yrs5 >= 5 ? cg(E0, eo5, yrs5) : NaN;
-      var heRaw = isFinite(he3) && isFinite(he5) ? 0.5 * he3 + 0.5 * he5 : (isFinite(he3) ? he3 : NaN);
-      var he = isFinite(heRaw) ? 0.5 * hg + 0.5 * Math.max(-0.05, Math.min(hg + 0.10, heRaw)) : hg;
-      cagrRev = Math.max(-0.05, Math.min(0.25, hg)); cagrEps = Math.max(-0.05, Math.min(0.25, he));
-      rv = [1, 2, 3].map(function (k) { return R0 * Math.pow(1 + cagrRev, k); });
-      ev = [1, 2, 3].map(function (k) { return E0 * Math.pow(1 + cagrEps, k); });
-      caveats.push((R.estNote || "Analyst estimates are not included in your data plan.") + " Growth for the next few years is based on the company's own past growth (" + (isFinite(hg5) ? "an average of the last 3 and 5 years" : "the last " + yrs + " years") + ", kept between -5% and +25% a year): revenue " + (cagrRev * 100).toFixed(1) + "% a year, earnings " + (cagrEps * 100).toFixed(1) + "% a year). Treat the growth-based methods with extra caution.");
-    }
+    /* Value investing rule: growth comes only from the company's own past results. Analyst forecasts are not used,
+       even when the data provider has them. Past revenue and earnings per share run oldest first. */
+    var IVx = root.IV || (typeof require !== "undefined" ? require("./engine.js") : null);
+    var hist5 = fyArr.slice(0, 6).reverse();
+    var pg = IVx.pastGrowth(hist5.map(function (r) { return X * num(r.revenue) / M; }), hist5.map(function (r) { return X * num(r.epsDiluted, r.eps); }));
+    if (!pg) throw new Error("There is not enough history to judge " + t + "'s growth from its own record (needs at least 2 years of revenue).");
+    var pe0 = IVx.pastEst(R0, E0, pg);
+    rv = pe0.rev.slice(1); ev = pe0.eps.slice(1); cagrRev = pg.rev; cagrEps = pg.eps;
+    caveats.push("Growth comes only from the company's own record (" + (pg.long ? "an average of the last 3 and " + pg.years + " years" : "the last " + pg.years + " years") + ", kept between -5% and +25% a year): revenue " + (cagrRev * 100).toFixed(1) + "% a year, earnings " + (cagrEps * 100).toFixed(1) + "% a year. Analyst forecasts are not used, by design.");
     var R3 = rv.length > 2 ? rv[2] : rv[1] * (1 + cagrRev), E3 = ev.length > 2 ? ev[2] : ev[1] * (1 + cagrEps);
 
     var revTTM = X * num(inc.revenue) / M, equity = X * num(bs.totalStockholdersEquity, 0) / M;
@@ -117,7 +100,7 @@
       ttm: { rev: revTTM, ni: X * num(inc.netIncome) / M, gain: 0, tax: tax, ocf: ocf / M, capex: capex / M, epsGaap: epsTTM },
       hist: hist, capexHist: capexHist,
       cur: { pe: epsTTM > 0 ? price / epsTTM : null, ps: revTTM > 0 ? mcap / M / revTTM : null, pb: equity > 0 ? mcap / M / equity : null },
-      est: { rev: [R0, rv[0], rv[1], R3], eps: [E0, ev[0], ev[1], E3], cagrRev: cagrRev, cagrEps: cagrEps, cfG1: null, calWeight: R.calWeight != null ? R.calWeight : (annualBase ? 1 : 0.5) },
+      est: { rev: [R0, rv[0], rv[1], R3], eps: [E0, ev[0], ev[1], E3], cagrRev: cagrRev, cagrEps: cagrEps, cfG1: null, calWeight: 1, source: "past" },
       settings: {},
       caveats: caveats
     };

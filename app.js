@@ -248,7 +248,7 @@
   /* ---------------- hero ---------------- */
   function drawHero(animate) {
     var p = window.PRESETS.NVDA, s = Object.assign(IV.defaultSettings(p), p.settings);
-    var r = IV.applyQuality(IV.compute(p, s), QS.compute(p)), el = $("heroChart");
+    var r = IV.applyQuality(IV.applyValueTest(IV.compute(p, s), p), QS.compute(p)), el = $("heroChart");
     Charts.dotplot(el, r);
     if (animate) Charts.settle(el);
     var hs = $("heroStats"), st = r.stats;
@@ -260,7 +260,7 @@
     ["beta", "Beta (adjusted)", "How jumpy the stock is compared with the market. Plumbline uses adjusted beta: the measured beta pulled one third of the way towards 1, because extreme betas rarely last. Higher beta means a higher discount rate and a lower value.", .3, 3, .01, function (v) { return v.toFixed(2); }],
     ["rf", "Risk-free rate", "What safe government bonds pay. Part of the discount rate.", .01, .08, .0025, pc],
     ["erp", "Equity risk premium", "The extra return investors expect for owning stocks instead of bonds.", .03, .08, .0025, pc],
-    ["g5", "Growth in year 5", "After two years of analyst estimates, growth fades to this rate by year 5.", 0, .4, .005, pc],
+    ["g5", "Growth in year 5", "Growth starts from the company's own past growth and fades to this rate by year 5.", 0, .4, .005, pc],
     ["g10", "Growth in year 10", "Growth keeps fading to this rate by year 10.", 0, .25, .005, pc],
     ["gT", "Long-run growth (year 20 and after)", "Close to the long-run growth of the economy. Keep it below the discount rate.", 0, .05, .0025, pc],
     ["peg", "Target PEG", "Fair P/E divided by growth. 1.0 is Peter Lynch's rule of thumb.", .5, 2, .05, function (v) { return v.toFixed(2); }],
@@ -373,9 +373,9 @@
   /* ---------------- render ---------------- */
   function update(initial) {
     var inp = state.inputs, s = state.settings;
-    var r = state.result = IV.applyQuality(IV.compute(inp, s), state.quality);
+    var r = state.result = IV.applyQuality(IV.applyValueTest(IV.compute(inp, s), inp), state.quality);
     sync();
-    if (!r.stats.n) { $("rVerdict").innerHTML = '<div class="notice notice--error"><h3>Not enough data</h3><p>None of the nine methods could be calculated for this stock.</p></div>'; renderQuality(r); return; }
+    if (!r.stats.n) { $("rVerdict").innerHTML = '<div class="notice notice--error"><h3>No fair value from the record</h3><p>None of the counted methods could be calculated, because the company\'s own figures (profit, cash flow or book value) are not positive. A value investor would need to see a proven record first.</p>' + vtHtml(IV.valueTest(inp)) + '</div>'; renderQuality(r); return; }
     renderVerdict(r, initial); renderQuality(r); renderMethods(r); renderAvg(r); renderProj(r); renderData(r);
     Charts.bars($("rBars"), r); Charts.strip($("rStats"), r, { stats: true });
     if ($("projMore") && $("projMore").open) drawProj(r);
@@ -384,7 +384,9 @@
 
   function renderVerdict(r, initial) {
     var st = r.stats, inp = r.inputs, s = r.settings, v = st.verdict, q = state.quality;
-    var line = st.trap ? "That would normally be a BUY, but the business quality grade is " + st.grade + ". Cheap stocks with weak businesses are often cheap for a reason (a value trap), so Plumbline holds back at HOLD."
+    var vt = st.valueTest || { checks: [], failed: [] };
+    var line = v === "FAIL" ? "Whatever the price, Plumbline only gives a verdict when the company's own record supports one, and this company fails the value test (" + vt.failed.map(function (c) { return c.name.toLowerCase(); }).join("; ") + "). Its figures do not yet show the steady profit and cash flow a value investor needs, so it cannot be a BUY."
+      : st.trap ? "That would normally be a BUY, but the business quality grade is " + st.grade + ". Cheap stocks with weak businesses are often cheap for a reason (a value trap), so Plumbline holds back at HOLD."
       : v === "BUY" ? "That is above the " + F.spct(s.buy, 0) + " BUY line" + (st.grade ? " and the business quality grade (" + st.grade + ") passes the C-or-better check." : ".")
       : v === "SELL" ? "That is below the " + F.spct(s.sell, 0) + " SELL line."
       : "That sits between the SELL line (" + F.spct(s.sell, 0) + ") and the BUY line (" + F.spct(s.buy, 0) + ").";
@@ -394,15 +396,24 @@
       '<div class="verdict"><div class="verdict__main">' + pvHtml(r) +
       '<p class="verdict__sum">The fair value is <strong class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + (st.upside >= 0 ? " above" : " below").replace("+", "") + "</strong> the share price. " + line + " " + st.above + " of " + st.n + " counted methods value the stock above its price." +
       (st.n < st.nCounted ? " " + (st.nCounted - st.n) + " method(s) could not be calculated for this stock (" + r.methods.filter(function (m) { return m.counted && !fin(m.value); }).map(function (m) { return m.short; }).join(", ") + "), so the fair value uses the other " + st.n + "." : "") + (st.oneFamily ? " Only the " + st.oneFamily.toLowerCase() + " could be calculated, so the fair value rests on that group alone." : "") + (spread > 3 ? " The methods are far apart (" + F.usd(st.min, 0) + " to " + F.usd(st.max, 0) + "), which is why Plumbline takes the middle value of each group rather than a plain average." : "") + "</p></div>" +
-      '<div class="verdict__side"><span class="pill pill--' + v + '"><i></i>' + v + "</span>" +
+      '<div class="verdict__side"><span class="pill pill--' + v + '"><i></i>' + (v === "FAIL" ? "FAILS VALUE TEST" : v) + "</span>" +
       '<p class="verdict__rule">BUY: ' + F.spct(s.buy, 0) + ' upside or more and quality grade C or better · SELL: ' + F.spct(s.sell, 0) + ' or worse</p>' + (st.trap ? '<p class="trapnote">Undervalued, but weak business</p>' : "") + '<dl class="kv"><dt>Upside / (downside)</dt><dd class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + "</dd><dt>Average of the counted methods</dt><dd>" + F.usd(st.mean) + "</dd>" +
-      (inp.est.target ? "<dt>Analyst average target</dt><dd>" + F.usd(inp.est.target) + "</dd>" : "") + qRow + "</dl></div></div>";
+      qRow + "</dl>" + vtHtml(vt) + "</div></div>";
     $("rVerdict").innerHTML = html;
     if (initial) countUp($("vNum"), st.median);
     var dk = $("dock");
     if (dk) dk.innerHTML = '<b>' + esc(inp.ticker) + '</b><span class="dock__v">' + F.usd(st.median, 0) + '</span><span class="dock__up ' + cls(st.upside, s) + '">' + F.spct(st.upside, 0) + '</span><span class="pill pill--sm pill--' + v + '">' + v + "</span>" + (q && q.ok ? '<span class="dock__q" style="color:' + scoreCol(q.score) + '">' + q.grade + "</span>" : "") + '<span class="dock__up-arrow" aria-hidden="true">↑</span>';
   }
   /* The headline value "decodes": each digit flickers through random figures and locks in from left to right. */
+  /* the value test as a short checklist */
+  function vtHtml(vt) {
+    if (!vt || !vt.checks || !vt.checks.length) return "";
+    var passed = vt.checks.length - vt.failed.length;
+    return '<details class="vt' + (vt.pass ? "" : " vt--fail") + '"' + (vt.pass ? "" : " open") + '><summary><span>Value test</span><b>' + (vt.pass ? "Passed" : "Failed") + " · " + passed + " of " + vt.checks.length + " checks</b></summary><ul>" +
+      vt.checks.map(function (c) { return '<li class="' + (c.ok ? "ok" : "no") + '"><i aria-hidden="true">' + (c.ok ? "✓" : "✕") + "</i><span>" + esc(c.name) + "<small>" + esc(c.detail) + "</small></span></li>"; }).join("") +
+      '</ul><p>Plumbline is built for value investors: a company must show a proven, profitable, cash-generating record before it can be a BUY. Promising stories do not count until they appear in the accounts.</p></details>';
+  }
+
   /* ---------------- price vs intrinsic value ---------------- */
   function pvHtml(r) {
     var st = r.stats, inp = r.inputs, s = r.settings, v = st.verdict, iv = st.median, px = inp.price, q = state.quote;
@@ -567,7 +578,7 @@
   function bn(v) { return v >= 1e6 ? "$" + (v / 1e6).toFixed(1) + "T" : v >= 1e3 ? "$" + (v / 1e3).toFixed(0) + "B" : "$" + v.toFixed(0) + "M"; }
   function renderProj(r) {
     var P = r.proj, s = r.settings, g = r.growth, inp = r.inputs;
-    var src = inp.live ? "the company's recent growth (the free data source has no analyst estimates)" : "analyst estimates";
+    var src = "the company's own past growth (an average of the last 3 and 5 years where available, kept between -5% and +25% a year). Analyst forecasts are not used";
     $("rProjText").innerHTML = "Plumbline assumes " + esc(inp.name) + "'s cash flow grows about <strong>" + F.pct(g.cf[0], 0) + "</strong> next year and <strong>" + F.pct(g.cf[1], 0) + "</strong> the year after. Growth then settles towards " + F.pct(s.g5, 0) + " a year by year 5, " + F.pct(s.g10, 0) + " by year 10 and " + F.pct(s.gT, 0) + " by year 20. " +
       "On that path, free cash flow would grow from " + F.mm(P.fcf[0]) + " today to about " + F.mm(P.fcf[10]) + " in year 10. The first two years come from " + src + ".";
     var row = function (label, t, why) {
@@ -575,7 +586,7 @@
     };
     $("rProjTbl").innerHTML = "<thead><tr><th>Year</th><th>Growth that year</th><th>Free cash flow</th><th>Profit</th><th>Where the growth figure comes from</th></tr></thead><tbody>" +
       row("Today (last 12 months)", 0, "Actual figures") +
-      row("Year 1", 1, inp.live ? "Recent growth" : "Analyst estimates") +
+      row("Year 1", 1, "Past growth") +
       row("Year 5", 5, "Fades step by step") +
       row("Year 10", 10, "Keeps fading") +
       row("Year 20", 20, "Long-run economy growth") + "</tbody>";

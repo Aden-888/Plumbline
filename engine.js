@@ -197,17 +197,69 @@
     return out;
   }
 
+  /* ---------------- value investing rules: only the company's own record counts ----------------
+     Growth comes from past results, never from forecasts. Revenue growth blends the last 3 years with the longest
+     available period (up to 5 years); earnings growth is half anchored to revenue growth and may not run more than
+     10 points ahead of it; both are kept between -5% and +25% a year. revs and eps run oldest first. */
+  function pastGrowth(revs, eps) {
+    var r = (revs || []).filter(fin), e = eps || [], n = r.length - 1;
+    if (n < 1 || !(r[0] > 0)) return null;
+    function cg(a, b, k) { return a > 0 && b > 0 && k > 0 ? Math.pow(a / b, 1 / k) - 1 : NaN; }
+    var k3 = Math.min(3, n), last = r[n];
+    var g3 = cg(last, r[n - k3], k3), gL = n >= 4 ? cg(last, r[0], n) : NaN;
+    var g = fin(gL) ? 0.5 * g3 + 0.5 * gL : g3;
+    var en = e.length - 1, eLast = e[en];
+    var e3 = en >= 1 ? cg(eLast, e[en - Math.min(3, en)], Math.min(3, en)) : NaN, eL = en >= 4 ? cg(eLast, e[0], en) : NaN;
+    var eRaw = fin(e3) && fin(eL) ? 0.5 * e3 + 0.5 * eL : e3;
+    var ge = fin(eRaw) ? 0.5 * g + 0.5 * Math.max(-0.05, Math.min(g + 0.10, eRaw)) : g;
+    return { rev: Math.max(-0.05, Math.min(0.25, g)), eps: Math.max(-0.05, Math.min(0.25, ge)), years: n, long: fin(gL) };
+  }
+  /* growth inputs in the shape the engine expects, built only from past growth */
+  function pastEst(R0, E0, pg) {
+    return { rev: [R0, R0 * (1 + pg.rev), R0 * Math.pow(1 + pg.rev, 2), R0 * Math.pow(1 + pg.rev, 3)],
+      eps: [E0, E0 * (1 + pg.eps), E0 * Math.pow(1 + pg.eps, 2), E0 * Math.pow(1 + pg.eps, 3)],
+      cagrRev: pg.rev, cagrEps: pg.eps, cfG1: null, calWeight: 1, source: "past", years: pg.years, long: pg.long };
+  }
+
+  /* The value test: before any BUY, the company's own figures must show a proven, profitable, cash-generating business.
+     A promising story (new contracts, a turnaround, hype) does not count until it shows up in the accounts. */
+  function valueTest(inp) {
+    var T = inp.ttm || {}, Q = inp.quality || inp.record || {}, checks = [];
+    var fins = /bank|insurance|reit|real estate investment|asset management|capital markets|mortgage|savings institution|credit institution|finance services|security brokers/
+      .test(String((inp.sector || "") + " " + (inp.industry || "")).toLowerCase());
+    var niEx = T.ni - (T.gain || 0) * (1 - (T.tax || 0));
+    function add(name, ok, detail) { checks.push({ name: name, ok: !!ok, detail: detail }); }
+    var revs = (Q.rev || []).filter(fin);
+    add("At least 3 years of results", revs.length >= 3, revs.length + " years of figures");
+    add("Profitable over the last 12 months", niEx > 0, "net income excluding one-offs " + (niEx > 0 ? "positive" : "negative"));
+    if (!fins) add("Cash coming in from the business", T.ocf > 0, "operating cash flow over the last 12 months " + (T.ocf > 0 ? "positive" : "negative"));
+    add("Positive shareholders' equity", inp.equity > 0, inp.equity > 0 ? "assets exceed liabilities" : "liabilities exceed assets");
+    var eps = (Q.eps || []).filter(fin);
+    if (eps.length >= 3) { var pe = eps.filter(function (x) { return x > 0; }).length; add("Profitable in most recent years", pe >= Math.ceil(eps.length * 0.6), pe + " of the last " + eps.length + " years profitable"); }
+    var fcf = (Q.fcf || []).filter(fin);
+    if (!fins && fcf.length >= 3) { var pf = fcf.filter(function (x) { return x > 0; }).length; add("Free cash flow in most recent years", pf >= Math.ceil(fcf.length * 0.6), pf + " of the last " + fcf.length + " years positive"); }
+    var failed = checks.filter(function (c) { return !c.ok; });
+    return { pass: failed.length === 0, checks: checks, failed: failed };
+  }
+  function applyValueTest(r, inp) {
+    var st = r && r.stats; if (!st) return r;
+    var vt = valueTest(inp); st.valueTest = vt;
+    if (st.verdict && !vt.pass) { st.verdictValue = st.verdict; st.verdict = "FAIL"; }
+    return r;
+  }
+
   /* Quality check on the verdict: a BUY also needs a Business Quality grade of C or better. A cheap stock with a
      D or F grade is often cheap for a reason (a "value trap"), so it is held at HOLD and flagged instead.
      Companies the scorecard cannot grade (banks, insurers, missing data) are judged on value alone. */
   function applyQuality(r, q) {
     var st = r && r.stats; if (!st || !st.verdict) return r;
+    if (st.verdict === "FAIL") return r;
     st.verdictValue = st.verdict; st.trap = false; st.grade = q && q.ok ? q.grade : null;
     if (st.verdict === "BUY" && st.grade && (st.grade === "D" || st.grade === "F")) { st.verdict = "HOLD"; st.trap = true; }
     return r;
   }
 
-  var api = { compute: compute, applyQuality: applyQuality, adjBeta: adjBeta, capexInfo: capexInfo, defaultSettings: defaultSettings, growthPath: growthPath, avg: avg, median: median, fin: fin };
+  var api = { compute: compute, applyQuality: applyQuality, applyValueTest: applyValueTest, valueTest: valueTest, pastGrowth: pastGrowth, pastEst: pastEst, adjBeta: adjBeta, capexInfo: capexInfo, defaultSettings: defaultSettings, growthPath: growthPath, avg: avg, median: median, fin: fin };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.IV = api;
 })(typeof window !== "undefined" ? window : globalThis);
