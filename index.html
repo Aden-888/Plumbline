@@ -41,7 +41,7 @@
         <p class="hero__eyebrow"><span class="eb-dot" aria-hidden="true"></span>Intrinsic value, calculated</p>
         <h1>What is this stock actually worth?</h1>
         <p class="hero__lede">Plumbline cross-checks a company across multiple valuation models and distils them into one fair-value estimate. Then it grades the business behind the share price, so you know both what you would pay and what you would own.</p>
-        <p class="hero__hint">Built for value investors: every figure comes from the company's own track record, with no forecasts and no hype. Search any US-listed company by ticker or name.</p>
+        <p class="hero__hint">Search any US-listed company by ticker or name to see its valuation and the quality of the business behind it.</p>
         <form class="search search--big" id="heroForm" autocomplete="off" role="search">
           <input id="heroInput" aria-label="Stock ticker or company name" placeholder="e.g. AAPL or Apple" maxlength="40" spellcheck="false" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="heroSug" autofocus>
           <button type="submit">Value<span class="hide-sm"> this stock</span></button>
@@ -54,9 +54,9 @@
           <div><span class="ex__tag">Example</span><p class="ex__title">One stock, nine estimates</p></div>
           <dl class="ex__stats" id="heroStats"></dl>
         </div>
-        <div class="chart" id="heroChart" role="img" aria-label="Example: nine valuation estimates for one stock placed on a price line, with the fair value and the share price marked"></div>
+        <div class="chart" id="heroChart" role="img" aria-label="Example: nine valuation estimates for one stock placed on a price line, with the median and the share price marked"></div>
         <div class="ex__legend" aria-hidden="true"><span><i class="lg lg--buy"></i>20%+ above price</span><span><i class="lg lg--hold"></i>Within 20%</span><span><i class="lg lg--sell"></i>20%+ below price</span></div>
-        <figcaption class="hero__cap">Each row is one valuation method applied to the same stock, ranked from lowest to highest. The methods rarely agree, so Plumbline takes the middle value of the cash flow models and of the multiples, then averages the two. The faded rows are growth checks, shown for context but not counted.</figcaption>
+        <figcaption class="hero__cap">Each row is one valuation method applied to the same stock, ranked from lowest to highest. The methods rarely agree, so Plumbline takes the middle estimate (the median) as its answer, rather than trusting any single one.</figcaption>
       </figure>
     </div>
   </section>
@@ -81,24 +81,24 @@
       <h2>How Plumbline works</h2>
       <p class="sec__lede">A stock's price is what people pay today. Its intrinsic value is what the business is worth based on the cash and profit it is expected to make. Plumbline estimates that value in four steps.</p>
       <ol class="steps">
-        <li><h3>Collect the numbers</h3><p>Price, shares, cash, debt, sales, profit and cash flow for the last 12 months, plus up to five years of past results and valuation ratios. No forecasts.</p></li>
-        <li><h3>Project from the record</h3><p>Growth comes only from the company's own past 3 to 5 years, kept between −5% and +25% a year, then fades step by step towards long-run economic growth (3%) over 20 years.</p></li>
+        <li><h3>Collect the numbers</h3><p>Price, shares, cash, debt, sales, profit and cash flow for the last 12 months, plus five years of valuation ratios and analyst forecasts.</p></li>
+        <li><h3>Forecast the future</h3><p>Growth for the next two years comes from analyst forecasts. After that it fades step by step towards long-run economic growth (3%) over 20 years.</p></li>
         <li><h3>Value it several ways</h3><p>Four cash flow and earnings models, three valuation-multiple checks and two growth-adjusted checks, each looking at the company from a different angle.</p></li>
-        <li><h3>Reach a verdict</h3><p>A company must first pass the value test: a proven record of profit and cash flow. Then the middle values of the cash flow models and the multiples are averaged into a fair value. 20% or more above the price with a quality grade of C or better is a BUY; 20% or more below is a SELL; anything in between is a HOLD.</p></li>
+        <li><h3>Reach a verdict</h3><p>The estimates are combined using the median, so no single extreme result can skew the fair value. At 20% or more above the share price it is a BUY, 20% or more below a SELL, and anything in between a HOLD.</p></li>
       </ol>
       <div class="sec ex-sec" style="padding-top:56px">
-        <p class="kicker">Why several methods</p>
+        <p class="kicker">Why the median</p>
         <h2>Why not trust just one method?</h2>
         <p class="sec__lede">Every valuation method rests on assumptions, and each one can be wrong in its own way. Looking at several methods together shows where they agree and where they don't.</p>
         <div class="blind">
           <div class="blind__i"><h3>Cash flow models</h3><p>Very sensitive to the discount rate. A small change in the rate can move the value a lot.</p></div>
           <div class="blind__i"><h3>Valuation multiples</h3><p>Assume the stock will trade at its usual P/E, P/S or P/B. That only holds if the past repeats.</p></div>
-          <div class="blind__i"><h3>Growth-adjusted checks</h3><p>Compare price with growth against a rule-of-thumb target, which is partly a judgement call. That is why they are shown as side checks and not counted.</p></div>
+          <div class="blind__i"><h3>Growth-adjusted checks</h3><p>Compare price with growth against a benchmark, and that benchmark is partly a judgement call.</p></div>
         </div>
         <div class="takeaways">
           <div><b>Close together</b><span>When several independent methods land in a similar place, you can trust the answer more.</span></div>
           <div><b>Far apart</b><span>A wide spread is itself a warning that the value is hard to pin down.</span></div>
-          <div><b>Grouped, then averaged</b><span>Taking the middle value within each group stops one extreme method dragging the result, and averaging the groups stops four similar cash flow models outvoting the rest.</span></div>
+          <div><b>The median</b><span>Taking the middle value means one extreme method cannot drag the result up or down.</span></div>
         </div>
       </div>
       <div class="sec ex-sec" style="padding-top:56px">
@@ -116,7 +116,7 @@
         </ol>
         <div class="grades">
           <div class="grades__scale"><span class="g g--a">A<small>80+</small></span><span class="g g--b">B<small>65+</small></span><span class="g g--c">C<small>50+</small></span><span class="g g--d">D<small>35+</small></span><span class="g g--f">F<small>below 35</small></span></div>
-          <p>The three areas combine into a score out of 100 and a grade. The grade also feeds the verdict: a stock needs a grade of C or better to be a BUY. A cheap stock with a D or F grade is shown as "Undervalued, but weak business" instead, because weak businesses are often cheap for a reason.</p>
+          <p>The three areas combine into a score out of 100 and a grade. The grade sits next to the BUY, HOLD or SELL verdict, so you can tell a good business at a fair price apart from a weak business that is only cheap.</p>
         </div>
       </div>
       <div class="sec" id="glossary" style="padding-top:56px">
@@ -132,7 +132,7 @@
           <details><summary>Non-recurring items</summary><p>One-off gains or costs, such as a gain from selling an investment. Plumbline removes them from earnings so the valuation reflects what the business earns in a normal year.</p></details>
           <details><summary>P/E, P/S and P/B</summary><p>Price divided by earnings, sales or book value (net assets) per share. They show how much investors pay for each dollar of each.</p></details>
           <details><summary>PEG and PSG</summary><p>P/E or P/S divided by the growth rate. They check whether a high multiple is justified by fast growth.</p></details>
-          <details><summary>Median and fair value</summary><p>The median is the middle value when a set of numbers is sorted, so one extreme value cannot pull it far. Plumbline takes the median of its cash flow models and the median of its multiples, then averages the two to get the fair value.</p></details>
+          <details><summary>Median and trimmed mean</summary><p>The median is the middle value when all nine are sorted. The trimmed mean drops the highest and lowest values and averages the rest. Both are less affected by outliers than a plain average.</p></details>
           <details><summary>ROIC (return on invested capital)</summary><p>After-tax operating profit divided by all the money invested in the business (shareholders' equity plus debt, minus spare cash). It shows how well management turns invested money into profit, whether that money came from owners or lenders.</p></details>
           <details><summary>ROE (return on equity)</summary><p>Net profit divided by shareholders' equity. It shows the return on the owners' money. High debt can push ROE up artificially, so it is best read next to ROIC and debt to equity.</p></details>
           <details><summary>EBITDA</summary><p>Earnings before interest, tax, depreciation and amortisation. It is a rough measure of the cash profit from operations, often used to judge how much debt a company can carry.</p></details>

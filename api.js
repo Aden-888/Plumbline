@@ -73,22 +73,27 @@
     if (!fy) throw new Error("Income statement history is missing for " + t + ".");
     var R0 = X * num(fy.revenue) / M, E0 = X * num(fy.epsDiluted, fy.eps);
     var rv, ev, cagrRev, cagrEps;
-    /* Value investing rule: growth comes only from the company's own past results. Analyst forecasts are not used,
-       even when the data provider has them. Past revenue and earnings per share run oldest first. */
-    var IVx = root.IV || (typeof require !== "undefined" ? require("./engine.js") : null);
-    var hist5 = fyArr.slice(0, 6).reverse();
-    var pg = IVx.pastGrowth(hist5.map(function (r) { return X * num(r.revenue) / M; }), hist5.map(function (r) { return X * num(r.epsDiluted, r.eps); }));
-    if (!pg) throw new Error("There is not enough history to judge " + t + "'s growth from its own record (needs at least 2 years of revenue).");
-    var pe0 = IVx.pastEst(R0, E0, pg);
-    rv = pe0.rev.slice(1); ev = pe0.eps.slice(1); cagrRev = pg.rev; cagrEps = pg.eps;
-    caveats.push("Growth comes only from the company's own record (" + (pg.long ? "an average of the last 3 and " + pg.years + " years" : "the last " + pg.years + " years") + ", kept between -5% and +25% a year): revenue " + (cagrRev * 100).toFixed(1) + "% a year, earnings " + (cagrEps * 100).toFixed(1) + "% a year. Analyst forecasts are not used, by design.");
+    var estOK = fut.length >= 2 && fut.every(function (e) { return isFinite(num(e.revenueAvg)) && isFinite(num(e.epsAvg)); });
+    if (estOK) {
+      rv = fut.map(function (e) { return X * num(e.revenueAvg) / M; }); ev = fut.map(function (e) { return X * num(e.epsAvg); });
+      var n = Math.min(3, rv.length);
+      cagrRev = Math.pow(rv[n - 1] / R0, 1 / n) - 1;
+      cagrEps = E0 > 0 && ev[n - 1] > 0 ? Math.pow(ev[n - 1] / E0, 1 / n) - 1 : 0;
+    } else {
+      /* fallback: past growth (capped) in place of analyst estimates */
+      var old = fyArr[Math.min(fyArr.length - 1, 3)], yrs = Math.min(fyArr.length - 1, 3);
+      if (yrs < 1 || !(num(old.revenue) > 0)) throw new Error("Analyst estimates are not available for " + t + " on your plan, and there is not enough history to estimate growth.");
+      var hg = Math.pow(num(fy.revenue) / num(old.revenue), 1 / yrs) - 1;
+      var eo = X * num(old.epsDiluted, old.eps);
+      var he = E0 > 0 && eo > 0 ? Math.pow(E0 / eo, 1 / yrs) - 1 : hg;
+      cagrRev = Math.max(-0.05, Math.min(0.35, hg)); cagrEps = Math.max(-0.05, Math.min(0.35, he));
+      rv = [1, 2, 3].map(function (k) { return R0 * Math.pow(1 + cagrRev, k); });
+      ev = [1, 2, 3].map(function (k) { return E0 * Math.pow(1 + cagrEps, k); });
+      caveats.push((R.estNote || "Analyst estimates are not included in your data plan.") + " Growth for the next few years is based on the company's own growth over the last " + yrs + " years (revenue " + (cagrRev * 100).toFixed(1) + "% a year, earnings " + (cagrEps * 100).toFixed(1) + "% a year, capped between -5% and 35%). Treat the growth-based methods with extra caution.");
+    }
     var R3 = rv.length > 2 ? rv[2] : rv[1] * (1 + cagrRev), E3 = ev.length > 2 ? ev[2] : ev[1] * (1 + cagrEps);
 
     var revTTM = X * num(inc.revenue) / M, equity = X * num(bs.totalStockholdersEquity, 0) / M;
-    /* past capital spending as a share of revenue (up to five fiscal years), used to normalise capex */
-    var revBy = {}; fyArr.forEach(function (r) { revBy[String(r.date).slice(0, 7)] = num(r.revenue); });
-    var capexHist = (R.cashFY || []).map(function (c) { var rv = revBy[String(c.date).slice(0, 7)]; return { year: String(c.date).slice(0, 4), rev: X * rv / M, capex: X * Math.abs(num(c.capitalExpenditure, NaN)) / M }; })
-      .filter(function (h) { return h.rev > 0 && isFinite(h.capex); }).sort(function (a, b) { return a.year < b.year ? -1 : 1; }).slice(-5);
     var epsTTM = X * num(inc.epsDiluted, inc.eps);
     return {
       ticker: t, name: (p && p.companyName) || t, exchange: (p && (p.exchange || p.exchangeFullName)) || "", sector: (p && p.sector) || "",
@@ -98,9 +103,9 @@
       cash: X * num(bs.cashAndShortTermInvestments, num(bs.cashAndCashEquivalents, 0)) / M,
       debt: X * num(bs.totalDebt, 0) / M, equity: equity, beta: num(p && p.beta, 1),
       ttm: { rev: revTTM, ni: X * num(inc.netIncome) / M, gain: 0, tax: tax, ocf: ocf / M, capex: capex / M, epsGaap: epsTTM },
-      hist: hist, capexHist: capexHist,
+      hist: hist,
       cur: { pe: epsTTM > 0 ? price / epsTTM : null, ps: revTTM > 0 ? mcap / M / revTTM : null, pb: equity > 0 ? mcap / M / equity : null },
-      est: { rev: [R0, rv[0], rv[1], R3], eps: [E0, ev[0], ev[1], E3], cagrRev: cagrRev, cagrEps: cagrEps, cfG1: null, calWeight: 1, source: "past" },
+      est: { rev: [R0, rv[0], rv[1], R3], eps: [E0, ev[0], ev[1], E3], cagrRev: cagrRev, cagrEps: cagrEps, cfG1: null, calWeight: R.calWeight != null ? R.calWeight : (annualBase ? 1 : 0.5) },
       settings: {},
       caveats: caveats
     };

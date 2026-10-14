@@ -14,7 +14,7 @@ window.PRESETS = {
     est: { rev: [215938, 411650, 411650 * 1.6815, 215938 * Math.pow(1.6112, 3)],
            eps: [4.77, 9.31, 15.91, 4.77 * Math.pow(1.6478, 3)],
            cagrRev: 0.6112, cagrEps: 0.6478, cfG1: null, calWeight: 0.5, analysts: 54, target: 328.72 },
-    settings: {},
+    settings: { g5: 0.20, g10: 0.10 },
     quality: {
       gp: 226241, opInc: 197579, da: 3687, interest: 464,
       curAssets: 197412, curLiab: 43019, inventory: 31575, quickAssets: 62469 + 63059, leases: 509 + 4985, deferredRev: 4616,
@@ -28,7 +28,7 @@ window.PRESETS = {
     caveats: [
       "About $30.6 billion of the last 12 months of net income came from investment gains. The P/E, PEG and net income methods remove these.",
       "Cash conversion has weakened. Operating cash flow in the latest quarter fell to $24.1 billion from $50.3 billion as receivables rose.",
-      "The 20-year methods depend mostly on the growth path and the discount rate. The discount rate here is high (about 14%) because the stock's measured beta is 2.2 (1.8 after adjustment towards 1).",
+      "The 20-year methods depend mostly on the growth path and the discount rate. The discount rate here is high (about 16%) because the stock's beta is 2.2.",
       "The mean-multiple methods assume the stock returns to its own five-year average. Those years were a period of very fast growth."
     ]
   },
@@ -42,7 +42,7 @@ window.PRESETS = {
     est: { rev: [41525, 46300, 46300 * 1.0972, 41525 * Math.pow(1.1031, 3)],
            eps: [12.52, 16.75 - 2.53, 16.02, 12.52 * Math.pow(1.1387, 3)],
            cagrRev: 0.1031, cagrEps: 0.1387, cfG1: 0.045, calWeight: 0.5, analysts: null, target: 283.36 },
-    settings: {},
+    settings: { g5: 0.08, g10: 0.05 },
     quality: {
       gp: 33956, opInc: 9455, da: 3444, interest: 1004,
       curAssets: 22083, curLiab: 26336, inventory: 0, quickAssets: 11403 + 6320, leases: 678 + 2410, deferredRev: 18787,
@@ -57,19 +57,8 @@ window.PRESETS = {
       "About $4.2 billion of the last 12 months of net income came from investment gains. The P/E, PEG and net income methods remove these.",
       "Stock-based pay is about $3.7 billion a year (roughly 24% of free cash flow) and is not deducted from free cash flow.",
       "Debt jumped from $17.7 billion to $42.4 billion to fund a share buyback and acquisitions. This lowers book value per share and the price-to-book value.",
+      "Near-term cash flow growth follows company guidance (about 4.5%), which is well below revenue growth because interest and cash taxes have stepped up.",
       "Two of the five historical P/E readings (158.7x and 800.3x) were far above normal, so the model ignores them."
     ]
   }
 };
-
-/* Value investing rule: the built-in stocks follow the same past-growth rule as every other stock.
-   Analyst forecasts kept above are not used for valuation. */
-(function () {
-  Object.keys(window.PRESETS).forEach(function (k) {
-    var p = window.PRESETS[k], Q = p.quality, n = Q.rev.length - 1;
-    var pg = window.IV.pastGrowth(Q.rev, Q.eps);
-    p.estAnalyst = p.est;
-    p.est = window.IV.pastEst(Q.rev[n], Q.eps[n], pg);
-    p.caveats.push("Growth comes only from the company's own record (an average of the last 3 and " + pg.years + " years, kept between -5% and +25% a year): revenue " + (pg.rev * 100).toFixed(1) + "% a year, earnings " + (pg.eps * 100).toFixed(1) + "% a year. Analyst forecasts are not used, by design.");
-  });
-})();

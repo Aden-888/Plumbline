@@ -248,25 +248,25 @@
   /* ---------------- hero ---------------- */
   function drawHero(animate) {
     var p = window.PRESETS.NVDA, s = Object.assign(IV.defaultSettings(p), p.settings);
-    var r = IV.applyQuality(IV.applyValueTest(IV.compute(p, s), p), QS.compute(p)), el = $("heroChart");
+    var r = IV.compute(p, s), el = $("heroChart");
     Charts.dotplot(el, r);
     if (animate) Charts.settle(el);
     var hs = $("heroStats"), st = r.stats;
-    if (hs) hs.innerHTML = "<div><dt>Share price</dt><dd>" + F.usd(p.price, 0) + "</dd></div><div><dt>Fair value</dt><dd>" + F.usd(st.median, 0) + '</dd></div><div><dt>Verdict</dt><dd><span class="pill pill--sm pill--' + st.verdict + '">' + st.verdict + "</span></dd></div>";
+    if (hs) hs.innerHTML = "<div><dt>Share price</dt><dd>" + F.usd(p.price, 0) + "</dd></div><div><dt>Median value</dt><dd>" + F.usd(st.median, 0) + '</dd></div><div><dt>Verdict</dt><dd><span class="pill pill--sm pill--' + st.verdict + '">' + st.verdict + "</span></dd></div>";
   }
 
   /* ---------------- results shell (built once per stock) ---------------- */
   var SETTINGS = [
-    ["beta", "Beta (adjusted)", "How jumpy the stock is compared with the market. Plumbline uses adjusted beta: the measured beta pulled one third of the way towards 1, because extreme betas rarely last. Higher beta means a higher discount rate and a lower value.", .3, 3, .01, function (v) { return v.toFixed(2); }],
+    ["beta", "Beta", "How jumpy the stock is compared with the market. Higher beta means a higher discount rate and a lower value.", .3, 3, .01, function (v) { return v.toFixed(2); }],
     ["rf", "Risk-free rate", "What safe government bonds pay. Part of the discount rate.", .01, .08, .0025, pc],
     ["erp", "Equity risk premium", "The extra return investors expect for owning stocks instead of bonds.", .03, .08, .0025, pc],
-    ["g5", "Growth in year 5", "Growth starts from the company's own past growth and fades to this rate by year 5.", 0, .4, .005, pc],
+    ["g5", "Growth in year 5", "After two years of analyst estimates, growth fades to this rate by year 5.", 0, .4, .005, pc],
     ["g10", "Growth in year 10", "Growth keeps fading to this rate by year 10.", 0, .25, .005, pc],
     ["gT", "Long-run growth (year 20 and after)", "Close to the long-run growth of the economy. Keep it below the discount rate.", 0, .05, .0025, pc],
     ["peg", "Target PEG", "Fair P/E divided by growth. 1.0 is Peter Lynch's rule of thumb.", .5, 2, .05, function (v) { return v.toFixed(2); }],
     ["psg", "Target PSG", "Fair P/S divided by growth. No official standard exists, so this is a judgement call.", .02, .3, .01, function (v) { return v.toFixed(2); }],
     ["peCap", "Ignore P/E readings above", "Very high P/E readings usually mean profit was close to zero that year.", 30, 300, 10, function (v) { return v.toFixed(0) + "x"; }],
-    ["buy", "BUY if upside is at least", "The margin of safety the fair value needs over the price.", .05, .5, .05, pc],
+    ["buy", "BUY if upside is at least", "The margin of safety the median value needs over the price.", .05, .5, .05, pc],
     ["sell", "SELL if downside is at least", "The mirror image. Anything between the two lines is HOLD.", -.5, -.05, .05, pc]
   ];
   function pc(v) { return (v * 100).toFixed(v * 100 % 1 ? 2 : 1).replace(/\.?0+$/, "") + "%"; }
@@ -286,15 +286,15 @@
       '<div class="wrap res">' +
       '<div class="head" id="overview"><h2>' + esc(inp.name) + ' <span class="head__tk">' + esc(inp.ticker) + '</span></h2><div class="head__meta">' + (inp.exchange ? '<span>' + esc(inp.exchange) + "</span>" : "") + '<span id="hdPrice">Price as of ' + esc(inp.asOf) + "</span></div></div>" +
       '<p class="bridge" style="margin:18px 0 -10px">Step 1 · What Plumbline thinks the stock is worth</p><div id="rVerdict"></div>' +
-      '<div class="pxc" id="pxCard"><div class="pxc__head"><div><h3>Share price vs fair value</h3><p class="pxc__sub" id="pxSub">Loading price history…</p></div>' +
+      '<div class="pxc" id="pxCard"><div class="pxc__head"><div><h3>Share price vs intrinsic value</h3><p class="pxc__sub" id="pxSub">Loading price history…</p></div>' +
       '<div class="seg" id="pxRange" role="group" aria-label="Time range"><button type="button" data-r="1mo">1M</button><button type="button" data-r="6mo">6M</button><button type="button" data-r="1y" class="on">1Y</button><button type="button" data-r="5y">5Y</button></div></div>' +
       '<div class="pxc__chart" id="pxChart"><div class="pxc__skel"></div></div>' +
-      '<div class="pxc__legend" aria-hidden="true"><span><i class="lk lk--px"></i>Share price</span><span><i class="lk lk--iv"></i>Fair value today</span><span><i class="lk lk--buy"></i>BUY zone</span><span><i class="lk lk--sell"></i>SELL zone</span></div>' +
-      '<p class="pxc__note">Hover or touch the chart to see the price on any day. The fair value line is today\'s estimate, drawn across the whole period so you can see how far the price has moved around it.</p></div>' +
+      '<div class="pxc__legend" aria-hidden="true"><span><i class="lk lk--px"></i>Share price</span><span><i class="lk lk--iv"></i>Intrinsic value today</span><span><i class="lk lk--buy"></i>BUY zone</span><span><i class="lk lk--sell"></i>SELL zone</span></div>' +
+      '<p class="pxc__note">Hover or touch the chart to see the price on any day. The intrinsic value line is today\'s estimate, drawn across the whole period so you can see how far the price has moved around it.</p></div>' +
       '<section class="sec" id="quality"><p class="bridge">Step 2 · Is the business behind the stock any good?</p><h2>Business quality scorecard</h2><p class="sec__lede">The valuation above says whether the stock is cheap. This scorecard says whether the business is good. It grades the company on 13 measures across three areas, using its own financial statements. Each measure scores Strong, Good or Weak, and core measures count double.</p><div id="rQuality"></div></section>' +
-      '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is Plumbline\'s fair value and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method. The two growth-adjusted checks are faded because they are not counted in the fair value.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#4cb782"></i>Undervalued</span><span><i style="background:#c9a75a"></i>Fair</span><span><i style="background:#d66b63"></i>Overvalued</span><span><i class="sq" style="background:#8fb4e6"></i>Plumbline fair value</span></div></div></section>' +
-      '<section class="sec" id="methods"><p class="bridge">Step 4 · Each valuation method in detail</p><h2>How each method got its number</h2><p class="sec__lede">Select a method to see why it is used, where it works best and how its number was built from this company\'s own figures. Methods marked "Side check" are shown for context but not counted in the fair value.</p><p class="swipe-hint">Swipe to see all the methods. Tap one for the full calculation.</p><div class="mlist" id="rMethods"></div></section>' +
-      '<section class="sec" id="average"><p class="bridge">Step 5 · The methods disagree, so here\'s how one fair value is reached</p><h2>How the methods become one value</h2><div id="rAvgText"></div><div class="card"><div class="chart" id="rStats"></div></div><div class="avg" id="rAvg"></div></section>' +
+      '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is the Plumbline value (the median of the nine) and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#4cb782"></i>Undervalued</span><span><i style="background:#c9a75a"></i>Fair</span><span><i style="background:#d66b63"></i>Overvalued</span><span><i class="sq" style="background:#8fb4e6"></i>Plumbline value (median)</span></div></div></section>' +
+      '<section class="sec" id="methods"><p class="bridge">Step 4 · Each of the nine methods in detail</p><h2>How each method got its number</h2><p class="sec__lede">Select a method to see why it is used, where it works best and how its number was built from this company\'s own figures.</p><p class="swipe-hint">Swipe to see all nine methods. Tap one for the full calculation.</p><div class="mlist" id="rMethods"></div></section>' +
+      '<section class="sec" id="average"><p class="bridge">Step 5 · The methods disagree, so here\'s how one number is chosen</p><h2>How nine values become one</h2><div id="rAvgText"></div><div class="card"><div class="chart" id="rStats"></div></div><div class="avg" id="rAvg"></div></section>' +
       '<section class="sec" id="forecast"><p class="bridge">Step 6 · The cash flow methods depend on a forecast. Here\'s what it assumes</p><h2>What the forecast assumes</h2><p class="sec__lede" id="rProjText"></p>' +
       '<div class="card tscroll"><table class="tbl tbl--proj" id="rProjTbl"></table></div>' +
       '<p class="card__note">Free cash flow is the cash left after the company pays for its equipment and buildings. Profit excludes one-off gains. B = billion. Why does growth slow down? Very few companies can grow faster than the whole economy forever, so growth is assumed to settle at about the economy\'s long-run rate.</p>' +
@@ -373,9 +373,9 @@
   /* ---------------- render ---------------- */
   function update(initial) {
     var inp = state.inputs, s = state.settings;
-    var r = state.result = IV.applyQuality(IV.applyValueTest(IV.compute(inp, s), inp), state.quality);
+    var r = state.result = IV.compute(inp, s);
     sync();
-    if (!r.stats.n) { $("rVerdict").innerHTML = '<div class="notice notice--error"><h3>No fair value from the record</h3><p>None of the counted methods could be calculated, because the company\'s own figures (profit, cash flow or book value) are not positive. A value investor would need to see a proven record first.</p>' + vtHtml(IV.valueTest(inp)) + '</div>'; renderQuality(r); return; }
+    if (!r.stats.n) { $("rVerdict").innerHTML = '<div class="notice notice--error"><h3>Not enough data</h3><p>None of the nine methods could be calculated for this stock.</p></div>'; renderQuality(r); return; }
     renderVerdict(r, initial); renderQuality(r); renderMethods(r); renderAvg(r); renderProj(r); renderData(r);
     Charts.bars($("rBars"), r); Charts.strip($("rStats"), r, { stats: true });
     if ($("projMore") && $("projMore").open) drawProj(r);
@@ -384,36 +384,24 @@
 
   function renderVerdict(r, initial) {
     var st = r.stats, inp = r.inputs, s = r.settings, v = st.verdict, q = state.quality;
-    var vt = st.valueTest || { checks: [], failed: [] };
-    var line = v === "FAIL" ? "Whatever the price, Plumbline only gives a verdict when the company's own record supports one, and this company fails the value test (" + vt.failed.map(function (c) { return c.name.toLowerCase(); }).join("; ") + "). Its figures do not yet show the steady profit and cash flow a value investor needs, so it cannot be a BUY."
-      : st.trap ? "That would normally be a BUY, but the business quality grade is " + st.grade + ". Cheap stocks with weak businesses are often cheap for a reason (a value trap), so Plumbline holds back at HOLD."
-      : v === "BUY" ? "That is above the " + F.spct(s.buy, 0) + " BUY line" + (st.grade ? " and the business quality grade (" + st.grade + ") passes the C-or-better check." : ".")
+    var line = v === "BUY" ? "That is above the " + F.spct(s.buy, 0) + " BUY line."
       : v === "SELL" ? "That is below the " + F.spct(s.sell, 0) + " SELL line."
       : "That sits between the SELL line (" + F.spct(s.sell, 0) + ") and the BUY line (" + F.spct(s.buy, 0) + ").";
     var spread = st.max / st.min;
     var qRow = q && q.ok ? '<dt>Business quality</dt><dd><a href="#quality" class="qlink" style="color:' + scoreCol(q.score) + '">' + q.grade + " · " + Math.round(q.score) + "/100</a></dd>" : "";
     var html =
       '<div class="verdict"><div class="verdict__main">' + pvHtml(r) +
-      '<p class="verdict__sum">The fair value is <strong class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + (st.upside >= 0 ? " above" : " below").replace("+", "") + "</strong> the share price. " + line + " " + st.above + " of " + st.n + " counted methods value the stock above its price." +
-      (st.n < st.nCounted ? " " + (st.nCounted - st.n) + " method(s) could not be calculated for this stock (" + r.methods.filter(function (m) { return m.counted && !fin(m.value); }).map(function (m) { return m.short; }).join(", ") + "), so the fair value uses the other " + st.n + "." : "") + (st.oneFamily ? " Only the " + st.oneFamily.toLowerCase() + " could be calculated, so the fair value rests on that group alone." : "") + (spread > 3 ? " The methods are far apart (" + F.usd(st.min, 0) + " to " + F.usd(st.max, 0) + "), which is why Plumbline takes the middle value of each group rather than a plain average." : "") + "</p></div>" +
-      '<div class="verdict__side"><span class="pill pill--' + v + '"><i></i>' + (v === "FAIL" ? "FAILS VALUE TEST" : v) + "</span>" +
-      '<p class="verdict__rule">BUY: ' + F.spct(s.buy, 0) + ' upside or more and quality grade C or better · SELL: ' + F.spct(s.sell, 0) + ' or worse</p>' + (st.trap ? '<p class="trapnote">Undervalued, but weak business</p>' : "") + '<dl class="kv"><dt>Upside / (downside)</dt><dd class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + "</dd><dt>Average of the counted methods</dt><dd>" + F.usd(st.mean) + "</dd>" +
-      qRow + "</dl>" + vtHtml(vt) + "</div></div>";
+      '<p class="verdict__sum">The intrinsic value is <strong class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + (st.upside >= 0 ? " above" : " below").replace("+", "") + "</strong> the share price. " + line + " " + st.above + " of " + st.n + " methods value the stock above its price." +
+      (st.n < r.methods.length ? " " + (r.methods.length - st.n) + " method(s) could not be calculated for this stock (" + r.methods.filter(function (m) { return !fin(m.value); }).map(function (m) { return m.short; }).join(", ") + "), so the median uses the other " + st.n + "." : "") + (spread > 3 ? " The methods are far apart (" + F.usd(st.min, 0) + " to " + F.usd(st.max, 0) + "), which is why the median is used instead of a plain average." : "") + "</p></div>" +
+      '<div class="verdict__side"><span class="pill pill--' + v + '"><i></i>' + v + "</span>" +
+      '<p class="verdict__rule">BUY at ' + F.spct(s.buy, 0) + ' upside or more · SELL at ' + F.spct(s.sell, 0) + ' or worse</p><dl class="kv"><dt>Upside / (downside)</dt><dd class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + "</dd><dt>Average of all nine</dt><dd>" + F.usd(st.mean) + "</dd>" +
+      (inp.est.target ? "<dt>Analyst average target</dt><dd>" + F.usd(inp.est.target) + "</dd>" : "") + qRow + "</dl></div></div>";
     $("rVerdict").innerHTML = html;
     if (initial) countUp($("vNum"), st.median);
     var dk = $("dock");
     if (dk) dk.innerHTML = '<b>' + esc(inp.ticker) + '</b><span class="dock__v">' + F.usd(st.median, 0) + '</span><span class="dock__up ' + cls(st.upside, s) + '">' + F.spct(st.upside, 0) + '</span><span class="pill pill--sm pill--' + v + '">' + v + "</span>" + (q && q.ok ? '<span class="dock__q" style="color:' + scoreCol(q.score) + '">' + q.grade + "</span>" : "") + '<span class="dock__up-arrow" aria-hidden="true">↑</span>';
   }
   /* The headline value "decodes": each digit flickers through random figures and locks in from left to right. */
-  /* the value test as a short checklist */
-  function vtHtml(vt) {
-    if (!vt || !vt.checks || !vt.checks.length) return "";
-    var passed = vt.checks.length - vt.failed.length;
-    return '<details class="vt' + (vt.pass ? "" : " vt--fail") + '"' + (vt.pass ? "" : " open") + '><summary><span>Value test</span><b>' + (vt.pass ? "Passed" : "Failed") + " · " + passed + " of " + vt.checks.length + " checks</b></summary><ul>" +
-      vt.checks.map(function (c) { return '<li class="' + (c.ok ? "ok" : "no") + '"><i aria-hidden="true">' + (c.ok ? "✓" : "✕") + "</i><span>" + esc(c.name) + "<small>" + esc(c.detail) + "</small></span></li>"; }).join("") +
-      '</ul><p>Plumbline is built for value investors: a company must show a proven, profitable, cash-generating record before it can be a BUY. Promising stories do not count until they appear in the accounts.</p></details>';
-  }
-
   /* ---------------- price vs intrinsic value ---------------- */
   function pvHtml(r) {
     var st = r.stats, inp = r.inputs, s = r.settings, v = st.verdict, iv = st.median, px = inp.price, q = state.quote;
@@ -426,8 +414,8 @@
     var buyMax = iv / (1 + s.buy), sellMin = iv / (1 + s.sell), D = Math.max(px * 1.12, sellMin * 1.18);
     var pc = function (v) { return Math.max(0, Math.min(100, v / D * 100)).toFixed(2) + "%"; };
     return '<div class="pv"><div class="pv__c"><p class="pv__k"><span><span class="hide-sm">Share </span>price</span>' + (q ? ' <span class="live"><i></i>Live</span>' : "") + '</p><p class="pv__v" id="pvPrice">' + F.usd(px) + '</p><p class="pv__s">' + sub + "</p></div>" +
-      '<div class="pv__c"><p class="pv__k">Fair value</p><p class="pv__v pv__v--iv" id="vNum">' + F.usd(iv) + '</p><p class="pv__s">Cash flow models and multiples combined</p></div></div>' +
-      '<div class="gapb gapb--' + v + '"><b>' + pct.toFixed(1) + "% " + (under ? "undervalued" : "overvalued") + "</b><span>The share price is " + pct.toFixed(1) + "% " + (under ? "below" : "above") + " its fair value</span></div>" +
+      '<div class="pv__c"><p class="pv__k">Intrinsic value</p><p class="pv__v pv__v--iv" id="vNum">' + F.usd(iv) + '</p><p class="pv__s">Median of ' + st.n + " valuation methods</p></div></div>" +
+      '<div class="gapb gapb--' + v + '"><b>' + pct.toFixed(1) + "% " + (under ? "undervalued" : "overvalued") + "</b><span>The share price is " + pct.toFixed(1) + "% " + (under ? "below" : "above") + " its intrinsic value</span></div>" +
       '<div class="gauge" role="img" aria-label="Share price ' + F.usd(px) + " against intrinsic value " + F.usd(iv) + '"><div class="gauge__bar">' +
       '<span class="gz gz--buy" style="width:' + pc(buyMax) + '"></span><span class="gz gz--hold" style="left:' + pc(buyMax) + ";width:calc(" + pc(sellMin) + " - " + pc(buyMax) + ')"></span><span class="gz gz--sell" style="left:' + pc(sellMin) + ';right:0"></span>' +
       '<span class="gm gm--iv" style="left:' + pc(iv) + '"><em>Value ' + F.usd(iv, 0) + '</em></span><span class="gm gm--px" style="left:' + pc(px) + '"><em>Price ' + F.usd(px, 0) + "</em></span></div>" +
@@ -548,37 +536,33 @@
 
   function renderMethods(r) {
     document.querySelectorAll("#rMethods details.m").forEach(function (d) { state.open[d.dataset.id] = d.open; });
-    var s = r.settings, price = r.inputs.price, axis = Math.max(price, r.stats.maxAll || r.stats.max) * 1.05;
+    var s = r.settings, price = r.inputs.price, axis = Math.max(price, r.stats.max) * 1.05;
     $("rMethods").innerHTML = r.methods.map(function (m) {
       var c = window.CONTENT.methods[m.id], ok = fin(m.value);
       var bar = ok ? '<div class="m__bar"><b style="width:' + Math.max(1, m.value / axis * 100).toFixed(1) + "%;background:" + barCol(m.upside, s) + '"></b><u style="left:' + (price / axis * 100).toFixed(1) + '%" title="Current price"></u></div>' : '<span class="na">Not available</span>';
       var steps = ok ? c.steps(r, m).map(function (x) { return "<tr><td>" + esc(x[0]) + "</td><td>" + esc(x[1]) + "</td></tr>"; }).join("") : "";
-      return '<details class="m" data-id="' + m.id + '"' + (state.open[m.id] ? " open" : "") + '><summary><div class="m__name">' + esc(m.name) + "<small>" + esc(m.short) + '</small></div><span class="m__type' + (m.counted === false ? " m__type--side" : "") + '">' + esc(m.counted === false ? "Side check" : m.type) + '</span><div class="m__barcell">' + bar + '</div><div class="m__valcell"><div class="m__val">' + (ok ? F.usd(m.value) : "n/a") + '</div><div class="m__up ' + (ok ? cls(m.upside, s) : "") + '">' + (ok ? F.spct(m.upside, 0) : "") + '</div></div><span class="m__chev" aria-hidden="true">›</span></summary>' +
+      return '<details class="m" data-id="' + m.id + '"' + (state.open[m.id] ? " open" : "") + '><summary><div class="m__name">' + esc(m.name) + "<small>" + esc(m.short) + '</small></div><span class="m__type">' + esc(m.type) + '</span><div class="m__barcell">' + bar + '</div><div class="m__valcell"><div class="m__val">' + (ok ? F.usd(m.value) : "n/a") + '</div><div class="m__up ' + (ok ? cls(m.upside, s) : "") + '">' + (ok ? F.spct(m.upside, 0) : "") + '</div></div><span class="m__chev" aria-hidden="true">›</span></summary>' +
         '<div class="m__body"><div><h4>What it is</h4><p>' + esc(c.what) + "</p><h4>Why it is used</h4><p>" + esc(c.why) + "</p><h4>Where it works best</h4><p>" + esc(c.fit) + "</p><h4>What to watch</h4><p>" + esc(c.watch) + "</p></div>" +
         "<div><h4>How this number was built</h4>" + (ok ? '<table class="calc">' + steps + "</table>" : '<p class="na">This method could not run: ' + esc(m.why || "missing data") + ".</p>") + "</div></div></details>";
     }).join("");
   }
 
   function renderAvg(r) {
-    var st = r.stats, s = r.settings, F3 = st.families || [];
-    var cf = F3[0] || {}, mu = F3[1] || {}, gr = F3[2] || {};
-    $("rAvgText").innerHTML = '<p class="sec__lede">The methods rarely agree, so Plumbline combines them in two steps. First it groups similar methods and takes the <strong>middle value (median)</strong> of each group, so one extreme result cannot pull it far. Then it <strong>averages the groups</strong>, so the four similar cash flow models cannot outvote the three multiples. The growth-adjusted checks rely on rule-of-thumb targets, so they are shown but not counted.</p>';
-    function card(f, note, main) {
-      var ok = fin(f.median), up = ok ? f.median / r.inputs.price - 1 : null;
-      return '<div class="avg__c' + (main ? " is-main" : "") + (f.counted === false ? " is-side" : "") + '"><h3>' + esc(f.name) + (main ? '<span class="tag">Fair value</span>' : f.counted === false ? '<span class="tag tag--side">Not counted</span>' : "") + '</h3><div class="avg__n">' + (ok ? F.usd(f.median) : "n/a") + '</div>' +
-        (ok ? '<p class="' + cls(up, s) + '" style="font-weight:700;margin-bottom:6px">' + F.spct(up) + " vs price</p>" : "") + "<p>" + note + "</p></div>";
+    var st = r.stats, s = r.settings;
+    $("rAvgText").innerHTML = '<p class="sec__lede">The nine methods rarely agree, so one number has to be chosen. Plumbline uses the <strong>median</strong>, which is the middle value when the nine are lined up from lowest to highest. It is the headline because a single extreme method, high or low, cannot pull it far. The mean and trimmed mean are shown so you can see how much the choice matters.</p>';
+    function card(t, v, p, main) {
+      return '<div class="avg__c' + (main ? " is-main" : "") + '"><h3>' + t + (main ? '<span class="tag">Headline</span>' : "") + '</h3><div class="avg__n">' + F.usd(v) + '</div><p class="' + cls(v / r.inputs.price - 1, s) + '" style="font-weight:700;margin-bottom:6px">' + F.spct(v / r.inputs.price - 1) + " vs price</p><p>" + p + "</p></div>";
     }
     $("rAvg").innerHTML =
-      card(cf, "Middle value of " + (cf.n || 0) + " of " + (cf.total || 4) + " models that discount future cash flow or profit.") +
-      card(mu, "Middle value of " + (mu.n || 0) + " of " + (mu.total || 3) + " checks against the stock\'s usual P/S, P/E and P/B.") +
-      card({ name: "Plumbline fair value", median: st.median }, st.oneFamily ? "Only one group could be calculated, so the fair value is that group\'s middle value." : "The average of the two groups above.", true) +
-      card(gr, "Middle value of the PSG and PEG checks. Shown for context only.");
+      card("Median", st.median, "The middle of the " + st.n + " values. Not affected by how extreme the highest and lowest are.", true) +
+      card("Mean (simple average)", st.mean, "Adds all " + st.n + " values and divides. Easy to understand, but one outlier can pull it a long way.") +
+      card("Trimmed mean", st.trimmed, "Drops the single highest and lowest values, then averages the rest.");
   }
 
   function bn(v) { return v >= 1e6 ? "$" + (v / 1e6).toFixed(1) + "T" : v >= 1e3 ? "$" + (v / 1e3).toFixed(0) + "B" : "$" + v.toFixed(0) + "M"; }
   function renderProj(r) {
     var P = r.proj, s = r.settings, g = r.growth, inp = r.inputs;
-    var src = "the company's own past growth (an average of the last 3 and 5 years where available, kept between -5% and +25% a year). Analyst forecasts are not used";
+    var src = inp.live ? "the company's recent growth (the free data source has no analyst estimates)" : "analyst estimates";
     $("rProjText").innerHTML = "Plumbline assumes " + esc(inp.name) + "'s cash flow grows about <strong>" + F.pct(g.cf[0], 0) + "</strong> next year and <strong>" + F.pct(g.cf[1], 0) + "</strong> the year after. Growth then settles towards " + F.pct(s.g5, 0) + " a year by year 5, " + F.pct(s.g10, 0) + " by year 10 and " + F.pct(s.gT, 0) + " by year 20. " +
       "On that path, free cash flow would grow from " + F.mm(P.fcf[0]) + " today to about " + F.mm(P.fcf[10]) + " in year 10. The first two years come from " + src + ".";
     var row = function (label, t, why) {
@@ -586,7 +570,7 @@
     };
     $("rProjTbl").innerHTML = "<thead><tr><th>Year</th><th>Growth that year</th><th>Free cash flow</th><th>Profit</th><th>Where the growth figure comes from</th></tr></thead><tbody>" +
       row("Today (last 12 months)", 0, "Actual figures") +
-      row("Year 1", 1, "Past growth") +
+      row("Year 1", 1, inp.live ? "Recent growth" : "Analyst estimates") +
       row("Year 5", 5, "Fades step by step") +
       row("Year 10", 10, "Keeps fading") +
       row("Year 20", 20, "Long-run economy growth") + "</tbody>";
@@ -616,12 +600,10 @@
     var row = function (a, b2) { return "<tr><td>" + a + "</td><td>" + b2 + "</td></tr>"; };
     $("rIn").innerHTML = '<table class="tbl"><thead><tr><th>Inputs used (last 12 months)</th><th></th></tr></thead><tbody>' +
       row("Revenue", F.mm(T.rev)) + row("Net income (reported)", F.mm(T.ni)) + row("One-off investment gains (before tax)", F.mm(T.gain)) + row("Net income excluding one-offs", F.mm(b.niEx)) +
-      row("Earnings per share excluding one-offs", F.usd(b.epsEx)) + row("Operating cash flow", F.mm(T.ocf)) + row("Capital spending (last 12 months)", F.mm(T.capex)) +
-      (r.capex && r.capex.normalised ? row("Capital spending used (normalised: " + F.pct(r.capex.info.ratio, 1) + " of revenue, the " + r.capex.info.years + "-year average)", F.mm(r.capex.used)) : "") +
-      row("Free cash flow" + (r.capex && r.capex.normalised ? " (with normalised capital spending)" : ""), F.mm(b.fcf)) +
+      row("Earnings per share excluding one-offs", F.usd(b.epsEx)) + row("Operating cash flow", F.mm(T.ocf)) + row("Capital spending", F.mm(T.capex)) + row("Free cash flow", F.mm(b.fcf)) +
       row("Cash and investments", F.mm(inp.cash)) + row("Total debt", F.mm(inp.debt)) + row("Shareholders' equity", F.mm(inp.equity)) + row("Shares outstanding", F.num(inp.shares) + " million") + "</tbody></table>";
     $("rWacc").innerHTML = '<table class="tbl"><thead><tr><th>Discount rate build</th><th></th></tr></thead><tbody>' +
-      row("Risk-free rate", F.pct(w.rf, 2)) + row("Beta (adjusted" + (fin(inp.beta) ? " from a measured " + inp.beta.toFixed(2) : "") + ")", w.beta.toFixed(2)) + row("Equity risk premium", F.pct(w.erp, 2)) + row("Cost of equity = risk-free + beta × premium", F.pct(w.coe, 2)) +
+      row("Risk-free rate", F.pct(w.rf, 2)) + row("Beta", w.beta.toFixed(2)) + row("Equity risk premium", F.pct(w.erp, 2)) + row("Cost of equity = risk-free + beta × premium", F.pct(w.coe, 2)) +
       row("Cost of debt (risk-free + spread)", F.pct(w.kd, 2)) + row("Share of equity in funding (market value)", F.pct(w.we, 1)) + row("Tax rate", F.pct(w.tax, 1)) + row("WACC", "<strong>" + F.pct(w.wacc, 2) + "</strong>") + "</tbody></table>" +
       '<p style="color:var(--muted);font-size:14px;margin:12px 0 0">WACC is used for the cash flow methods. The net income method uses the cost of equity.</p>';
   }

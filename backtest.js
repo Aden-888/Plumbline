@@ -162,7 +162,7 @@ async function main() {
         var tb = tnx && barBefore(tnx.bars, D);
         if (tb && tb.close > 0.05 && tb.close < 15) s.rf = tb.close / 100; else row.note = "10-year yield not found, 5% used";
         var qq = null; try { qq = QS.compute(inp); } catch (e) {}
-        var r = IV.applyQuality(IV.applyValueTest(IV.compute(inp, s), inp), qq);
+        var r = IV.compute(inp, s); if (IV.applyValueTest) r = IV.applyValueTest(r, inp); if (IV.applyQuality) r = IV.applyQuality(r, qq);
         if (!r.stats.n) throw new Error("none of the nine methods could be calculated");
         row.price = inp.price; row.value = r.stats.median; row.upside = r.stats.upside; row.verdict = r.stats.verdict; row.verdictValue = r.stats.verdictValue; row.trap = r.stats.trap ? "yes" : "";
         row.methods = r.stats.n; row.beta = s.beta; row.rf = s.rf; row.financialsTo = inp.ttmEnd;
@@ -202,7 +202,7 @@ async function main() {
   L.push("Stocks: " + TICKERS.length + (TOP ? " (largest US-listed companies today)" : "") + " | Test dates: 1 " + MONTHS.map(function (mo) { return new Date(Date.UTC(2000, mo - 1, 1)).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }); }).join(", ") + ", " + FROM + " to " + TO + " | Holding period: " + HOLD + " months | Benchmark: SPY (S&P 500, dividends included)");
   L.push("Valuations made: " + rows.filter(function (r) { return r.verdict; }).length + " | With a finished holding period: " + done.length);
   L.push("");
-  L.push("1) RESULTS BY VERDICT (value test passed; BUY at +20% upside or more and quality grade C or better, SELL at -20% or worse; FAIL = failed the value test)");
+  L.push("1) RESULTS BY VERDICT (BUY at +20% upside or more, SELL at -20% or worse)");
   L.push(pad("Verdict", 9, true) + pad("Calls", 7) + pad("Avg return", 12) + pad("Avg vs SPY", 12) + pad("Median vs SPY", 15) + pad("% beat SPY", 12));
   var groups = { BUY: [], HOLD: [], SELL: [], FAIL: [] }; done.forEach(function (r) { (groups[r.verdict] = groups[r.verdict] || []).push(r); });
   ["BUY", "HOLD", "SELL", "FAIL"].forEach(function (v) {

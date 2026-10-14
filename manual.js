@@ -33,10 +33,17 @@
       ["ps", "P/S ratios", "Ratios page. Five numbers separated by commas.", "l"],
       ["pb", "P/B ratios", "Ratios page. Five numbers separated by commas.", "l"]
     ]],
-    ["Past results (last 3 to 5 fiscal years, oldest first)", [
-      ["rv", "Revenue by year ($ millions)", "Income statement, annual. Separate with commas, oldest first, for example 26914, 26974, 60922, 130497, 215938.", "l"],
-      ["ev", "Diluted EPS by year ($)", "Income statement, annual, same years as revenue.", "l"],
-      ["fv", "Free cash flow by year ($ millions)", "Cash flow statement, annual, same years. Optional, but needed for the free cash flow part of the value test.", "l", true]
+    ["Analyst forecasts", [
+      ["r0", "Last fiscal year revenue ($ millions)", "Forecast page, revenue table, last actual year.", "n"],
+      ["r1", "Next fiscal year revenue estimate ($ millions)", "Forecast page, first estimate.", "n"],
+      ["rg2", "Revenue growth the year after (%)", "Forecast page, 'Revenue Next Year' growth.", "n"],
+      ["rc", "Revenue growth per year over 3 years (%)", "Statistics page, 'Revenue Growth Forecast (3Y)'. It is a yearly rate.", "n"],
+      ["e0", "Last fiscal year EPS ($)", "Forecast page, EPS table, last actual year.", "n"],
+      ["e1", "Next fiscal year EPS estimate ($)", "Forecast page. Remove one-off gains if you know them.", "n"],
+      ["e2", "EPS estimate the year after ($)", "Forecast page, 'EPS Next Year'.", "n"],
+      ["ec", "EPS growth per year over 3 years (%)", "Statistics page, 'EPS Growth Forecast (3Y)'. It is a yearly rate.", "n"],
+      ["target", "Average analyst price target ($)", "For reference only.", "n", true],
+      ["cf1", "Cash flow growth next 12 months (%)", "Only if the company has given guidance. Leave blank to use revenue growth.", "n", true]
     ]]
   ];
 
@@ -77,13 +84,11 @@
     if (pe.length < 2 || pe.some(isNaN)) err.push("P/E ratios (at least 2 numbers)");
     if (ps.length < 2 || ps.some(function (x) { return !(x > 0); })) err.push("P/S ratios (at least 2 positive numbers)");
     if (pb.length < 2 || pb.some(function (x) { return !(x > 0); })) err.push("P/B ratios (at least 2 positive numbers)");
-    var listOf = function (k) { return String(v[k] || "").split(/[,\s]+/).filter(function (x) { return x !== ""; }).map(num); };
-    var rv = listOf("rv"), evs = listOf("ev"), fv = listOf("fv");
-    if (rv.length < 3 || rv.some(function (x) { return !(x > 0); })) err.push("Revenue by year (at least 3 positive numbers)");
-    if (evs.length !== rv.length || evs.some(isNaN)) err.push("Diluted EPS by year (one number for each revenue year)");
-    if (fv.length && (fv.length !== rv.length || fv.some(isNaN))) err.push("Free cash flow by year (one number for each revenue year, or leave blank)");
+    var r0 = need("r0", "Last fiscal year revenue", true), r1 = need("r1", "Next fiscal year revenue", true), rg2 = need("rg2", "Revenue growth the year after"), rc = need("rc", "3-year revenue growth");
+    var e0 = need("e0", "Last fiscal year EPS"), e1 = need("e1", "Next fiscal year EPS"), e2 = need("e2", "EPS the year after"), ec = need("ec", "3-year EPS growth");
     if (err.length) return { error: err };
-    var pg = window.IV.pastGrowth(rv, evs);
+    var tgt = String(v.target).trim() === "" ? null : num(v.target);
+    var cf1 = String(v.cf1).trim() === "" ? null : num(v.cf1) / 100;
     var today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     var epsTTM = (ni / dil);
     return { inputs: {
@@ -92,8 +97,8 @@
       ttm: { rev: rev, ni: ni, gain: gain, tax: tax / 100, ocf: ocf, capex: capex, epsGaap: epsTTM },
       hist: { labels: ps.map(function (x, i) { return "Year " + (i + 1); }), pe: pe, ps: ps, pb: pb },
       cur: { pe: epsTTM > 0 ? price / epsTTM : null, ps: price * shares / rev, pb: equity > 0 ? price * shares / equity : null },
-      est: window.IV.pastEst(rv[rv.length - 1], evs[evs.length - 1], pg),
-      record: { rev: rv, eps: evs, fcf: fv.length ? fv : null },
+      est: { rev: [r0, r1, r1 * (1 + rg2 / 100), r0 * Math.pow(1 + rc / 100, 3)], eps: [e0, e1, e2, e0 * Math.pow(1 + ec / 100, 3)],
+        cagrRev: rc / 100, cagrEps: ec / 100, cfG1: cf1, calWeight: 0.5, target: tgt },
       settings: {},
       caveats: ["All figures on this page were typed in by you. The result is only as good as those inputs, so double-check them against the company's filings."]
     } };
@@ -104,6 +109,6 @@
     return { ticker: "NVDA", name: p.name, price: p.price, shares: p.shares, dil: p.dilShares, beta: p.beta, cash: p.cash, debt: p.debt, equity: p.equity,
       rev: p.ttm.rev, ni: p.ttm.ni, gain: p.ttm.gain, tax: (p.ttm.tax * 100).toFixed(2), ocf: p.ttm.ocf, capex: p.ttm.capex,
       pe: p.hist.pe.join(", "), ps: p.hist.ps.join(", "), pb: p.hist.pb.join(", "),
-      rv: p.quality.rev.join(", "), ev: p.quality.eps.join(", "), fv: p.quality.fcf.join(", ") };
+      r0: e.rev[0], r1: e.rev[1], rg2: 68.15, rc: (e.cagrRev * 100).toFixed(2), e0: e.eps[0], e1: e.eps[1], e2: e.eps[2], ec: (e.cagrEps * 100).toFixed(2), target: e.target, cf1: "" };
   } };
 })();

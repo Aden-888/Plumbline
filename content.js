@@ -22,7 +22,7 @@
     var P = r.proj, base = r.base, d = m.d, i = r.inputs, g = baseKey === "ni" ? P.gEPS : P.gCF;
     var s = [
       [label + " over the last 12 months", F.mm(P[baseKey][0])],
-      ["Growth in year 1 and year 2 (from past growth)", F.pct(g[0]) + " and " + F.pct(g[1])],
+      ["Growth in year 1 and year 2 (analyst estimates)", F.pct(g[0]) + " and " + F.pct(g[1])],
       ["Growth then fades to " + F.pct(r.settings.g5) + " (year 5), " + F.pct(r.settings.g10) + " (year 10) and " + F.pct(r.settings.gT) + " (year " + yrs + ")", ""],
       [label + " in year " + yrs, F.mm(P[baseKey][yrs])],
       ["Discount rate (" + discName + ")", F.pct(disc, 2)],
@@ -49,10 +49,10 @@
         steps: function (r, m) { return dcfSteps("Operating cash flow", "ocf", r, m, r.wacc.wacc, "WACC", true, 20); }
       },
       dfcf20: {
-        what: "The same 20-year cash flow calculation, but using free cash flow. Free cash flow is operating cash flow minus capital spending (capex). Capex is normalised: Plumbline uses the company's average capex as a share of revenue over the last five years, so a one-off spending surge (for example a data-centre build-out) does not wipe out the value.",
+        what: "The same 20-year cash flow calculation, but using free cash flow. Free cash flow is operating cash flow minus capital spending (capex).",
         why: "Capex is money the company must spend to keep running and growing. Free cash flow is what is really left for shareholders, so it is a stricter and more honest measure than operating cash flow.",
         fit: "Better than DCF-20 for companies that spend a lot on equipment, data centres or stores.",
-        watch: "Free cash flow can be lumpy from year to year, which is why capex is averaged. If a company's heavy spending is permanent rather than temporary, the average flatters it. It also does not subtract stock-based pay, which is a real cost to shareholders.",
+        watch: "Free cash flow can be lumpy from year to year. It also does not subtract stock-based pay, which is a real cost to shareholders.",
         steps: function (r, m) { return dcfSteps("Free cash flow", "fcf", r, m, r.wacc.wacc, "WACC", true, 20); }
       },
       dni20: {
@@ -125,11 +125,11 @@
         what: "Matches the price-to-sales ratio to the company's expected sales growth. Faster growth earns a higher fair multiple.",
         why: "A plain P/S ratio treats a fast grower and a slow grower the same. PSG fixes this by asking what multiple the growth rate can justify.",
         fit: "Gives a growth-based view that is separate from the company's own history.",
-        watch: "There is no official target PSG. The 0.10 default is a judgement call, so this is the lowest-confidence method and the one most likely to be an outlier. That is why it is a side check and is not counted in the fair value.",
+        watch: "There is no official target PSG. The 0.10 default is a judgement call, so this is the lowest-confidence method. It is also the one most likely to be an outlier.",
         steps: function (r, m) {
           var d = m.d;
           return [
-            ["Yearly revenue growth used (from the company's past growth)", d.growth.toFixed(1) + "% a year"],
+            ["Expected yearly revenue growth over the next 3 years (analyst consensus)", d.growth.toFixed(1) + "% a year"],
             ["Target PSG (setting)", r.settings.psg.toFixed(2)],
             ["Fair price-to-sales = growth × target PSG", F.x(d.fairPS, 2)],
             ["Sales per share", F.usd(d.salesPS)],
@@ -141,11 +141,11 @@
         what: "Matches the price-to-earnings ratio to the company's expected earnings growth. A fair P/E equals the growth rate, so 15% growth supports a P/E of 15.",
         why: "This is Peter Lynch's well-known rule of thumb. It stops investors from calling a stock expensive just because its P/E is high when its profits are growing very fast.",
         fit: "Good for growth companies where a plain P/E looks too high.",
-        watch: "It rewards high growth heavily. If the growth forecast is too optimistic, the value will be too high. Because the target PEG of 1.0 is a rule of thumb, it is a side check and is not counted in the fair value.",
+        watch: "It rewards high growth heavily. If the growth forecast is too optimistic, the value will be too high.",
         steps: function (r, m) {
           var d = m.d;
           return [
-            ["Yearly earnings growth used (from the company's past growth)", d.growth.toFixed(1) + "% a year"],
+            ["Expected yearly earnings growth over the next 3 years (analyst consensus)", d.growth.toFixed(1) + "% a year"],
             ["Target PEG (setting)", r.settings.peg.toFixed(2)],
             ["Fair price-to-earnings = growth × target PEG", F.x(d.fairPE, 1)],
             ["Earnings per share excluding one-off gains", F.usd(d.eps)],

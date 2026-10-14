@@ -17,33 +17,14 @@
   function defaultSettings(inp) {
     var g2 = inp.est ? growthPath(inp).cf[1] : 0.05;
     var gT = 0.03;
-    /* Fast growth rarely lasts: studies of company growth rates find it drifts back towards the economy's pace
-       within a few years. So by year 5 growth keeps 60% of its lead over long-run growth, and by year 10 only 30%. */
-    var g5 = Math.min(0.20, gT + 0.6 * (g2 - gT));
-    var g10 = Math.max(gT, gT + 0.3 * (g2 - gT));
-    if (g5 < gT) g5 = Math.max(0, gT + 0.6 * (g2 - gT)); /* shrinking companies recover towards long-run growth too */
+    var g5 = Math.min(0.25, Math.max(gT, 0.85 * g2));
+    var g10 = Math.max(gT, 0.5 * g5);
     return {
-      rf: 0.05, erp: 0.05, spread: 0.006, beta: adjBeta(inp.beta), capexNorm: 1,
+      rf: 0.05, erp: 0.05, spread: 0.006, beta: fin(inp.beta) ? inp.beta : 1,
       g5: g5, g10: g10, gT: gT,
       peg: 1, psg: 0.1, peCap: 100,
       buy: 0.2, sell: -0.2
     };
-  }
-
-  /* Adjusted beta (Blume): the measured beta pulled one third of the way towards 1, because extreme betas rarely last.
-     Standard practice at data providers such as Bloomberg. */
-  function adjBeta(b) { return fin(b) ? 0.67 * b + 0.33 : 1; }
-
-  /* Normalised capital spending: latest revenue x the average capex-to-revenue ratio of the last five years
-     (including the latest twelve months). A one-off spending surge, such as a data-centre build-out,
-     then no longer wipes out free cash flow, and an unusually quiet year does not flatter it. */
-  function capexInfo(inp) {
-    var T = inp.ttm, h = (inp.capexHist || []).filter(function (x) { return x.rev > 0 && fin(x.capex); });
-    var ratios = h.map(function (x) { return x.capex / x.rev; });
-    if (T.rev > 0 && fin(T.capex)) ratios.push(T.capex / T.rev);
-    if (ratios.length < 3 || !(T.rev > 0)) return { ok: false, ttm: T.capex, used: T.capex, years: ratios.length };
-    var r = avg(ratios.slice(-6));
-    return { ok: true, ttm: T.capex, used: T.rev * r, ratio: r, ratioTTM: T.rev > 0 ? T.capex / T.rev : null, years: Math.min(6, ratios.length) };
   }
 
   /* Years 1-2 growth from analyst estimates, calendarised to line up with the trailing twelve months. */
@@ -83,9 +64,7 @@
     var epsEx = niEx / inp.dilShares;
     var salesPS = T.rev / inp.shares;
     var bookPS = inp.equity / inp.shares;
-    var cx = capexInfo(inp), capexUsed = s.capexNorm && cx.ok ? cx.used : T.capex;
-    var fcf = T.ocf - capexUsed;
-    out.capex = { info: cx, used: capexUsed, normalised: !!(s.capexNorm && cx.ok) };
+    var fcf = T.ocf - T.capex;
     var mcap = inp.price * inp.shares;
 
     /* ---- discount rate (CAPM + after-tax cost of debt) ---- */
@@ -94,7 +73,7 @@
     var we = mcap / (mcap + inp.debt);
     var wacc = we * coe + (1 - we) * kd * (1 - T.tax);
     out.wacc = { rf: s.rf, beta: s.beta, erp: s.erp, coe: coe, kd: kd, we: we, tax: T.tax, wacc: wacc, mcap: mcap };
-    out.base = { niEx: niEx, epsEx: epsEx, salesPS: salesPS, bookPS: bookPS, fcf: fcf, ocf: T.ocf, mcap: mcap, capex: capexUsed };
+    out.base = { niEx: niEx, epsEx: epsEx, salesPS: salesPS, bookPS: bookPS, fcf: fcf, ocf: T.ocf, mcap: mcap };
 
     /* ---- 20-year projections ---- */
     var gCF = fade(gp.cf[0], gp.cf[1], s);
@@ -158,108 +137,25 @@
       value: cagrEps > 0 && epsEx > 0 ? cagrEps * s.peg * epsEx : null, why: "Earnings growth forecast or earnings are not positive",
       d: { growth: cagrEps, target: s.peg, fairPE: cagrEps * s.peg, eps: epsEx } });
 
-    /* ---- fair value and verdict ----
-       The methods are grouped into families. Cash flow & earnings models (4) and valuation multiples (3) each give
-       their middle value (median); the fair value is the average of those two, so the four similar discounting
-       models cannot outvote the rest. Growth-adjusted checks (PSG, PEG) depend on arbitrary targets, so they are
-       shown as side checks and not counted. */
-    var FAM = [
-      { id: "cf", name: "Cash flow & earnings models", ids: ["dcf20", "dfcf20", "dni20", "dfcft"], counted: true },
-      { id: "mult", name: "Valuation multiples", ids: ["ps", "pe", "pb"], counted: true },
-      { id: "growth", name: "Growth-adjusted checks", ids: ["psg", "peg"], counted: false }
-    ];
-    var fams = FAM.map(function (f) {
-      var ms = out.methods.filter(function (x) { return f.ids.indexOf(x.id) >= 0; });
-      ms.forEach(function (x) { x.family = f.id; x.counted = f.counted; });
-      var v = ms.filter(function (x) { return fin(x.value); }).map(function (x) { return x.value; });
-      return { id: f.id, name: f.name, counted: f.counted, n: v.length, total: ms.length, median: v.length ? median(v) : NaN };
-    });
-    var used = fams.filter(function (f) { return f.counted && fin(f.median); });
-    var head = out.methods.filter(function (x) { return x.counted && fin(x.value); }).map(function (x) { return x.value; });
-    var allV = out.methods.filter(function (x) { return fin(x.value); }).map(function (x) { return x.value; });
-    var sorted = head.slice().sort(function (x, y) { return x - y; });
-    var stats = { n: head.length, nCounted: out.methods.filter(function (x) { return x.counted; }).length, families: fams };
-    if (used.length) {
-      stats.median = avg(used.map(function (f) { return f.median; })); /* the headline fair value (name kept for compatibility) */
-      stats.value = stats.median;
-      stats.mean = avg(head);
-      stats.medianAll = median(allV);
-      stats.trimmed = head.length > 2 ? (sum(head) - sorted[0] - sorted[sorted.length - 1]) / (head.length - 2) : stats.mean;
+    /* ---- averages and verdict ---- */
+    var vals = out.methods.filter(function (x) { return fin(x.value); }).map(function (x) { return x.value; });
+    var sorted = vals.slice().sort(function (x, y) { return x - y; });
+    var stats = { n: vals.length };
+    if (vals.length) {
+      stats.mean = avg(vals);
+      stats.median = median(vals);
+      stats.trimmed = vals.length > 2 ? (sum(vals) - sorted[0] - sorted[sorted.length - 1]) / (vals.length - 2) : stats.mean;
       stats.min = sorted[0]; stats.max = sorted[sorted.length - 1];
-      stats.maxAll = Math.max.apply(null, allV); stats.minAll = Math.min.apply(null, allV);
-      stats.above = head.filter(function (x) { return x > inp.price; }).length;
+      stats.above = vals.filter(function (x) { return x > inp.price; }).length;
       stats.upside = stats.median / inp.price - 1;
       stats.verdict = stats.upside >= s.buy ? "BUY" : stats.upside <= s.sell ? "SELL" : "HOLD";
-      stats.oneFamily = used.length === 1 ? used[0].name : null;
-    } else stats.n = 0;
+    }
     function sum(a) { return a.reduce(function (p, q) { return p + q; }, 0); }
     out.stats = stats;
     return out;
   }
 
-  /* ---------------- value investing rules: only the company's own record counts ----------------
-     Growth comes from past results, never from forecasts. Revenue growth blends the last 3 years with the longest
-     available period (up to 5 years); earnings growth is half anchored to revenue growth and may not run more than
-     10 points ahead of it; both are kept between -5% and +25% a year. revs and eps run oldest first. */
-  function pastGrowth(revs, eps) {
-    var r = (revs || []).filter(fin), e = eps || [], n = r.length - 1;
-    if (n < 1 || !(r[0] > 0)) return null;
-    function cg(a, b, k) { return a > 0 && b > 0 && k > 0 ? Math.pow(a / b, 1 / k) - 1 : NaN; }
-    var k3 = Math.min(3, n), last = r[n];
-    var g3 = cg(last, r[n - k3], k3), gL = n >= 4 ? cg(last, r[0], n) : NaN;
-    var g = fin(gL) ? 0.5 * g3 + 0.5 * gL : g3;
-    var en = e.length - 1, eLast = e[en];
-    var e3 = en >= 1 ? cg(eLast, e[en - Math.min(3, en)], Math.min(3, en)) : NaN, eL = en >= 4 ? cg(eLast, e[0], en) : NaN;
-    var eRaw = fin(e3) && fin(eL) ? 0.5 * e3 + 0.5 * eL : e3;
-    var ge = fin(eRaw) ? 0.5 * g + 0.5 * Math.max(-0.05, Math.min(g + 0.10, eRaw)) : g;
-    return { rev: Math.max(-0.05, Math.min(0.25, g)), eps: Math.max(-0.05, Math.min(0.25, ge)), years: n, long: fin(gL) };
-  }
-  /* growth inputs in the shape the engine expects, built only from past growth */
-  function pastEst(R0, E0, pg) {
-    return { rev: [R0, R0 * (1 + pg.rev), R0 * Math.pow(1 + pg.rev, 2), R0 * Math.pow(1 + pg.rev, 3)],
-      eps: [E0, E0 * (1 + pg.eps), E0 * Math.pow(1 + pg.eps, 2), E0 * Math.pow(1 + pg.eps, 3)],
-      cagrRev: pg.rev, cagrEps: pg.eps, cfG1: null, calWeight: 1, source: "past", years: pg.years, long: pg.long };
-  }
-
-  /* The value test: before any BUY, the company's own figures must show a proven, profitable, cash-generating business.
-     A promising story (new contracts, a turnaround, hype) does not count until it shows up in the accounts. */
-  function valueTest(inp) {
-    var T = inp.ttm || {}, Q = inp.quality || inp.record || {}, checks = [];
-    var fins = /bank|insurance|reit|real estate investment|asset management|capital markets|mortgage|savings institution|credit institution|finance services|security brokers/
-      .test(String((inp.sector || "") + " " + (inp.industry || "")).toLowerCase());
-    var niEx = T.ni - (T.gain || 0) * (1 - (T.tax || 0));
-    function add(name, ok, detail) { checks.push({ name: name, ok: !!ok, detail: detail }); }
-    var revs = (Q.rev || []).filter(fin);
-    add("At least 3 years of results", revs.length >= 3, revs.length + " years of figures");
-    add("Profitable over the last 12 months", niEx > 0, "net income excluding one-offs " + (niEx > 0 ? "positive" : "negative"));
-    if (!fins) add("Cash coming in from the business", T.ocf > 0, "operating cash flow over the last 12 months " + (T.ocf > 0 ? "positive" : "negative"));
-    add("Positive shareholders' equity", inp.equity > 0, inp.equity > 0 ? "assets exceed liabilities" : "liabilities exceed assets");
-    var eps = (Q.eps || []).filter(fin);
-    if (eps.length >= 3) { var pe = eps.filter(function (x) { return x > 0; }).length; add("Profitable in most recent years", pe >= Math.ceil(eps.length * 0.6), pe + " of the last " + eps.length + " years profitable"); }
-    var fcf = (Q.fcf || []).filter(fin);
-    if (!fins && fcf.length >= 3) { var pf = fcf.filter(function (x) { return x > 0; }).length; add("Free cash flow in most recent years", pf >= Math.ceil(fcf.length * 0.6), pf + " of the last " + fcf.length + " years positive"); }
-    var failed = checks.filter(function (c) { return !c.ok; });
-    return { pass: failed.length === 0, checks: checks, failed: failed };
-  }
-  function applyValueTest(r, inp) {
-    var st = r && r.stats; if (!st) return r;
-    var vt = valueTest(inp); st.valueTest = vt;
-    if (st.verdict && !vt.pass) { st.verdictValue = st.verdict; st.verdict = "FAIL"; }
-    return r;
-  }
-
-  /* Quality check on the verdict: a BUY also needs a Business Quality grade of C or better. A cheap stock with a
-     D or F grade is often cheap for a reason (a "value trap"), so it is held at HOLD and flagged instead.
-     Companies the scorecard cannot grade (banks, insurers, missing data) are judged on value alone. */
-  function applyQuality(r, q) {
-    var st = r && r.stats; if (!st || !st.verdict) return r;
-    if (st.verdict === "FAIL") return r;
-    st.verdictValue = st.verdict; st.trap = false; st.grade = q && q.ok ? q.grade : null;
-    if (st.verdict === "BUY" && st.grade && (st.grade === "D" || st.grade === "F")) { st.verdict = "HOLD"; st.trap = true; }
-    return r;
-  }
-
-  var api = { compute: compute, applyQuality: applyQuality, applyValueTest: applyValueTest, valueTest: valueTest, pastGrowth: pastGrowth, pastEst: pastEst, adjBeta: adjBeta, capexInfo: capexInfo, defaultSettings: defaultSettings, growthPath: growthPath, avg: avg, median: median, fin: fin };
+  var api = { compute: compute, defaultSettings: defaultSettings, growthPath: growthPath, avg: avg, median: median, fin: fin };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.IV = api;
 })(typeof window !== "undefined" ? window : globalThis);
