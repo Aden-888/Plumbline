@@ -1,4 +1,4 @@
-# Plumbline v2.6: stock intrinsic value and business quality
+# Plumbline v2.7: stock intrinsic value and business quality
 
 A static website (no build step). Open `index.html` in a browser, or upload the folder to any static host
 (Netlify, Vercel, GitHub Pages, Cloudflare Pages).
@@ -14,6 +14,12 @@ Data sources (all free, no key): company financials from SEC EDGAR filings, pric
 Analyst estimates are not available there, so growth for the first years comes from the company's own past growth (labelled on the page).
 Optional: add `FMP_API_KEY=...` to `.env` to use Financial Modeling Prep as a backup (foreign companies), or set `DATA_SOURCE=fmp` if you pay for FMP and want its analyst estimates.
 Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example ASML) and very recent listings need the manual entry form.
+
+## v2.7: backtest (how would past calls have done?)
+- `node backtest.js` values a fixed list of 54 large US companies on 1 April of each year from 2016 to 2025, using only SEC filings submitted before each date, the share price on that date (later stock splits undone), 5-year beta before the date and the 10-year Treasury yield of that date. It then measures each stock's 12-month total return against SPY.
+- Options: `--from 2016 --to 2025 --month 4 --hold 12 --tickers AAPL,MSFT --fresh`.
+- Output in `backtest-output/`: `results.csv` (every call, opens in Excel), `summary.txt` (results by verdict, year by year, growth of $10,000, upside groups, other BUY/SELL lines, limits) and `results.json`. Downloads are saved in `backtest-cache/` so reruns are quick. Both folders are ignored by git.
+- Run it on your own computer: the SEC and Yahoo cannot be reached from Claude's workspace.
 
 ## v2.6 changes: live price vs intrinsic value, and a price chart
 - The top of every result now puts the latest share price (marked Live, with today's change and the update time) next to the intrinsic value, with a clear "X% undervalued" or "X% overvalued" badge. The figure is (price - value) / value, the same way most research sites quote it. The upside figure is still shown beside it.
@@ -157,6 +163,7 @@ Notes:
 - `api.js`: live data for other tickers (Financial Modeling Prep API). Used by both the browser and `server.js`.
 - `edgar.js`: free data source (SEC EDGAR + Yahoo). Server only. Also collects the scorecard figures.
 - `check.js`: command-line test for one ticker.
+- `backtest.js`: historical test of Plumbline's calls (see v2.7).
 - `search-core.js`: the search engine (names, tickers, typos), used by the browser and the server.
 - `api/quote.js`: Vercel function for the live price and price history (`/api/quote`).
 - `api/tickers.js`: Vercel function that returns the full company list for instant suggestions (`/api/tickers`).

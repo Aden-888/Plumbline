@@ -1,2 +1,6 @@
 .env
 node_modules/
+
+# backtest downloads and results
+backtest-cache/
+backtest-output/

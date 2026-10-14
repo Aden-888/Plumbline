@@ -430,4 +430,13 @@ function load(input) {
   });
 }
 
-module.exports = { load: load, quote: quote, resolve: resolve, search: search, tickerList: tickerList, _setTickers: _setTickers, _build: build, _ttm: ttm, _collect: collect };
+/* raw downloads for one company, used by backtest.js */
+function rawCompany(co) {
+  var cik = String(co.cik).padStart(10, "0");
+  return Promise.all([
+    getJSON(SEC + "api/xbrl/companyfacts/CIK" + cik + ".json", UA, "the SEC filings database"),
+    getJSON(SEC + "submissions/CIK" + cik + ".json", UA, "the SEC filings database").catch(function () { return {}; })
+  ]).then(function (r) { return { facts: r[0], sub: r[1] || {} }; });
+}
+
+module.exports = { load: load, quote: quote, rawCompany: rawCompany, yahoo: yahoo, resolve: resolve, search: search, tickerList: tickerList, _setTickers: _setTickers, _build: build, _ttm: ttm, _collect: collect };
