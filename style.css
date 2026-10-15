@@ -1074,3 +1074,19 @@ a, .jump a, .m summary::after, .qmore > summary { color: var(--accent); }
 .qline::after { font-weight: 400; }
 .qline { display: inline-block; white-space: nowrap; } .qline b, .qline em { margin-left: 4px; } .qline::after { display: inline-block; margin-left: 8px; }
 .vrow__t { min-width: 0; } @media (max-width: 520px) { .vrow { flex-direction: column; gap: 12px; } .qline { white-space: normal; } }
+/* v3.4.3: calmer, aligned overview */
+.ov__l { justify-content: flex-start; padding: 26px 28px; gap: 0; }
+.ov__r { padding: 26px 26px 18px; }
+.ov .pv { align-items: start; }
+.ov .pv__s { line-height: 1.45; }
+.ov .vrow { margin-top: 26px; padding-top: 24px; }
+.ov .pxsvg .grid { stroke: rgba(255, 255, 255, .05); }
+.ov__r .pxc__legend { font-size: 12.5px; gap: 6px 18px; }
+@media (max-width: 860px) {
+  .ov__l { padding: 22px 20px; }
+  .ov .vrow { margin-top: 20px; padding-top: 20px; }
+  .ov__r { padding: 20px 16px 16px; }
+}
+@media (min-width: 861px) { .ov__l { justify-content: space-between; } .ov .vrow { margin-top: 0; } }
+@media (max-width: 520px) { .ov__r .pxc__legend { gap: 6px 12px; font-size: 12px; } .ov__r .seg button { padding: 5px 10px; } }
+@media (max-width: 520px) { .ov__r .pxc__legend { gap: 6px 10px; font-size: 11.5px; } }

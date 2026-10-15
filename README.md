@@ -2,6 +2,8 @@
 
 ## v3.4.1: overview tweaks
 
+- v3.4.3 clean-up: the price line shows only today's change (no clock time), the figures line up with the chart title, the verdict sits level with the chart legend on laptops, the chart's shading is lighter, and price labels no longer sit under the value or price tags.
+
 - The intrinsic value label now reads "Fair-value median from 9 valuation methods".
 - A "See why" button under the two numbers jumps to the valuation chart, so people can see how the value was built.
 - Business quality now sits in the verdict block, on its own line under the upside, in the same font as the upside line.

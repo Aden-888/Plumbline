@@ -133,15 +133,16 @@
     var x = function (t) { return L + (t - t0) / Math.max(1, t1 - t0) * iw; }, y = function (v) { return T + (1 - (v - lo) / (hi - lo)) * ih; };
     var clampY = function (v) { return Math.max(T, Math.min(T + ih, y(v))); };
     var o = ['<svg viewBox="0 0 ' + W + " " + H + '" width="' + W + '" height="' + H + '" class="pxsvg">',
-      '<defs><linearGradient id="pxFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#e7edf6" stop-opacity=".14"/><stop offset="1" stop-color="#e7edf6" stop-opacity="0"/></linearGradient></defs>'];
+      '<defs><linearGradient id="pxFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#e7edf6" stop-opacity=".07"/><stop offset="1" stop-color="#e7edf6" stop-opacity="0"/></linearGradient></defs>'];
     /* zones */
-    if (buyMax > lo) o.push('<rect x="' + L + '" y="' + clampY(buyMax) + '" width="' + iw + '" height="' + (T + ih - clampY(buyMax)) + '" fill="' + C.buy + '" opacity=".07"/>');
-    if (sellMin < hi) o.push('<rect x="' + L + '" y="' + T + '" width="' + iw + '" height="' + (clampY(sellMin) - T) + '" fill="' + C.sell + '" opacity=".07"/>');
+    if (buyMax > lo) o.push('<rect x="' + L + '" y="' + clampY(buyMax) + '" width="' + iw + '" height="' + (T + ih - clampY(buyMax)) + '" fill="' + C.buy + '" opacity=".06"/>');
+    if (sellMin < hi) o.push('<rect x="' + L + '" y="' + T + '" width="' + iw + '" height="' + (clampY(sellMin) - T) + '" fill="' + C.sell + '" opacity=".06"/>');
     /* grid and price axis */
     var step = niceStep(hi - lo, narrow ? 3 : 4), g0 = Math.ceil(lo / step) * step;
     for (var g = g0; g <= hi; g += step) {
       o.push('<line class="grid" x1="' + L + '" x2="' + (L + iw) + '" y1="' + y(g) + '" y2="' + y(g) + '"/>');
-      o.push('<text x="' + (W - 4) + '" y="' + (y(g) + 4) + '" text-anchor="end" class="ax">' + usd0(g) + "</text>");
+      /* skip a price label that would sit under the value or last-price tag */
+      if (Math.abs(y(g) - y(iv)) > 22 && Math.abs(y(g) - y(pts[pts.length - 1][1])) > 22) o.push('<text x="' + (W - 4) + '" y="' + (y(g) + 4) + '" text-anchor="end" class="ax">' + usd0(g) + "</text>");
     }
     /* date labels */
     var n = narrow ? 3 : 5, fmt = function (t) { var d = new Date(t); return range === "5y" ? String(d.getFullYear()) : range === "1y" ? d.toLocaleDateString("en-US", { month: "short", year: "2-digit" }) : d.toLocaleDateString("en-US", { month: "short", day: "numeric" }); };
