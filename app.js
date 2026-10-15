@@ -241,7 +241,7 @@
     $("hero").classList.remove("hidden"); $("barForm").classList.add("hidden");
     closeSheet();
     try { history.replaceState(null, "", location.pathname); } catch (e) {}
-    document.title = "Plumbline: what is this company fundamentally worth?";
+    document.title = "Plumbline: what is this stock fundamentally worth?";
     drawHero(true); window.scrollTo({ top: 0 });
   }
 
