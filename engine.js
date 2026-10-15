@@ -177,7 +177,7 @@
       profile: sp ? sp.id : null, profileTier: sp ? sp.tier : null,
       rf: 0.05, erp: 0.05, spread: 0.006, beta: grp.id === "financial" ? grp.beta : fin(inp.beta) ? inp.beta : 1,
       g5: g5, g10: g10, gT: gT,
-      peg: 1, psg: 0.1, peCap: 100,
+      peg: 1, psg: 0.1, peCap: 100, multAdj: 1,
       coeFloor: 0.08, gCap: true,
       buy: 0.2, sell: -0.2
     };
@@ -327,19 +327,22 @@
     out.type = ctype;
     out.sector = s.profile ? Object.assign(sectorProfile(inp) || {}, { tier: s.profileTier || null }) : null;
     var H = inp.hist;
+    /* v3.9: "Valuation multiples vs history". 1 = the company's own past average multiples (the default). Below 1
+       says the stock deserves lower multiples than it used to get, above 1 higher. Applies to Mean P/S, P/E, P/B. */
+    var mA = fin(s.multAdj) && s.multAdj > 0 ? s.multAdj : 1;
     var pb = avg(H.pb);
     var peKeep = H.pe.filter(function (x) { return fin(x) && x > 0 && x <= s.peCap; });
     var peDropped = H.pe.filter(function (x) { return !(fin(x) && x > 0 && x <= s.peCap); });
     var pe = peKeep.length ? avg(peKeep) : NaN;
     function addPE() {
       add({ id: "pe", short: "Mean P/E", name: "Mean price-to-earnings (excluding one-offs)", type: "Multiple",
-        value: epsEx > 0 && fin(pe) ? pe * epsEx : null, why: epsEx > 0 ? "No usable historical P/E readings" : "Earnings excluding one-offs are not positive",
-        d: { mult: pe, eps: epsEx, current: inp.cur ? inp.cur.pe : null, list: H.pe, kept: peKeep, dropped: peDropped, gaap: inp.ttm.epsGaap } });
+        value: epsEx > 0 && fin(pe) ? pe * mA * epsEx : null, why: epsEx > 0 ? "No usable historical P/E readings" : "Earnings excluding one-offs are not positive",
+        d: { mult: pe, adj: mA, eps: epsEx, current: inp.cur ? inp.cur.pe : null, list: H.pe, kept: peKeep, dropped: peDropped, gaap: inp.ttm.epsGaap } });
     }
     function addPB() {
       add({ id: "pb", short: "Mean P/B", name: "Mean price-to-book", type: "Multiple",
-        value: bookPS > 0 && fin(pb) ? pb * bookPS : null, why: bookPS > 0 ? "No usable price-to-book history" : "Book value (shareholders' equity) is negative",
-        d: { mult: pb, bookPS: bookPS, current: inp.cur ? inp.cur.pb : null, list: H.pb } });
+        value: bookPS > 0 && fin(pb) ? pb * mA * bookPS : null, why: bookPS > 0 ? "No usable price-to-book history" : "Book value (shareholders' equity) is negative",
+        d: { mult: pb, adj: mA, bookPS: bookPS, current: inp.cur ? inp.cur.pb : null, list: H.pb } });
     }
     if (grp.id === "financial") {
       financial(inp, s, out, add, { niEx: niEx, epsEx: epsEx, coe: coeRaw });
@@ -368,7 +371,7 @@
     /* ---- multiple-based methods ---- */
     var ps = avg(H.ps);
     add({ id: "ps", short: "Mean P/S", name: "Mean price-to-sales", type: "Multiple",
-      value: salesPS * ps, d: { mult: ps, salesPS: salesPS, current: inp.cur ? inp.cur.ps : null, list: H.ps } });
+      value: salesPS * ps * mA, d: { mult: ps, adj: mA, salesPS: salesPS, current: inp.cur ? inp.cur.ps : null, list: H.ps } });
     addPE(); addPB();
 
     /* ---- growth-adjusted methods ---- */

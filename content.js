@@ -15,6 +15,8 @@
   };
   F.num = function (x, d) { return fin(x) ? x.toLocaleString("en-US", { maximumFractionDigits: d == null ? 0 : d }) : "n/a"; };
   function fin(x) { return typeof x === "number" && isFinite(x); }
+  /* v3.9: note the "Valuation multiples vs history" setting when it is not 100% */
+  function adjTxt(d) { return d && fin(d.adj) && Math.abs(d.adj - 1) > 1e-9 ? " × " + Math.round(d.adj * 100) + "% (your multiples setting)" : ""; }
 
   var dcfWhatCF = "Adds up all the cash the business is expected to produce over the next 20 years, then converts that total into today's money.";
 
@@ -86,7 +88,7 @@
             ["Average of the five", F.x(d.mult, 2)],
             ["Today's price-to-sales (for comparison)", F.x(d.current, 2)],
             ["Sales per share (12-month revenue ÷ shares)", F.usd(d.salesPS)],
-            ["Fair value = average multiple × sales per share", F.usd(m.value)]
+            ["Fair value = average multiple" + adjTxt(m.d) + " × sales per share", F.usd(m.value)]
           ];
         }
       },
@@ -104,7 +106,7 @@
           out.push(["Today's price-to-earnings (for comparison)", F.x(d.current, 1)]);
           if (r.cycle) out.push(["Earnings per share at a cycle-average margin (cyclical company; last 12 months: " + F.usd(r.cycle.epsNow) + ")", F.usd(d.eps)]);
           else out.push(["Earnings per share excluding one-off gains", F.usd(d.eps) + (fin(d.gaap) ? " (reported: " + F.usd(d.gaap) + ")" : "")]);
-          out.push(["Fair value = average multiple × earnings per share", F.usd(m.value)]);
+          out.push(["Fair value = average multiple" + adjTxt(m.d) + " × earnings per share", F.usd(m.value)]);
           return out;
         }
       },
@@ -120,7 +122,7 @@
             ["Average of the five", F.x(d.mult, 2)],
             ["Today's price-to-book (for comparison)", F.x(d.current, 2)],
             ["Book value per share (equity ÷ shares)", F.usd(d.bookPS)],
-            ["Fair value = average multiple × book value per share", F.usd(m.value)]
+            ["Fair value = average multiple" + adjTxt(m.d) + " × book value per share", F.usd(m.value)]
           ];
         }
       },

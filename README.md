@@ -1,5 +1,13 @@
 # Plumbline v3.3: stock intrinsic value and business quality
 
+## v3.9: every method now has a slider ("Valuation multiples vs history")
+
+The headline is the median of the nine methods. Before v3.9, Mean P/S, Mean P/E and Mean P/B had no slider, so when one of them sat in the middle (for example Mean P/B for Sea) no slider could move the headline. The new **Valuation multiples vs history** slider scales the company's past average P/S, P/E and P/B: 100% (the default) uses them as they are, 80% says the stock deserves 20% lower multiples than it used to get, 120% higher. Range 50% to 150%.
+
+- Default 100%, so every default value, verdict and backtest result is unchanged (NVIDIA example $293.83, Salesforce $330.49).
+- Example: Salesforce at 80% gives $297.75, at 70% $260.53 (BUY becomes HOLD).
+- It also applies to banks and insurers (their Mean P/E and Mean P/B). The calculation steps show the setting when it is not 100%.
+
 ## v3.8.2: cash-flow value in the Assumptions read-out
 
 Why the headline stays the median (decided 15 Oct 2026): a headline that always moves with the sliders would need a blend of the cash-flow and multiple methods. On the fresh-test backtest data (2,752 calls, yearly rank link) the blends did worse than the median: median +0.065 (positive 7/10 years), 50/50 blend +0.041 (6/10), one-third cash flow +0.046 (6/10), cash-flow methods alone +0.038, multiples alone +0.057. So the median stays, and the Cash-flow value box shows the slider effect when a market multiple sits in the middle (for example Mean P/B for Sea).

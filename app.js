@@ -266,6 +266,7 @@
     ["gT", "Long-run growth (year 20 and after)", "Close to the long-run growth of the economy. Keep it below the discount rate.", 0, .05, .0025, pc],
     ["peg", "Target PEG", "Fair P/E divided by growth. 1.0 is Peter Lynch's rule of thumb.", .5, 2, .05, function (v) { return v.toFixed(2); }],
     ["psg", "Target PSG", "Fair P/S divided by growth. No official standard exists, so this is a judgement call.", .02, .3, .01, function (v) { return v.toFixed(2); }],
+    ["multAdj", "Valuation multiples vs history", "Scales the past average P/S, P/E and P/B the multiple methods use. 100% means the company is worth the multiples it usually traded at; 80% means you expect 20% lower.", .5, 1.5, .05, function (v) { return Math.round(v * 100) + "%"; }],
     ["coeFloor", "Minimum cost of equity", "The lowest return shareholders are assumed to require. Stops very low bond yields from inflating values.", .04, .12, .0025, pc],
     ["peCap", "Ignore P/E readings above", "Very high P/E readings usually mean profit was close to zero that year.", 30, 300, 10, function (v) { return v.toFixed(0) + "x"; }],
     ["buy", "BUY if upside is at least", "The margin of safety the median value needs over the price.", .05, .5, .05, pc],
@@ -582,7 +583,7 @@
     var mid = n ? (n % 2 ? [vals[(n - 1) >> 1]] : [vals[n / 2 - 1], vals[n / 2]]) : [];
     var notes = [];
     if (mid.length && mid.every(function (m) { return m.type === "Multiple"; }))
-      notes.push("The headline is the middle of the " + n + " values, which is now " + mid.map(function (m) { return m.short; }).join(" and ") + ". That method uses past market multiples, so the discount-rate and growth sliders move the other methods but not the headline until one of them crosses it.");
+      notes.push("The headline is the middle of the " + n + " values, which is now " + mid.map(function (m) { return m.short; }).join(" and ") + ". That method uses the company's past market multiples, so move the ‘Valuation multiples vs history’ slider to change it directly. The discount-rate and growth sliders move the other methods, and shift the headline once one of them crosses it.");
     var coeRaw = r.fin ? r.fin.coeRaw : r.wacc.coeRaw, coeUsed = r.fin ? r.fin.coe : r.wacc.coe;
     if (fin(coeRaw) && coeUsed > coeRaw + 1e-9) notes.push("The cost of equity is at its " + F.pct(coeUsed, 1) + " minimum, so lowering beta, the risk-free rate or the risk premium has no effect until the formula rises above it.");
     el.innerHTML = '<div class="setsum__row"><div><span>Intrinsic value</span><b>' + F.usd(st.median) + '</b><small class="' + (moved ? cls(ch, { buy: 0, sell: 0 }) : "") + '">' + (moved ? F.spct(ch) + " vs the default " + F.usd(b0) : "Default assumptions") + '</small></div>' +
