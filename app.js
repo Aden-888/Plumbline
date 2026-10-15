@@ -602,7 +602,16 @@
     return "As a " + esc(noun) + " where " + esc(sp.why) + ", it gets Plumbline's <strong>" + (full ? "full" : "partial") + " AI-era growth profile</strong>: growth by year 5 is lifted towards " + F.pct(sp.g5Min, 0) + " (at most " + Math.round(sp.lift * 100) + " percentage points above the near-term rate) and fades more slowly to year 10." +
       (drops.length ? " Mean P/B and PSG are left out of the median, because book value and sales-growth targets say little about a high-quality chip company." : "") +
       (cn ? " It is also in the middle of a data-centre building boom: capital spending is " + F.pct(cn.ratioNow, 0) + " of sales against a " + cn.years + "-year average of " + F.pct(cn.ratio, 0) + ". Part of that is growth investment that should pay back later, so the free-cash-flow methods use a level halfway between the two (" + F.mm(cn.used) + " instead of " + F.mm(cn.ttm) + " a year), never less than depreciation." : "") +
-      " The discount rate and long-run growth do not change, so the value still comes from the cash the business generates.";
+      " This profile does not change the discount rate or long-run growth, so the value still comes from the cash the business generates.";
+  }
+  /* v3.8: how the company's life-cycle stage changed the valuation (Damodaran) */
+  function lifeLine(r) {
+    var t = r.type && r.type.id, c = r.cycle, w = r.wacc;
+    if (t === "cyclical" && c) return " <span class=\"projai\"><strong>Cyclical company</strong>: profits swing with the economic cycle, so today's figures may be a peak or a trough. Following Aswath Damodaran, the cash-flow and earnings methods start from the company's " + c.years + "-year average margin applied to today's sales" + (c.weight < 1 ? " (blended half and half with today's figures, because the AI-era profile treats part of today's demand as lasting)" : "") + ": free cash flow of " + F.mm(c.fcf) + " instead of " + F.mm(c.fcfNow) + " (an average margin of " + F.pct(c.fcfMargin, 0) + " against " + F.pct(c.fcfMarginNow, 0) + " today).</span>";
+    if (t === "cyclical") return " <span class=\"projai\"><strong>Cyclical company</strong>: there is not enough history to work out a cycle-average margin, so today's figures are used. Treat the result with extra care if this is a boom or a slump year.</span>";
+    if (t === "growth" && w.waccT != null) return " <span class=\"projai\"><strong>Growth company</strong> (" + esc(r.type.why) + "): following Aswath Damodaran, a fast grower is not assumed to stay high-risk for ever. Once it settles into stable growth it is treated like an average company, so the terminal value uses a beta of 1 (a discount rate of " + F.pct(w.waccT, 1) + " instead of " + F.pct(w.wacc, 1) + ").</span>";
+    if (t === "mature") return " <span class=\"projai\"><strong>Mature company</strong>: valued with the standard stable-growth approach (growth fades to the economy's long-run rate, which can never be above the risk-free rate).</span>";
+    return "";
   }
   function renderProj(r) {
     if (r.group && r.group.id === "financial") return renderProjFin(r);
@@ -612,7 +621,7 @@
     var src = inp.live ? "the company's recent growth (the free data source has no analyst estimates)" : "analyst estimates";
     $("rProjText").innerHTML = "Plumbline assumes " + esc(inp.name) + "'s cash flow grows about <strong>" + F.pct(g.cf[0], 0) + "</strong> next year and <strong>" + F.pct(g.cf[1], 0) + "</strong> the year after. Growth then settles towards " + F.pct(s.g5, 0) + " a year by year 5, " + F.pct(s.g10, 0) + " by year 10 and " + F.pct(s.gT, 0) + " by year 20. " +
       "On that path, free cash flow would grow from " + F.mm(P.fcf[0]) + " today to about " + F.mm(P.fcf[10]) + " in year 10. The first two years come from " + src + "." +
-      (r.sector ? " <span class=\"projai\">" + semiLine(r.sector, r) + "</span>" : "");
+      (r.sector ? " <span class=\"projai\">" + semiLine(r.sector, r) + "</span>" : "") + lifeLine(r);
     var row = function (label, t, why) {
       return "<tr><td>" + label + "</td><td>" + (t ? F.pct(P.gCF[t - 1], 1) : "–") + "</td><td>" + bnx(P.fcf[t]) + "</td><td>" + bnx(P.ni[t]) + "</td><td>" + why + "</td></tr>";
     };
@@ -666,8 +675,8 @@
     renderRatios(r);
     var row = function (a, b2) { return "<tr><td>" + a + "</td><td>" + b2 + "</td></tr>"; };
     $("rIn").innerHTML = '<table class="tbl"><thead><tr><th>Inputs used (last 12 months)</th><th></th></tr></thead><tbody>' +
-      row("Revenue", F.mm(T.rev)) + row("Net income (reported)", F.mm(T.ni)) + row("One-off investment gains (before tax)", F.mm(T.gain)) + row("Net income excluding one-offs", F.mm(b.niEx)) +
-      row("Earnings per share excluding one-offs", F.usd(b.epsEx)) + row("Operating cash flow", F.mm(T.ocf)) + row("Capital spending", F.mm(T.capex)) + row("Free cash flow", F.mm(b.fcf)) +
+      row("Revenue", F.mm(T.rev)) + row("Net income (reported)", F.mm(T.ni)) + row("One-off investment gains (before tax)", F.mm(T.gain)) + row(r.cycle ? "Net income at the cycle-average margin" : "Net income excluding one-offs", F.mm(b.niEx)) +
+      row(r.cycle ? "Earnings per share at the cycle-average margin" : "Earnings per share excluding one-offs", F.usd(b.epsEx)) + row("Operating cash flow", F.mm(T.ocf)) + row("Capital spending", F.mm(T.capex)) + row(r.cycle ? "Free cash flow at the cycle-average margin" : "Free cash flow", F.mm(b.fcf)) +
       row("Cash and investments", F.mm(inp.cash)) + row("Total debt", F.mm(inp.debt)) + row("Shareholders' equity", F.mm(inp.equity)) + row("Shares outstanding", F.num(inp.shares) + " million") + "</tbody></table>";
     $("rWacc").innerHTML = '<table class="tbl"><thead><tr><th>Discount rate build</th><th></th></tr></thead><tbody>' +
       row("Risk-free rate", F.pct(w.rf, 2)) + row("Beta", w.beta.toFixed(2)) + row("Equity risk premium", F.pct(w.erp, 2)) + row("Cost of equity = risk-free + beta × premium", F.pct(w.coeRaw, 2)) + row("Minimum cost of equity (setting)", F.pct(w.coeFloor, 2)) + row("Cost of equity used", F.pct(w.coe, 2) + (w.coe > w.coeRaw ? " (minimum applied)" : "")) +

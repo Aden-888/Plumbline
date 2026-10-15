@@ -21,14 +21,16 @@
   function dcfSteps(label, baseKey, r, m, disc, discName, netDebt, yrs) {
     var P = r.proj, base = r.base, d = m.d, i = r.inputs, g = baseKey === "ni" ? P.gEPS : P.gCF;
     var s = [
-      [label + " over the last 12 months", F.mm(P[baseKey][0])],
+      [label + (r.cycle ? " at a cycle-average margin (cyclical company)" : " over the last 12 months"), F.mm(P[baseKey][0])],
       ["Growth in year 1 and year 2 (analyst estimates)", F.pct(g[0]) + " and " + F.pct(g[1])],
       ["Growth then fades to " + F.pct(r.settings.g5) + " (year 5), " + F.pct(r.settings.g10) + " (year 10) and " + F.pct(r.settings.gT) + " (year " + yrs + ")", ""],
       [label + " in year " + yrs, F.mm(P[baseKey][yrs])],
       ["Discount rate (" + discName + ")", F.pct(disc, 2)],
+    ].concat(d.rateT && Math.abs(d.rateT - disc) > 1e-6 ? [["Discount rate for the terminal value (growth company, beta of 1 once mature)", F.pct(d.rateT, 2)]] : []).concat([
+
       ["Today's value of the " + yrs + " years of " + label.toLowerCase(), F.mm(d.pv)],
       ["Terminal value, in today's money (everything after year " + yrs + ")", F.mm(d.pvTv) + " (" + F.pct(d.tvShare, 0) + " of the total)"]
-    ];
+    ]);
     if (netDebt) {
       s.push(["Add cash", F.mm(i.cash)]);
       s.push(["Subtract debt", F.mm(-i.debt)]);
@@ -100,7 +102,8 @@
           if (d.dropped.length) out.push(["Readings ignored (above " + r.settings.peCap + "x or not meaningful)", d.dropped.map(function (x) { return x.toFixed(1); }).join(", ")]);
           out.push(["Average of the remaining " + d.kept.length, F.x(d.mult, 1)]);
           out.push(["Today's price-to-earnings (for comparison)", F.x(d.current, 1)]);
-          out.push(["Earnings per share excluding one-off gains", F.usd(d.eps) + (fin(d.gaap) ? " (reported: " + F.usd(d.gaap) + ")" : "")]);
+          if (r.cycle) out.push(["Earnings per share at a cycle-average margin (cyclical company; last 12 months: " + F.usd(r.cycle.epsNow) + ")", F.usd(d.eps)]);
+          else out.push(["Earnings per share excluding one-off gains", F.usd(d.eps) + (fin(d.gaap) ? " (reported: " + F.usd(d.gaap) + ")" : "")]);
           out.push(["Fair value = average multiple × earnings per share", F.usd(m.value)]);
           return out;
         }

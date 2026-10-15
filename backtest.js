@@ -18,6 +18,8 @@
        --out NAME                 save results in backtest-output-NAME (banks go to backtest-output-banks by default)
        --floor 0.08               minimum cost of equity for every company (0 = no minimum)
        --gcap 0                   turn off the cap that keeps long-run growth at or below the risk-free rate
+       --lifecycle 0              turn off the v3.8 life-cycle rules (cycle-average margins for cyclicals, beta of 1
+                                  in the terminal value for growth companies), to compare against them
        --fresh                    ignore saved downloads and fetch everything again
 
    For every stock and every test date it:
@@ -241,6 +243,7 @@ async function main() {
         if (tb && tb.close > 0.05 && tb.close < 15) s.rf = tb.close / 100; else row.note = "10-year yield not found, 5% used";
         if (arg("floor", null) != null) s.coeFloor = +arg("floor");
         if (arg("gcap", null) === "0") s.gCap = false;
+        if (arg("lifecycle", null) === "0") s.lifecycle = false; /* v3.8: compare with and without the life-cycle rules */
         var qq = null; try { qq = QS.compute(inp); } catch (e) {}
         var r = IV.compute(inp, s); if (IV.applyValueTest) r = IV.applyValueTest(r, inp); if (IV.applyQuality) r = IV.applyQuality(r, qq);
         if (!r.stats.n) throw new Error("none of the methods could be calculated");
@@ -287,7 +290,7 @@ async function main() {
   L.push("PLUMBLINE BACKTEST SUMMARY");
   L.push("Generated " + new Date().toISOString().slice(0, 16).replace("T", " ") + " UTC");
   L.push("Stocks: " + TICKERS.length + (TOP ? " (largest US-listed companies today)" : "") + " | Test dates: 1 " + MONTHS.map(function (mo) { return new Date(Date.UTC(2000, mo - 1, 1)).toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }); }).join(", ") + ", " + FROM + " to " + TO + " | Holding period: " + HOLD + " months | Benchmark: SPY (S&P 500, dividends included)");
-  L.push("Minimum cost of equity: " + (arg("floor", null) != null ? (+arg("floor") * 100).toFixed(1) + "% (--floor)" : "8.0% (default)") + " | Long-run growth capped at the risk-free rate: " + (arg("gcap", null) === "0" ? "no (--gcap 0)" : "yes (default)") + " | Results folder: " + OUT_NAME);
+  L.push("Minimum cost of equity: " + (arg("floor", null) != null ? (+arg("floor") * 100).toFixed(1) + "% (--floor)" : "8.0% (default)") + " | Long-run growth capped at the risk-free rate: " + (arg("gcap", null) === "0" ? "no (--gcap 0)" : "yes (default)") + " | Life-cycle rules (v3.8): " + (arg("lifecycle", null) === "0" ? "off (--lifecycle 0)" : "on (default)") + " | Results folder: " + OUT_NAME);
   if (FRESH_N) L.push("Fresh test: largest companies in the SEC list, skipping all 172 companies used in earlier lists.");
   L.push("Valuations made: " + rows.filter(function (r) { return r.verdict; }).length + " | With a finished holding period: " + done.length);
   L.push("");

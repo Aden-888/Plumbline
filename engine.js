@@ -210,6 +210,33 @@
     return v;
   }
 
+  /* ---------- v3.8 life-cycle valuation (Damodaran) ----------
+     Cyclical companies: earnings and cash flow swing with the economic cycle, so today's figures can be a peak or
+     a trough. Damodaran's fix is to normalise: apply the company's AVERAGE margin over a full cycle to today's
+     sales ("average margins applied to current revenues", which also scales to the company's current size).
+     Plumbline uses up to six fiscal years, and needs at least four. The result is kept within half to one and a
+     half times today's figure, and is only used when today's figure is positive (a loss-maker stays a loss-maker).
+     Returns { ocf, fcf, eps, years } as the normalised level for each, or null when there is not enough history. */
+  function cycleNorm(inp, fcfNow, epsNow) {
+    var Q = inp.quality, T = inp.ttm || {};
+    if (!Q || !Q.rev || !Q.fcf || !(T.rev > 0)) return null;
+    var fM = [], oM = [], eM = [];
+    for (var i = 0; i < Q.rev.length; i++) {
+      var r = Q.rev[i]; if (!(fin(r) && r > 0)) continue;
+      if (fin(Q.fcf[i])) fM.push(Q.fcf[i] / r);
+      if (fin(Q.fcf[i]) && Q.capex && fin(Q.capex[i])) oM.push((Q.fcf[i] + Q.capex[i]) / r);
+      if (Q.eps && fin(Q.eps[i])) eM.push(Q.eps[i] / r);
+    }
+    if (fM.length < 4) return null;
+    var lim = function (now, norm) { return now > 0 && fin(norm) ? Math.max(0.5 * now, Math.min(1.5 * now, norm)) : now; };
+    return {
+      years: fM.length,
+      fcf: lim(fcfNow, avg(fM) * T.rev), fcfMargin: avg(fM), fcfMarginNow: fcfNow / T.rev,
+      ocf: oM.length >= 4 ? lim(T.ocf, avg(oM) * T.rev) : T.ocf,
+      eps: eM.length >= 4 ? lim(epsNow, avg(eM) * T.rev) : epsNow
+    };
+  }
+
   function compute(inp, s) {
     var T = inp.ttm, est = inp.est;
     var gp = growthPath(inp);
@@ -228,8 +255,24 @@
     /* v3.7: hyperscalers with an earned profile use normalised capex in the free-cash-flow methods */
     var capexUsed = T.capex;
     if (s.profile === "hyperscaler" && s.profileTier && s.capexNorm !== false) { var cn0 = capexNorm(inp); if (cn0) { capexUsed = cn0.used; out.capexNorm = cn0; } }
-    var fcf = T.ocf - capexUsed;
+    var fcf = T.ocf - capexUsed, ocf0 = T.ocf;
     var mcap = inp.price * inp.shares;
+
+    /* v3.8: cyclical companies use cycle-average margins (see cycleNorm). Chip companies with an earned AI-era
+       profile are treated as partly structural growth: full tier skips it, partial tier uses half of it. */
+    var ctype = companyType(inp), cyc = null;
+    if (s.lifecycle !== false && ctype.id === "cyclical") {
+      var w = s.profile === "aiSemi" && s.profileTier === "full" ? 0 : s.profile === "aiSemi" && s.profileTier === "part" ? 0.5 : 1;
+      var cn1 = w > 0 ? cycleNorm(inp, fcf, epsEx) : null;
+      if (cn1) {
+        var mix = function (now, norm) { return now * (1 - w) + norm * w; };
+        cyc = { weight: w, years: cn1.years, fcfNow: fcf, ocfNow: ocf0, epsNow: epsEx, fcfMargin: cn1.fcfMargin, fcfMarginNow: cn1.fcfMarginNow };
+        fcf = mix(fcf, cn1.fcf); ocf0 = mix(ocf0, cn1.ocf);
+        var epsN = mix(epsEx, cn1.eps); niEx = niEx * (epsEx !== 0 ? epsN / epsEx : 1); epsEx = epsN;
+        cyc.fcf = fcf; cyc.ocf = ocf0; cyc.eps = epsEx;
+      }
+    }
+    out.cycle = cyc;
 
     /* ---- discount rate (CAPM + after-tax cost of debt) ---- */
     /* v2.8: minimum cost of equity for every company. Damodaran's implied risk premium rises when bond yields
@@ -241,12 +284,22 @@
     var we = mcap / (mcap + inp.debt);
     var wacc = we * coe + (1 - we) * kd * (1 - T.tax);
     out.wacc = { rf: s.rf, beta: s.beta, erp: s.erp, coe: coe, coeRaw: coeRaw, coeFloor: floor, kd: kd, we: we, tax: T.tax, wacc: wacc, mcap: mcap };
-    out.base = { niEx: niEx, epsEx: epsEx, salesPS: salesPS, bookPS: bookPS, fcf: fcf, ocf: T.ocf, mcap: mcap };
+    out.base = { niEx: niEx, epsEx: epsEx, salesPS: salesPS, bookPS: bookPS, fcf: fcf, ocf: ocf0, mcap: mcap };
+
+    /* v3.8 (Damodaran): a growth company does not stay high-risk for ever. Once it reaches stable growth it looks
+       like an average company, so the terminal value is worked out with a beta of 1 (and the same debt mix),
+       then discounted back over the growth years at today's rate. */
+    var coeT = coe, waccT = wacc;
+    if (s.lifecycle !== false && ctype.id === "growth") {
+      coeT = Math.max(s.rf + 1 * s.erp, floor);
+      waccT = we * coeT + (1 - we) * kd * (1 - T.tax);
+      out.wacc.coeT = coeT; out.wacc.waccT = waccT; out.wacc.betaT = 1;
+    }
 
     /* ---- 20-year projections ---- */
     var gCF = fade(gp.cf[0], gp.cf[1], s);
     var gEPS = fade(gp.eps[0], gp.eps[1], s);
-    var P = { years: [], ocf: project(T.ocf, gCF), fcf: project(fcf, gCF), ni: project(niEx, gEPS), gCF: gCF, gEPS: gEPS };
+    var P = { years: [], ocf: project(ocf0, gCF), fcf: project(fcf, gCF), ni: project(niEx, gEPS), gCF: gCF, gEPS: gEPS };
     for (var t = 0; t <= YEARS; t++) P.years.push(t);
     out.proj = P; out.growth = gp;
 
@@ -255,11 +308,13 @@
       if (!(rate > s.gT + 0.005)) return { ok: false, why: "Discount rate is too close to the long-run growth rate" };
       var pv = 0, i;
       for (i = 1; i <= n; i++) pv += series[i] / Math.pow(1 + rate, i);
-      var tv = series[n] * (1 + s.gT) / (rate - s.gT);
+      var rT = rate === wacc ? waccT : rate === coe ? coeT : rate;
+      if (!(rT > s.gT + 0.005)) return { ok: false, why: "Discount rate is too close to the long-run growth rate" };
+      var tv = series[n] * (1 + s.gT) / (rT - s.gT);
       var pvTv = tv / Math.pow(1 + rate, n);
       var total = pv + pvTv;
       var eq = withNetDebt ? total + inp.cash - inp.debt : total;
-      return { ok: true, pv: pv, tv: tv, pvTv: pvTv, total: total, equity: eq, perShare: eq / inp.shares, tvShare: pvTv / total, rate: rate };
+      return { ok: true, pv: pv, tv: tv, pvTv: pvTv, total: total, equity: eq, perShare: eq / inp.shares, tvShare: pvTv / total, rate: rate, rateT: rT };
     }
 
     var m = [];
@@ -269,7 +324,7 @@
     }
 
     var grp = out.group = classify(inp);
-    out.type = companyType(inp);
+    out.type = ctype;
     out.sector = s.profile ? Object.assign(sectorProfile(inp) || {}, { tier: s.profileTier || null }) : null;
     var H = inp.hist;
     var pb = avg(H.pb);

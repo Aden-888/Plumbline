@@ -1,5 +1,22 @@
 # Plumbline v3.3: stock intrinsic value and business quality
 
+## v3.8: life-cycle valuation (after Aswath Damodaran)
+
+Plumbline already sorts every company into a type (cyclical, growth, mature, or bank/insurer). Until now the type was only reported. v3.8 makes it change the valuation, following Damodaran's advice for each stage.
+
+| Type | Damodaran's point | What Plumbline now does |
+|---|---|---|
+| **Cyclical** (chips, energy, mining, chemicals, vehicles, airlines and similar) | Today's profit may be a peak or a trough. Value the company on normal, through-the-cycle profit: average margins applied to today's sales. | The cash-flow and earnings methods (DCFs, P/E, PEG) start from the company's average margin over up to six years (at least four) times today's sales. The result stays within half to one and a half times today's figure, and a loss-maker is not turned into a profit-maker. P/S and P/B are unchanged. |
+| **Growth** (sales up more than 15% a year) | A fast grower becomes an average company once growth settles, so its risk should fall too. | The terminal value (everything after the forecast years) uses a beta of 1. The forecast years still use the company's own beta. High-beta growers gain, low-beta growers lose a little. |
+| **Mature** | Stable growth no higher than the economy, through-cycle figures. | No change: this is already Plumbline's standard model (long-run growth capped at the risk-free rate, 8% minimum cost of equity). |
+| **Bank or insurer** | Value equity directly (dividends, excess returns, book value). | No change (the v3.0 financial model). |
+
+AI-era chip companies with a full profile (quality A or B) skip the cyclical averaging, because the profile treats today's AI demand as largely lasting; a partial profile (quality C) uses half of it; a weak chip company gets all of it. The forecast section says which rule applied, and the calculation steps show the normalised figures.
+
+Effect on the built-in examples: NVIDIA (growth, beta 2.2) $282.13 to $293.83; Salesforce (mature) unchanged at $330.49. On Salesforce's numbers treated as a cyclical company, the median would fall from $327.40 to $229.19, because its margins have risen a lot over six years.
+
+**Testing.** The backtest uses the new rules by default; add `--lifecycle 0` to switch them off and compare. Pass marks, set before any run: (1) on the fresh test (`--fresh-test 500`), the cyclical group's average rank link must be higher with the rules than without; (2) the growth group's must not be lower; (3) the overall rank link must not fall by more than 0.01. If (1) fails, cyclical averaging should be switched off again.
+
 ## v3.7: AI-era profile for hyperscalers
 
 Hyperscalers (Microsoft, Amazon, Alphabet, Meta, Oracle and CoreWeave) sell the computing power behind AI. They get two tweaks, both earned by business quality like the chip profile:
