@@ -360,7 +360,7 @@
   function openSheet(title, html) {
     var sh = $("sheet"); if (!sh) return;
     $("sheetTitle").innerHTML = title; $("sheetBody").innerHTML = html; $("sheetBody").scrollTop = 0;
-    sh.hidden = false; requestAnimationFrame(function () { sh.classList.add("open"); });
+    sh.hidden = false; setTimeout(function () { sh.classList.add("open"); }, 16);
     document.documentElement.classList.add("noscroll");
     $("sheetClose").focus();
   }
@@ -370,7 +370,16 @@
     setTimeout(function () { if (!sh.classList.contains("open")) sh.hidden = true; }, 260);
   }
   var raf = null;
-  function schedule() { if (raf) return; raf = requestAnimationFrame(function () { raf = null; update(false); }); }
+  /* v3.8.1: recalculate after a slider moves. Some browsers and in-app web views pause requestAnimationFrame;
+     when that happened the old code waited for a frame that never came and every later slider move was ignored.
+     A short timer now runs the update whether or not a frame arrives, and whichever comes first wins. */
+  function schedule() {
+    if (raf) return;
+    var done = false, run = function () { if (done) return; done = true; raf = null; update(false); };
+    raf = true;
+    if (window.requestAnimationFrame) requestAnimationFrame(run);
+    setTimeout(run, 60);
+  }
   function sync() {
     SETTINGS.forEach(function (c) {
       var el = $("s_" + c[0]), v = state.settings[c[0]];
@@ -494,7 +503,7 @@
         for (var i = 0; i < n; i++) { var ch = final[i]; out += /\d/.test(ch) && k < (i + 1) / (n + 1) + .1 ? String((Math.random() * 10) | 0) : ch; }
         el.textContent = k >= 1 ? final : out;
       }
-      if (k < 1) requestAnimationFrame(f);
+      if (k < 1 && el.isConnected) setTimeout(function () { f(performance.now()); }, 30);
     })(t0);
   }
 

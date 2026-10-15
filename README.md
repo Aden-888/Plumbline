@@ -1,5 +1,9 @@
 # Plumbline v3.3: stock intrinsic value and business quality
 
+## v3.8.1: sliders always recalculate
+
+Fixed: in some browsers and in-app web views, moving an assumption slider did not change the intrinsic value. The page waited for an animation frame (requestAnimationFrame) before recalculating; where the browser paused frames, that wait never ended and every later slider move was ignored. Recalculation now also runs on a short timer, so it happens either way. The count-up animation of the headline number and the opening of the method sheet no longer depend on animation frames either.
+
 ## v3.8: life-cycle valuation (after Aswath Damodaran)
 
 Plumbline already sorts every company into a type (cyclical, growth, mature, or bank/insurer). Until now the type was only reported. v3.8 makes it change the valuation, following Damodaran's advice for each stage.
