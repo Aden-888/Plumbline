@@ -1,5 +1,9 @@
 # Plumbline v3.3: stock intrinsic value and business quality
 
+## v3.8.2: cash-flow value in the Assumptions read-out
+
+The read-out above the sliders now also shows the **cash-flow value** (the middle of the cash-flow methods: DCF-20, DFCF-20, DNI-20 and DFCF-Terminal, or DDM, FCFE and excess return for banks). These always respond to the discount-rate and growth sliders. The headline intrinsic value is the median of all methods, so when that median sits on a market multiple (for example Mean P/S for Microsoft) it can stay still while the cash-flow value moves.
+
 ## v3.8.1: sliders always recalculate
 
 Fixed: in some browsers and in-app web views, moving an assumption slider did not change the intrinsic value. The page waited for an animation frame (requestAnimationFrame) before recalculating; where the browser paused frames, that wait never ended and every later slider move was ignored. Recalculation now also runs on a short timer, so it happens either way. The count-up animation of the headline number and the opening of the method sheet no longer depend on animation frames either.

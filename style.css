@@ -1091,3 +1091,6 @@ a, .jump a, .m summary::after, .qmore > summary { color: var(--accent); }
 @media (max-width: 520px) { .ov__r .pxc__legend { gap: 6px 12px; font-size: 12px; } .ov__r .seg button { padding: 5px 10px; } }
 @media (max-width: 520px) { .ov__r .pxc__legend { gap: 6px 10px; font-size: 11.5px; } }
 .m__val--out { color: var(--faint); text-decoration: line-through; text-decoration-thickness: 1px; }
+/* v3.8.2: four read-out tiles (intrinsic value, cash-flow value, share price, verdict) */
+.setsum__row { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+@media (max-width: 600px) { .setsum__row { grid-template-columns: 1fr 1fr; } .setsum__row > div:last-child { grid-column: auto; } }

@@ -586,9 +586,22 @@
     var coeRaw = r.fin ? r.fin.coeRaw : r.wacc.coeRaw, coeUsed = r.fin ? r.fin.coe : r.wacc.coe;
     if (fin(coeRaw) && coeUsed > coeRaw + 1e-9) notes.push("The cost of equity is at its " + F.pct(coeUsed, 1) + " minimum, so lowering beta, the risk-free rate or the risk premium has no effect until the formula rises above it.");
     el.innerHTML = '<div class="setsum__row"><div><span>Intrinsic value</span><b>' + F.usd(st.median) + '</b><small class="' + (moved ? cls(ch, { buy: 0, sell: 0 }) : "") + '">' + (moved ? F.spct(ch) + " vs the default " + F.usd(b0) : "Default assumptions") + '</small></div>' +
+      cfTile(r, base) +
       '<div><span>Share price</span><b>' + F.usd(inp.price) + '</b><small>Market price: assumptions do not change it</small></div>' +
       '<div><span>Verdict</span><b><span class="pill pill--sm pill--' + st.verdict + '">' + st.verdict + '</span></b><small>' + F.spct(st.upside) + ' upside</small></div></div>' +
       (notes.length ? '<p class="setsum__note">' + notes.map(esc).join(" ") + '</p>' : "");
+  }
+  /* v3.8.2: the cash-flow methods always respond to the discount-rate and growth sliders, even when the headline
+     median sits on a market multiple, so show their middle value too */
+  var CF_IDS = { dcf20: 1, dfcf20: 1, dni20: 1, dfcft: 1, ddm: 1, fcfe: 1, excess: 1 };
+  function cfMid(res) {
+    var v = res.methods.filter(function (m) { return CF_IDS[m.id] && fin(m.value); }).map(function (m) { return m.value; });
+    return v.length ? IV.median(v) : null;
+  }
+  function cfTile(r, base) {
+    var now = cfMid(r), was = cfMid(base); if (!fin(now)) return "";
+    var ch = fin(was) && was ? now / was - 1 : 0, moved = Math.abs(ch) > 0.0005;
+    return '<div><span>Cash-flow value</span><b>' + F.usd(now) + '</b><small class="' + (moved ? cls(ch, { buy: 0, sell: 0 }) : "") + '">' + (moved ? F.spct(ch) + " vs the default " + F.usd(was) : "Middle of the cash-flow methods") + "</small></div>";
   }
   function renderAvg(r) {
     var st = r.stats, s = r.settings;
