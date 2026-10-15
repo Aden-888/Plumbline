@@ -418,8 +418,7 @@
     var when = qd ? (today ? "" : qd.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", ") + qd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "As of " + esc(inp.asOf || "");
     var sub = (chg != null ? '<span class="' + (chg >= 0 ? "pos" : "neg") + '">' + (chg >= 0 ? "+" : "−") + Math.abs(chg).toFixed(2) + " (" + (chg >= 0 ? "+" : "−") + Math.abs(chg / q.prevClose * 100).toFixed(2) + "%) today</span> · " : "") + when;
     return '<div class="pv"><div class="pv__c"><p class="pv__k"><span><span class="hide-sm">Share </span>price</span>' + (q ? ' <span class="live"><i></i>Live</span>' : "") + '</p><p class="pv__v" id="pvPrice">' + F.usd(px) + '</p><p class="pv__s">' + sub + "</p></div>" +
-      '<div class="pv__c"><p class="pv__k">Intrinsic value</p><p class="pv__v pv__v--iv" id="vNum">' + F.usd(iv) + '</p><p class="pv__s">Fair-value median from ' + st.n + " valuation methods</p></div></div>" +
-      '<a class="seewhy" href="#chart">See why <span aria-hidden="true">→</span></a>';
+      '<div class="pv__c"><p class="pv__k">Intrinsic value</p><p class="pv__v pv__v--iv" id="vNum">' + F.usd(iv) + '</p><p class="pv__s">Fair-value median from ' + st.n + ' valuation methods</p><a class="seewhy" href="#chart">See why <span aria-hidden="true">→</span></a></div></div>';
   }
   /* "What the company does": a short description from Wikipedia (rewritten by AI when the server has a key) */
   function loadProfile() {

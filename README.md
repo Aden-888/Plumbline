@@ -4,7 +4,8 @@
 
 - The intrinsic value label now reads "Fair-value median from 9 valuation methods".
 - A "See why" button under the two numbers jumps to the valuation chart, so people can see how the value was built.
-- Business quality now sits in the verdict block, on its own line under the upside.
+- Business quality now sits in the verdict block, on its own line under the upside, in the same font as the upside line.
+- v3.4.2: the "See why" button is smaller and sits directly under the intrinsic value. The two big figures line up, and on small phones the verdict pill sits above its text.
 
 ## v3.4: one clean overview card
 
