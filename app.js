@@ -241,7 +241,7 @@
     $("hero").classList.remove("hidden"); $("barForm").classList.add("hidden");
     closeSheet();
     try { history.replaceState(null, "", location.pathname); } catch (e) {}
-    document.title = "Plumbline: what is a stock actually worth?";
+    document.title = "Plumbline: what is this company fundamentally worth?";
     drawHero(true); window.scrollTo({ top: 0 });
   }
 
@@ -292,7 +292,7 @@
       '<canvas class="rain rain--res" id="rainRes" aria-hidden="true"></canvas>' +
       '<div class="wrap res">' +
       '<div class="head" id="overview"><h2>' + esc(inp.name) + ' <span class="head__tk">' + esc(inp.ticker) + '</span></h2><div class="head__meta">' + (inp.exchange ? '<span>' + esc(inp.exchange) + "</span>" : "") + '<span id="hdPrice">Price as of ' + esc(inp.asOf) + "</span></div></div>" +
-      '<p class="bridge" style="margin:18px 0 -10px">Step 1 · What Plumbline thinks the stock is worth</p><div id="rVerdict"></div>' +
+      '<p class="bridge" style="margin:18px 0 -10px">Step 1 · Calculated intrinsic value</p><div id="rVerdict"></div>' +
       '<div class="pxc" id="pxCard"><div class="pxc__head"><div><h3>Share price vs intrinsic value</h3><p class="pxc__sub" id="pxSub">Loading price history…</p></div>' +
       '<div class="seg" id="pxRange" role="group" aria-label="Time range"><button type="button" data-r="1mo">1M</button><button type="button" data-r="6mo">6M</button><button type="button" data-r="1y" class="on">1Y</button><button type="button" data-r="5y">5Y</button></div></div>' +
       '<div class="pxc__chart" id="pxChart"><div class="pxc__skel"></div></div>' +
