@@ -52,9 +52,18 @@ function titleBySearch(name) {
 function summary(title) {
   return getJSON(WP + "api/rest_v1/page/summary/" + encodeURIComponent(title.replace(/ /g, "_"))).then(function (j) {
     if (!j || j.type === "disambiguation" || !j.extract) return null;
-    var sentences = String(j.extract).replace(/\s+/g, " ").match(/[^.!?]+[.!?]+(\s|$)/g) || [j.extract], text = "";
-    for (var i = 0; i < sentences.length && i < 3; i++) { if (text && (text + sentences[i]).length > 600) break; text += sentences[i]; }
-    return { title: j.title || title, text: text.trim(), url: (j.content_urls && j.content_urls.desktop && j.content_urls.desktop.page) || WP + "wiki/" + encodeURIComponent(title) };
+    var full = String(j.extract).replace(/\s+/g, " ");
+    /* v3.3.1: keep it short and about the business. Drop pronunciations and stock-exchange codes in brackets,
+       keep the first sentence, then at most one more that is not a ranking or trivia ("ninth-largest company by
+       revenue", "ranked fourth on the Fortune Global 500"). */
+    var clean = full.replace(/\s*\([^()]*(?:NYSE|NASDAQ|Nasdaq|listen|pronounced|\/|;)[^()]*\)/g, "").replace(/\s*\(\s*\)/g, "").replace(/\s+([,.])/g, "$1");
+    /* full stops inside abbreviations ("Apple Inc.", "U.S.") are not sentence ends */
+    var guarded = clean.replace(/\b(Inc|Corp|Co|Ltd|Jr|Sr|St|Mt|No|plc|U\.S|U\.K|N\.V|S\.A|L\.P)\./g, "$1\u00a7").replace(/\b([A-Z])\.(?=[A-Z]\.)/g, "$1\u00a7");
+    var sentences = (guarded.match(/[^.!?]+[.!?]+(\s|$)/g) || [guarded]).map(function (x) { return x.replace(/\u00a7/g, "."); });
+    var TRIVIA = /\b(ranked|ranks|ranking|Fortune|largest|biggest|most valuable|market capitali[sz]ation|by revenue|by market|Dow Jones|S&P 500|Nasdaq-100|component of|founded|history)\b/i;
+    var text = sentences[0] || "";
+    for (var i = 1; i < sentences.length && i < 4; i++) { if (!TRIVIA.test(sentences[i]) && (text + sentences[i]).length <= 380) { text += sentences[i]; break; } }
+    return { title: j.title || title, text: text.trim(), full: full, url: (j.content_urls && j.content_urls.desktop && j.content_urls.desktop.page) || WP + "wiki/" + encodeURIComponent(title) };
   });
 }
 /* only accept a search result that reads like a company description */
@@ -87,7 +96,7 @@ function profile(ticker) {
       return titleBySearch(name).catch(function () { return null; }).then(function (t2) { return t2 ? summary(t2).then(function (s) { return looksLikeCompany(s) ? s : null; }).catch(function () { return null; }) : null; });
     }).then(function (s) {
       if (!s || !s.text) return { none: true, name: name, industry: industry };
-      return rewrite(name, industry, s.text).then(function (ai) {
+      return rewrite(name, industry, s.full || s.text).then(function (ai) {
         return { name: name, industry: industry, text: ai || s.text, ai: !!ai, source: "Wikipedia", article: s.title, url: s.url };
       });
     });

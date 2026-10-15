@@ -1,5 +1,12 @@
 # Plumbline v3.3: stock intrinsic value and business quality
 
+## v3.3.1: tidier pages and a clearer Assumptions tab
+
+- **Assumptions read-out.** A small panel above the sliders now shows the intrinsic value, the share price and the verdict, and updates as you move a slider. It shows how far the value has moved from the default.
+- **Why the price never moves.** The share price is the market price, so assumptions cannot change it. The panel says this, and explains when a slider has no effect (for example, when the middle method is a multiple, or when the cost of equity is held at the 8% minimum).
+- **Business description.** Shorter (one or two sentences), with exchange codes and trivia removed, and the label uses the company's proper name.
+- **Business-quality cards.** The best and weakest measures sit in a light outlined panel with a divider, so each card reads more cleanly.
+
 ## v3.3: "What the company does"
 - A short paragraph about the business now sits at the top of Step 2, above the Business Quality scorecard (`profile.js`, `/api/profile?t=TICKER`, cached for a week on Vercel).
 - Source: the company's English Wikipedia summary (first 3 sentences). The article is found through Wikidata using the company's SEC registration number (CIK), so it cannot pick a different company with a similar name. If Wikidata has no entry, a Wikipedia search on the name is used, and the result is only accepted if it reads like a company description. If nothing is found, the box stays hidden.

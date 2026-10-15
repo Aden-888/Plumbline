@@ -307,7 +307,7 @@
       '<p class="card__note" id="projNote">Free cash flow is the cash left after the company pays for its equipment and buildings. Profit excludes one-off gains. B = billion. Why does growth slow down? Very few companies can grow faster than the whole economy forever, so growth is assumed to settle at about the economy\'s long-run rate.</p>' +
       '<p class="jump"><a href="#settings">Think growth will be faster or slower? Try it in Assumptions →</a></p>' +
       '<details class="more" id="projMore"><summary><span>Show the full 20-year forecast</span><small>Charts of cash flow, profit and growth for every year</small></summary><div class="more__body"><div class="two"><div class="card"><div class="chart" id="rProj"></div><div class="legend" id="rProjLeg"></div></div><div class="card"><div class="chart" id="rGrow"></div><div class="legend" id="rGrowLeg"></div></div></div></div></details></section>' +
-      '<section class="sec" id="settings"><p class="bridge">Step 7 · Don\'t agree with the forecast? Change it here</p><h2>Change the assumptions</h2><p class="sec__lede">The defaults follow the Excel models. Move any slider and every number on this page updates straight away. This shows how much the answer depends on each judgement call.</p><div class="card"><div class="set">' + ctl + '</div><p style="margin:16px 0 0"><button class="btn" id="reset">Reset to defaults</button></p></div></section>' +
+      '<section class="sec" id="settings"><p class="bridge">Step 7 · Don\'t agree with the forecast? Change it here</p><h2>Change the assumptions</h2><p class="sec__lede">The defaults follow the Excel models. Move any slider and every number on this page updates straight away. This shows how much the answer depends on each judgement call.</p><div class="card"><div class="setsum" id="setSum"></div><div class="set">' + ctl + '</div><p style="margin:16px 0 0"><button class="btn" id="reset">Reset to defaults</button></p></div></section>' +
       '<section class="sec" id="data"><p class="bridge">Step 8 · Before relying on the result, here\'s where the numbers come from</p><h2>Things to know</h2><div id="rCav"></div>' +
       '<details class="more" id="dataMore"><summary><span>Source data for analysts</span><small>Valuation ratios, the company figures used, and how the discount rate was built</small></summary><div class="more__body">' +
       '<p class="tlabel">How the market priced the stock at each year-end. The "mean multiple" methods use these averages.</p><div class="card tscroll" id="rRatios"></div>' +
@@ -388,7 +388,7 @@
     Object.keys(ONLY_FIN).forEach(function (k) { var el = $("s_" + k); if (el) el.closest(".ctl").style.display = isFin ? "" : "none"; });
     var pm = $("projMore"); if (pm) pm.style.display = isFin ? "none" : "";
     if (!r.stats.n) { $("rVerdict").innerHTML = '<div class="notice notice--error"><h3>Not enough data</h3><p>None of the ' + numWord(r.methods.length) + ' methods could be calculated for this stock.</p></div>'; renderQuality(r); return; }
-    renderVerdict(r, initial); renderQuality(r); renderMethods(r); renderAvg(r); renderProj(r); renderData(r);
+    renderVerdict(r, initial); renderQuality(r); renderMethods(r); renderAvg(r); renderProj(r); renderData(r); renderSetSum(r);
     Charts.bars($("rBars"), r); Charts.strip($("rStats"), r, { stats: true });
     if ($("projMore") && $("projMore").open) drawProj(r);
     if (initial) { var rb = $("rBars"), rq = $("rQuality"); rb.classList.add("grow"); if (rq) rq.classList.add("grow"); setTimeout(function () { rb.classList.remove("grow"); if (rq) rq.classList.remove("grow"); }, 1600); }
@@ -439,7 +439,9 @@
     if (!el || !inp || inp.manual || window.PLUMBLINE_STATIC || location.protocol.indexOf("http") !== 0) return;
     fetch("/api/profile?t=" + encodeURIComponent(inp.ticker)).then(function (r) { return r.ok ? r.json() : null; }, function () { return null; }).then(function (d) {
       if (my !== state.seq || !d || d.none || !d.text) return;
-      el.innerHTML = '<p class="about__k">What ' + esc(inp.name || inp.ticker) + ' does</p><p class="about__t">' + esc(d.text) + '</p>' +
+      var raw = String(inp.name || inp.ticker), nice = d.article ? String(d.article).replace(/\s*\([^)]*\)\s*$/, "") :
+        raw === raw.toUpperCase() ? raw.toLowerCase().replace(/\b[a-z]/g, function (c) { return c.toUpperCase(); }) : raw;
+      el.innerHTML = '<p class="about__k">What ' + esc(nice) + ' does</p><p class="about__t">' + esc(d.text) + '</p>' +
         '<p class="about__src">' + (d.ai ? "Summarised by AI from " : "From ") + '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">Wikipedia</a> (CC BY-SA)' + (d.ai ? ". AI summaries can contain mistakes." : ".") + '</p>';
       el.hidden = false;
     });
@@ -570,6 +572,24 @@
     }).join("");
   }
 
+  /* v3.3.1: live read-out above the sliders, and why the headline may not move */
+  function renderSetSum(r) {
+    var el = $("setSum"); if (!el) return;
+    var inp = r.inputs, st = r.stats, s = r.settings, base = IV.compute(inp, state.defaults);
+    var b0 = base.stats && base.stats.median, ch = fin(b0) && b0 ? st.median / b0 - 1 : 0, moved = Math.abs(ch) > 0.0005;
+    /* which method sits in the middle (the headline) */
+    var vals = r.methods.filter(function (m) { return fin(m.value); }).sort(function (a, b) { return a.value - b.value; }), n = vals.length;
+    var mid = n ? (n % 2 ? [vals[(n - 1) >> 1]] : [vals[n / 2 - 1], vals[n / 2]]) : [];
+    var notes = [];
+    if (mid.length && mid.every(function (m) { return m.type === "Multiple"; }))
+      notes.push("The headline is the middle of the " + n + " values, which is now " + mid.map(function (m) { return m.short; }).join(" and ") + ". That method uses past market multiples, so the discount-rate and growth sliders move the other methods but not the headline until one of them crosses it.");
+    var coeRaw = r.fin ? r.fin.coeRaw : r.wacc.coeRaw, coeUsed = r.fin ? r.fin.coe : r.wacc.coe;
+    if (fin(coeRaw) && coeUsed > coeRaw + 1e-9) notes.push("The cost of equity is at its " + F.pct(coeUsed, 1) + " minimum, so lowering beta, the risk-free rate or the risk premium has no effect until the formula rises above it.");
+    el.innerHTML = '<div class="setsum__row"><div><span>Intrinsic value</span><b>' + F.usd(st.median) + '</b><small class="' + (moved ? cls(ch, { buy: 0, sell: 0 }) : "") + '">' + (moved ? F.spct(ch) + " vs the default " + F.usd(b0) : "Default assumptions") + '</small></div>' +
+      '<div><span>Share price</span><b>' + F.usd(inp.price) + '</b><small>Market price: assumptions do not change it</small></div>' +
+      '<div><span>Verdict</span><b><span class="pill pill--sm pill--' + st.verdict + '">' + st.verdict + '</span></b><small>' + F.spct(st.upside) + ' upside</small></div></div>' +
+      (notes.length ? '<p class="setsum__note">' + notes.map(esc).join(" ") + '</p>' : "");
+  }
   function renderAvg(r) {
     var st = r.stats, s = r.settings;
     $("rAvgText").innerHTML = '<p class="sec__lede">The ' + numWord(r.methods.length) + ' methods rarely agree, so one number has to be chosen. Plumbline uses the <strong>median</strong>, which is the middle value when the ' + numWord(st.n) + ' values are lined up from lowest to highest. It is the headline because a single extreme method, high or low, cannot pull it far. The mean and trimmed mean are shown so you can see how much the choice matters.</p>';
