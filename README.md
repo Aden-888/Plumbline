@@ -1,5 +1,12 @@
 # Plumbline v3.3: stock intrinsic value and business quality
 
+## v3.3.2: a cleaner summary card and a fold-out business description
+
+- **Summary card, split in two.** The left side shows the share price, the intrinsic value and the gauge. The right side now carries the verdict: the BUY/HOLD/SELL pill, one line on how far the value is from the price, why that gives this verdict, and the key figures (methods above the price, range of estimates, average, analyst target, business quality). On phones the two halves stack.
+- **One colour rule.** Only the verdict uses the BUY/HOLD/SELL colours (the pill and the upside figure). The coloured "undervalued" box is gone, and the gauge zones are softer.
+- **Clearer label.** "Median of 9 valuation methods" now reads "Fair value · middle of 9 methods".
+- **Business description.** A one-line background is always shown. The company's main operations (up to three points: its businesses, what they sell and to whom) fold out under "Main operations". History, rankings and lawsuits are filtered out. With an Anthropic key, the AI writes the one-liner and the points from the Wikipedia text.
+
 ## v3.3.1: tidier pages and a clearer Assumptions tab
 
 - **Assumptions read-out.** A small panel above the sliders now shows the intrinsic value, the share price and the verdict, and updates as you move a slider. It shows how far the value has moved from the default.

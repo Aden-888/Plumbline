@@ -396,18 +396,28 @@
 
   function renderVerdict(r, initial) {
     var st = r.stats, inp = r.inputs, s = r.settings, v = st.verdict, q = state.quality;
-    var line = v === "BUY" ? "That is above the " + F.spct(s.buy, 0) + " BUY line."
-      : v === "SELL" ? "That is below the " + F.spct(s.sell, 0) + " SELL line."
-      : "That sits between the SELL line (" + F.spct(s.sell, 0) + ") and the BUY line (" + F.spct(s.buy, 0) + ").";
-    var spread = st.max / st.min;
-    var qRow = q && q.ok ? '<dt>Business quality</dt><dd><a href="#quality" class="qlink" style="color:' + scoreCol(q.score) + '">' + q.grade + " · " + Math.round(q.score) + "/100</a></dd>" : "";
+    var up = st.upside, pctTxt = Math.abs(up * 100).toFixed(1) + "%";
+    var head = up >= 0 ? "Worth " + pctTxt + " more than the price" : "Worth " + pctTxt + " less than the price";
+    var why = v === "BUY" ? "That clears the " + F.spct(s.buy, 0) + " margin needed for a BUY."
+      : v === "SELL" ? "That is past the " + F.spct(s.sell, 0) + " SELL line."
+      : "That is inside the HOLD range (" + F.spct(s.sell, 0) + " to " + F.spct(s.buy, 0) + "), so the gap is too small to act on.";
+    var notes = [];
+    if (r.group && r.group.id === "financial") notes.push("Valued as a " + esc(r.group.label.toLowerCase()) + ", with the methods built for banks and insurers.");
+    if (st.n < r.methods.length) notes.push((r.methods.length - st.n) + " method(s) could not be calculated (" + r.methods.filter(function (m) { return !fin(m.value); }).map(function (m) { return m.short; }).join(", ") + "), so the value uses the other " + st.n + ".");
+    if (st.max / st.min > 3) notes.push("The methods disagree a lot (" + F.usd(st.min, 0) + " to " + F.usd(st.max, 0) + "), so Plumbline takes the middle result rather than the average, which one extreme estimate could pull off course.");
+    var qRow = q && q.ok ? '<dt>Business quality</dt><dd><a href="#quality" class="qlink">' + q.grade + " · " + Math.round(q.score) + "/100</a></dd>" : "";
     var html =
-      '<div class="verdict"><div class="verdict__main">' + pvHtml(r) +
-      '<p class="verdict__sum">The intrinsic value is <strong class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + (st.upside >= 0 ? " above" : " below").replace("+", "") + "</strong> the share price. " + line + " " + st.above + " of " + st.n + " methods value the stock above its price." + (r.group && r.group.id === "financial" ? " Valued as a " + esc(r.group.label.toLowerCase()) + ", with the methods built for banks and insurers." : "") +
-      (st.n < r.methods.length ? " " + (r.methods.length - st.n) + " method(s) could not be calculated for this stock (" + r.methods.filter(function (m) { return !fin(m.value); }).map(function (m) { return m.short; }).join(", ") + "), so the median uses the other " + st.n + "." : "") + (spread > 3 ? " The methods are far apart (" + F.usd(st.min, 0) + " to " + F.usd(st.max, 0) + "), which is why the median is used instead of a plain average." : "") + "</p></div>" +
-      '<div class="verdict__side"><span class="pill pill--' + v + '"><i></i>' + v + "</span>" +
-      '<p class="verdict__rule">BUY at ' + F.spct(s.buy, 0) + ' upside or more · SELL at ' + F.spct(s.sell, 0) + ' or worse</p><dl class="kv"><dt>Upside / (downside)</dt><dd class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + "</dd><dt>Average of all " + numWord(st.n) + "</dt><dd>" + F.usd(st.mean) + "</dd>" +
-      (inp.est.target ? "<dt>Analyst average target</dt><dd>" + F.usd(inp.est.target) + "</dd>" : "") + qRow + "</dl></div></div>";
+      '<div class="verdict verdict--' + v + '"><div class="verdict__main">' + pvHtml(r) +
+      (notes.length ? '<p class="verdict__sum">' + notes.join(" ") + "</p>" : "") + "</div>" +
+      '<div class="verdict__side"><p class="pv__k">Verdict</p>' +
+      '<div class="vhead"><span class="pill pill--' + v + '"><i></i>' + v + '</span><p class="vhead__t">' + head + '</p></div>' +
+      '<p class="vhead__why">' + why + "</p>" +
+      '<dl class="kv"><dt>Upside / (downside)</dt><dd class="' + cls(up, s) + '">' + F.spct(up) + "</dd>" +
+      "<dt>Methods above the price</dt><dd>" + st.above + " of " + st.n + "</dd>" +
+      "<dt>Range of estimates</dt><dd>" + F.usd(st.min, 0) + " – " + F.usd(st.max, 0) + "</dd>" +
+      "<dt>Average of all " + numWord(st.n) + "</dt><dd>" + F.usd(st.mean) + "</dd>" +
+      (inp.est.target ? "<dt>Analyst average target</dt><dd>" + F.usd(inp.est.target) + "</dd>" : "") + qRow + "</dl>" +
+      '<p class="verdict__rule">BUY at ' + F.spct(s.buy, 0) + " upside or more · SELL at " + F.spct(s.sell, 0) + " or worse · change these in Assumptions</p></div></div>";
     $("rVerdict").innerHTML = html;
     if (initial) countUp($("vNum"), st.median);
     var dk = $("dock");
@@ -426,8 +436,7 @@
     var buyMax = iv / (1 + s.buy), sellMin = iv / (1 + s.sell), D = Math.max(px * 1.12, sellMin * 1.18);
     var pc = function (v) { return Math.max(0, Math.min(100, v / D * 100)).toFixed(2) + "%"; };
     return '<div class="pv"><div class="pv__c"><p class="pv__k"><span><span class="hide-sm">Share </span>price</span>' + (q ? ' <span class="live"><i></i>Live</span>' : "") + '</p><p class="pv__v" id="pvPrice">' + F.usd(px) + '</p><p class="pv__s">' + sub + "</p></div>" +
-      '<div class="pv__c"><p class="pv__k">Intrinsic value</p><p class="pv__v pv__v--iv" id="vNum">' + F.usd(iv) + '</p><p class="pv__s">Median of ' + st.n + " valuation methods</p></div></div>" +
-      '<div class="gapb gapb--' + v + '"><b>' + pct.toFixed(1) + "% " + (under ? "undervalued" : "overvalued") + "</b><span>The share price is " + pct.toFixed(1) + "% " + (under ? "below" : "above") + " its intrinsic value</span></div>" +
+      '<div class="pv__c"><p class="pv__k">Intrinsic value</p><p class="pv__v pv__v--iv" id="vNum">' + F.usd(iv) + '</p><p class="pv__s">Fair value · middle of ' + st.n + " methods</p></div></div>" +
       '<div class="gauge" role="img" aria-label="Share price ' + F.usd(px) + " against intrinsic value " + F.usd(iv) + '"><div class="gauge__bar">' +
       '<span class="gz gz--buy" style="width:' + pc(buyMax) + '"></span><span class="gz gz--hold" style="left:' + pc(buyMax) + ";width:calc(" + pc(sellMin) + " - " + pc(buyMax) + ')"></span><span class="gz gz--sell" style="left:' + pc(sellMin) + ';right:0"></span>' +
       '<span class="gm gm--iv" style="left:' + pc(iv) + '"><em>Value ' + F.usd(iv, 0) + '</em></span><span class="gm gm--px" style="left:' + pc(px) + '"><em>Price ' + F.usd(px, 0) + "</em></span></div>" +
@@ -441,8 +450,11 @@
       if (my !== state.seq || !d || d.none || !d.text) return;
       var raw = String(inp.name || inp.ticker), nice = d.article ? String(d.article).replace(/\s*\([^)]*\)\s*$/, "") :
         raw === raw.toUpperCase() ? raw.toLowerCase().replace(/\b[a-z]/g, function (c) { return c.toUpperCase(); }) : raw;
-      el.innerHTML = '<p class="about__k">What ' + esc(nice) + ' does</p><p class="about__t">' + esc(d.text) + '</p>' +
-        '<p class="about__src">' + (d.ai ? "Summarised by AI from " : "From ") + '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">Wikipedia</a> (CC BY-SA)' + (d.ai ? ". AI summaries can contain mistakes." : ".") + '</p>';
+      var ops = (d.ops || []).filter(Boolean), src = '<p class="about__src">' + (d.ai ? "Summarised by AI from " : "From ") + '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">Wikipedia</a> (CC BY-SA)' + (d.ai ? ". AI summaries can contain mistakes." : ".") + "</p>";
+      /* v3.3.2: one-line background always visible; the main operations fold out */
+      el.innerHTML = '<p class="about__k">What ' + esc(nice) + ' does</p><p class="about__t">' + esc(d.text) + "</p>" +
+        (ops.length ? '<details class="about__ops"><summary>Main operations <span class="about__n">' + ops.length + " point" + (ops.length > 1 ? "s" : "") + '</span></summary><ul>' +
+          ops.map(function (o) { return "<li>" + esc(o) + "</li>"; }).join("") + "</ul>" + src + "</details>" : src);
       el.hidden = false;
     });
   }

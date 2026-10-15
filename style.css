@@ -986,3 +986,29 @@ a, .jump a, .m summary::after, .qmore > summary { color: var(--accent); }
 .setsum__row small.pos { color: var(--buy, #4cb782); } .setsum__row small.neg { color: var(--sell, #d66b63); }
 .setsum__note { margin: 12px 0 0; font-size: 13px; line-height: 1.55; color: var(--muted); }
 @media (max-width: 600px) { .setsum__row { grid-template-columns: 1fr 1fr; } .setsum__row > div:last-child { grid-column: 1 / -1; } }
+
+/* v3.3.2: collapsible business description */
+.about__ops { margin-top: 10px; border-top: 1px solid var(--line-soft); }
+.about__ops > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 10px 0 2px; font-size: 13.5px; font-weight: 600; color: var(--accent); }
+.about__ops > summary::-webkit-details-marker { display: none; }
+.about__ops > summary::before { content: ""; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform .2s; margin-right: 2px; }
+.about__ops[open] > summary::before { transform: rotate(45deg); }
+.about__n { font-weight: 400; color: var(--faint); font-size: 12.5px; }
+.about__ops ul { margin: 8px 0 0; padding-left: 18px; }
+.about__ops li { margin: 0 0 6px; font-size: 14.5px; line-height: 1.6; color: var(--text); }
+.about__ops li::marker { color: var(--faint); }
+
+/* v3.3.2: summary card. One colour rule: only the verdict (pill, upside) uses BUY/HOLD/SELL colours */
+.verdict__side { justify-content: flex-start; gap: 14px; }
+.verdict__side .pv__k { margin: 0; }
+.vhead { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.vhead__t { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -.01em; color: var(--text); }
+.vhead__why { margin: 0; font-size: 14px; line-height: 1.6; color: var(--muted); }
+.verdict__side .kv { margin-top: 4px; }
+.verdict__side .kv dd.pos { color: var(--buy); } .verdict__side .kv dd.neg { color: var(--sell); }
+.verdict__side .qlink { color: var(--text); text-decoration: none; border-bottom: 1px dashed var(--faint); }
+.verdict__side .verdict__rule { margin-top: auto; padding-top: 4px; }
+.verdict__main .gauge { margin-top: 44px; }
+.verdict__sum { font-size: 13.5px; color: var(--muted); margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line-soft); max-width: none; }
+.gz--buy { background: rgba(76, 183, 130, .32); } .gz--hold { background: rgba(201, 167, 90, .26); } .gz--sell { background: rgba(214, 107, 99, .32); }
+@media (max-width: 900px) { .vhead__t { font-size: 16.5px; } .verdict__main .gauge { margin-top: 38px; } }
