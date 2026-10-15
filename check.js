@@ -16,7 +16,15 @@ Edgar.load(t).then(function (d) {
   var s = r.settings, g = r.growth, pc = function (v) { return (v * 100).toFixed(1) + "%"; };
   console.log("\nAssumptions: WACC " + pc(r.wacc.wacc) + ", cost of equity " + pc(r.wacc.coe) + " | cash flow growth yr1 " + pc(g.cf[0]) + ", yr2 " + pc(g.cf[1]) + ", yr5 " + pc(s.g5) + ", yr10 " + pc(s.g10) + ", yr20 " + pc(s.gT) +
     " | 3-yr growth used: revenue " + pc(d.est.cagrRev) + ", EPS " + pc(d.est.cagrEps) + " | free cash flow $" + r.base.fcf.toFixed(0) + "M");
-  console.log("\nThe nine methods:");
+  if (r.group && r.group.id === "financial") {
+    var Fd = r.fin, P = d.fin || {}, T2 = P.ttm || {};
+    console.log("\nValued as: " + r.group.label + " (bank and insurer methods). Beta " + s.beta.toFixed(2) + " = Damodaran " + r.group.betaSource + " " + r.group.rawBeta.toFixed(2) + ", adjusted towards 1 | cost of equity " + pc(Fd.coe) + (Fd.coe > Fd.coeRaw ? " (minimum applied; formula gave " + pc(Fd.coeRaw) + ")" : ""));
+    console.log("Last 12 months ($M): dividends " + f0(T2.divs) + ", buybacks " + f0(T2.buybacks) + ", preferred dividends " + f0(T2.prefDivs) + " | preferred stock " + f0(P.prefEqNow) + ", common equity " + f0(Fd.commonEq));
+    console.log("Year by year: " + Fd.hist.map(function (h) { return h.year + " profit " + f0(h.ni) + " ROE " + (h.roe != null ? pc(h.roe) : "n/a") + " div " + f0(h.divs) + " buyback " + f0(h.buybacks); }).join(" | "));
+    console.log("ROE used " + pc(Fd.roeN) + " (" + Fd.roeSrc + "), long-run ROE " + pc(Fd.roeL) + " | payout: dividends " + (Fd.divPay != null ? pc(Fd.divPay) : "n/a") + ", with buybacks " + (Fd.totPay != null ? pc(Fd.totPay) : "n/a") + " | growth yrs 1-5: per share " + (Fd.g1div != null ? pc(Fd.g1div) : "n/a") + ", whole company " + (Fd.g1tot != null ? pc(Fd.g1tot) : "n/a"));
+    if (Fd.notes.length) console.log("Notes: " + Fd.notes.join(" "));
+  }
+  console.log("\nThe " + r.methods.length + " methods:");
   r.methods.forEach(function (m) {
     var v = typeof m.value === "number" && isFinite(m.value);
     console.log("  " + (m.short + "                ").slice(0, 16) + (v ? ("$" + m.value.toFixed(2) + "            ").slice(0, 12) + (m.upside >= 0 ? "+" : "") + (m.upside * 100).toFixed(0) + "% vs price" : "not available (" + (m.why || "missing data") + ")"));

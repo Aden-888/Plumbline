@@ -265,10 +265,17 @@
     ["gT", "Long-run growth (year 20 and after)", "Close to the long-run growth of the economy. Keep it below the discount rate.", 0, .05, .0025, pc],
     ["peg", "Target PEG", "Fair P/E divided by growth. 1.0 is Peter Lynch's rule of thumb.", .5, 2, .05, function (v) { return v.toFixed(2); }],
     ["psg", "Target PSG", "Fair P/S divided by growth. No official standard exists, so this is a judgement call.", .02, .3, .01, function (v) { return v.toFixed(2); }],
+    ["coeFloor", "Minimum cost of equity", "The lowest return shareholders are assumed to require. Stops very low bond yields from inflating values.", .04, .12, .0025, pc],
     ["peCap", "Ignore P/E readings above", "Very high P/E readings usually mean profit was close to zero that year.", 30, 300, 10, function (v) { return v.toFixed(0) + "x"; }],
     ["buy", "BUY if upside is at least", "The margin of safety the median value needs over the price.", .05, .5, .05, pc],
     ["sell", "SELL if downside is at least", "The mirror image. Anything between the two lines is HOLD.", -.5, -.05, .05, pc]
   ];
+  var WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+  function numWord(n) { return WORDS[n] || String(n); }
+  /* sliders that only move the cash flow and sales methods, hidden for banks and insurers */
+  var NOT_FIN = { g5: 1, g10: 1, psg: 1 };
+  /* sliders that only matter for banks and insurers, hidden for other companies */
+  var ONLY_FIN = {};
   function pc(v) { return (v * 100).toFixed(v * 100 % 1 ? 2 : 1).replace(/\.?0+$/, "") + "%"; }
   var SECTIONS = ["overview", "quality", "chart", "methods", "average", "forecast", "settings", "data"];
 
@@ -292,12 +299,12 @@
       '<div class="pxc__legend" aria-hidden="true"><span><i class="lk lk--px"></i>Share price</span><span><i class="lk lk--iv"></i>Intrinsic value today</span><span><i class="lk lk--buy"></i>BUY zone</span><span><i class="lk lk--sell"></i>SELL zone</span></div>' +
       '<p class="pxc__note">Hover or touch the chart to see the price on any day. The intrinsic value line is today\'s estimate, drawn across the whole period so you can see how far the price has moved around it.</p></div>' +
       '<section class="sec" id="quality"><p class="bridge">Step 2 · Is the business behind the stock any good?</p><h2>Business quality scorecard</h2><p class="sec__lede">The valuation above says whether the stock is cheap. This scorecard says whether the business is good. It grades the company on 13 measures across three areas, using its own financial statements. Each measure scores Strong, Good or Weak, and core measures count double.</p><div id="rQuality"></div></section>' +
-      '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is the Plumbline value (the median of the nine) and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#4cb782"></i>Undervalued</span><span><i style="background:#c9a75a"></i>Fair</span><span><i style="background:#d66b63"></i>Overvalued</span><span><i class="sq" style="background:#8fb4e6"></i>Plumbline value (median)</span></div></div></section>' +
-      '<section class="sec" id="methods"><p class="bridge">Step 4 · Each of the nine methods in detail</p><h2>How each method got its number</h2><p class="sec__lede">Select a method to see why it is used, where it works best and how its number was built from this company\'s own figures.</p><p class="swipe-hint">Swipe to see all nine methods. Tap one for the full calculation.</p><div class="mlist" id="rMethods"></div></section>' +
-      '<section class="sec" id="average"><p class="bridge">Step 5 · The methods disagree, so here\'s how one number is chosen</p><h2>How nine values become one</h2><div id="rAvgText"></div><div class="card"><div class="chart" id="rStats"></div></div><div class="avg" id="rAvg"></div></section>' +
-      '<section class="sec" id="forecast"><p class="bridge">Step 6 · The cash flow methods depend on a forecast. Here\'s what it assumes</p><h2>What the forecast assumes</h2><p class="sec__lede" id="rProjText"></p>' +
+      '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is the Plumbline value (the median of the <span class="nMeth">nine</span>) and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#4cb782"></i>Undervalued</span><span><i style="background:#c9a75a"></i>Fair</span><span><i style="background:#d66b63"></i>Overvalued</span><span><i class="sq" style="background:#8fb4e6"></i>Plumbline value (median)</span></div></div></section>' +
+      '<section class="sec" id="methods"><p class="bridge">Step 4 · Each of the <span class="nMeth">nine</span> methods in detail</p><h2>How each method got its number</h2><p class="sec__lede">Select a method to see why it is used, where it works best and how its number was built from this company\'s own figures.</p><p class="swipe-hint">Swipe to see all <span class="nMeth">nine</span> methods. Tap one for the full calculation.</p><div class="mlist" id="rMethods"></div></section>' +
+      '<section class="sec" id="average"><p class="bridge">Step 5 · The methods disagree, so here\'s how one number is chosen</p><h2>How <span class="nMeth">nine</span> values become one</h2><div id="rAvgText"></div><div class="card"><div class="chart" id="rStats"></div></div><div class="avg" id="rAvg"></div></section>' +
+      '<section class="sec" id="forecast"><p class="bridge" id="projBridge">Step 6 · The cash flow methods depend on a forecast. Here\'s what it assumes</p><h2>What the forecast assumes</h2><p class="sec__lede" id="rProjText"></p>' +
       '<div class="card tscroll"><table class="tbl tbl--proj" id="rProjTbl"></table></div>' +
-      '<p class="card__note">Free cash flow is the cash left after the company pays for its equipment and buildings. Profit excludes one-off gains. B = billion. Why does growth slow down? Very few companies can grow faster than the whole economy forever, so growth is assumed to settle at about the economy\'s long-run rate.</p>' +
+      '<p class="card__note" id="projNote">Free cash flow is the cash left after the company pays for its equipment and buildings. Profit excludes one-off gains. B = billion. Why does growth slow down? Very few companies can grow faster than the whole economy forever, so growth is assumed to settle at about the economy\'s long-run rate.</p>' +
       '<p class="jump"><a href="#settings">Think growth will be faster or slower? Try it in Assumptions →</a></p>' +
       '<details class="more" id="projMore"><summary><span>Show the full 20-year forecast</span><small>Charts of cash flow, profit and growth for every year</small></summary><div class="more__body"><div class="two"><div class="card"><div class="chart" id="rProj"></div><div class="legend" id="rProjLeg"></div></div><div class="card"><div class="chart" id="rGrow"></div><div class="legend" id="rGrowLeg"></div></div></div></div></details></section>' +
       '<section class="sec" id="settings"><p class="bridge">Step 7 · Don\'t agree with the forecast? Change it here</p><h2>Change the assumptions</h2><p class="sec__lede">The defaults follow the Excel models. Move any slider and every number on this page updates straight away. This shows how much the answer depends on each judgement call.</p><div class="card"><div class="set">' + ctl + '</div><p style="margin:16px 0 0"><button class="btn" id="reset">Reset to defaults</button></p></div></section>' +
@@ -375,7 +382,12 @@
     var inp = state.inputs, s = state.settings;
     var r = state.result = IV.compute(inp, s);
     sync();
-    if (!r.stats.n) { $("rVerdict").innerHTML = '<div class="notice notice--error"><h3>Not enough data</h3><p>None of the nine methods could be calculated for this stock.</p></div>'; renderQuality(r); return; }
+    var isFin = r.group && r.group.id === "financial";
+    document.querySelectorAll(".nMeth").forEach(function (el) { el.textContent = numWord(r.methods.length); });
+    Object.keys(NOT_FIN).forEach(function (k) { var el = $("s_" + k); if (el) el.closest(".ctl").style.display = isFin ? "none" : ""; });
+    Object.keys(ONLY_FIN).forEach(function (k) { var el = $("s_" + k); if (el) el.closest(".ctl").style.display = isFin ? "" : "none"; });
+    var pm = $("projMore"); if (pm) pm.style.display = isFin ? "none" : "";
+    if (!r.stats.n) { $("rVerdict").innerHTML = '<div class="notice notice--error"><h3>Not enough data</h3><p>None of the ' + numWord(r.methods.length) + ' methods could be calculated for this stock.</p></div>'; renderQuality(r); return; }
     renderVerdict(r, initial); renderQuality(r); renderMethods(r); renderAvg(r); renderProj(r); renderData(r);
     Charts.bars($("rBars"), r); Charts.strip($("rStats"), r, { stats: true });
     if ($("projMore") && $("projMore").open) drawProj(r);
@@ -391,10 +403,10 @@
     var qRow = q && q.ok ? '<dt>Business quality</dt><dd><a href="#quality" class="qlink" style="color:' + scoreCol(q.score) + '">' + q.grade + " · " + Math.round(q.score) + "/100</a></dd>" : "";
     var html =
       '<div class="verdict"><div class="verdict__main">' + pvHtml(r) +
-      '<p class="verdict__sum">The intrinsic value is <strong class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + (st.upside >= 0 ? " above" : " below").replace("+", "") + "</strong> the share price. " + line + " " + st.above + " of " + st.n + " methods value the stock above its price." +
+      '<p class="verdict__sum">The intrinsic value is <strong class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + (st.upside >= 0 ? " above" : " below").replace("+", "") + "</strong> the share price. " + line + " " + st.above + " of " + st.n + " methods value the stock above its price." + (r.group && r.group.id === "financial" ? " Valued as a " + esc(r.group.label.toLowerCase()) + ", with the methods built for banks and insurers." : "") +
       (st.n < r.methods.length ? " " + (r.methods.length - st.n) + " method(s) could not be calculated for this stock (" + r.methods.filter(function (m) { return !fin(m.value); }).map(function (m) { return m.short; }).join(", ") + "), so the median uses the other " + st.n + "." : "") + (spread > 3 ? " The methods are far apart (" + F.usd(st.min, 0) + " to " + F.usd(st.max, 0) + "), which is why the median is used instead of a plain average." : "") + "</p></div>" +
       '<div class="verdict__side"><span class="pill pill--' + v + '"><i></i>' + v + "</span>" +
-      '<p class="verdict__rule">BUY at ' + F.spct(s.buy, 0) + ' upside or more · SELL at ' + F.spct(s.sell, 0) + ' or worse</p><dl class="kv"><dt>Upside / (downside)</dt><dd class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + "</dd><dt>Average of all nine</dt><dd>" + F.usd(st.mean) + "</dd>" +
+      '<p class="verdict__rule">BUY at ' + F.spct(s.buy, 0) + ' upside or more · SELL at ' + F.spct(s.sell, 0) + ' or worse</p><dl class="kv"><dt>Upside / (downside)</dt><dd class="' + cls(st.upside, s) + '">' + F.spct(st.upside) + "</dd><dt>Average of all " + numWord(st.n) + "</dt><dd>" + F.usd(st.mean) + "</dd>" +
       (inp.est.target ? "<dt>Analyst average target</dt><dd>" + F.usd(inp.est.target) + "</dd>" : "") + qRow + "</dl></div></div>";
     $("rVerdict").innerHTML = html;
     if (initial) countUp($("vNum"), st.median);
@@ -549,7 +561,7 @@
 
   function renderAvg(r) {
     var st = r.stats, s = r.settings;
-    $("rAvgText").innerHTML = '<p class="sec__lede">The nine methods rarely agree, so one number has to be chosen. Plumbline uses the <strong>median</strong>, which is the middle value when the nine are lined up from lowest to highest. It is the headline because a single extreme method, high or low, cannot pull it far. The mean and trimmed mean are shown so you can see how much the choice matters.</p>';
+    $("rAvgText").innerHTML = '<p class="sec__lede">The ' + numWord(r.methods.length) + ' methods rarely agree, so one number has to be chosen. Plumbline uses the <strong>median</strong>, which is the middle value when the ' + numWord(st.n) + ' values are lined up from lowest to highest. It is the headline because a single extreme method, high or low, cannot pull it far. The mean and trimmed mean are shown so you can see how much the choice matters.</p>';
     function card(t, v, p, main) {
       return '<div class="avg__c' + (main ? " is-main" : "") + '"><h3>' + t + (main ? '<span class="tag">Headline</span>' : "") + '</h3><div class="avg__n">' + F.usd(v) + '</div><p class="' + cls(v / r.inputs.price - 1, s) + '" style="font-weight:700;margin-bottom:6px">' + F.spct(v / r.inputs.price - 1) + " vs price</p><p>" + p + "</p></div>";
     }
@@ -561,6 +573,9 @@
 
   function bn(v) { return v >= 1e6 ? "$" + (v / 1e6).toFixed(1) + "T" : v >= 1e3 ? "$" + (v / 1e3).toFixed(0) + "B" : "$" + v.toFixed(0) + "M"; }
   function renderProj(r) {
+    if (r.group && r.group.id === "financial") return renderProjFin(r);
+    $("projBridge").textContent = "Step 6 · The cash flow methods depend on a forecast. Here's what it assumes";
+    $("projNote").textContent = "Free cash flow is the cash left after the company pays for its equipment and buildings. Profit excludes one-off gains. B = billion. Why does growth slow down? Very few companies can grow faster than the whole economy forever, so growth is assumed to settle at about the economy's long-run rate.";
     var P = r.proj, s = r.settings, g = r.growth, inp = r.inputs;
     var src = inp.live ? "the company's recent growth (the free data source has no analyst estimates)" : "analyst estimates";
     $("rProjText").innerHTML = "Plumbline assumes " + esc(inp.name) + "'s cash flow grows about <strong>" + F.pct(g.cf[0], 0) + "</strong> next year and <strong>" + F.pct(g.cf[1], 0) + "</strong> the year after. Growth then settles towards " + F.pct(s.g5, 0) + " a year by year 5, " + F.pct(s.g10, 0) + " by year 10 and " + F.pct(s.gT, 0) + " by year 20. " +
@@ -574,6 +589,23 @@
       row("Year 5", 5, "Fades step by step") +
       row("Year 10", 10, "Keeps fading") +
       row("Year 20", 20, "Long-run economy growth") + "</tbody>";
+  }
+  /* banks and insurers: growth comes from the profit the company keeps, not from a cash flow forecast */
+  function renderProjFin(r) {
+    var Fd = r.fin, inp = r.inputs, p = Fd.path;
+    $("projBridge").textContent = "Step 6 · The bank and insurer methods depend on a forecast. Here's what it assumes";
+    $("projNote").textContent = "Return on equity (ROE) is profit divided by the shareholders' money in the business. A bank can only grow its lending if it keeps enough of its profit as capital, so growth = ROE × share of profit kept. Whatever is not needed for growth can be paid out. B = billion.";
+    if (!p) { $("rProjText").innerHTML = "Return on equity or the payout history could not be measured for " + esc(inp.name) + ", so only the methods that use today's figures could run."; $("rProjTbl").innerHTML = ""; return; }
+    var ni = [Fd.niC], bv = [Fd.commonEq];
+    /* profit each year = ROE that year × book value at the start of the year (the same logic as the methods) */
+    for (var t = 1; t <= 10; t++) { ni.push(p.roe[t - 1] * bv[t - 1]); bv.push(bv[t - 1] * (1 + p.g[t - 1])); }
+    $("rProjText").innerHTML = esc(inp.name) + " earned an average return on equity of <strong>" + F.pct(Fd.roeN, 1) + "</strong> (" + esc(Fd.roeSrc) + ") and paid out about <strong>" + F.pct(Fd.totPay, 0) + "</strong> of its profit as dividends and buybacks. Keeping the rest lets it grow about <strong>" + F.pct(Fd.g1tot, 1) + "</strong> a year for five years. " +
+      "After that, growth fades to " + F.pct(Fd.gT, 0) + " by year 10, and ROE settles at " + F.pct(Fd.roeL, 1) + (Fd.roeN > Fd.coe ? ", halfway between today's level and the " + F.pct(Fd.coe, 1) + " cost of equity, because competition usually wears extra returns down." : ". It is not assumed to improve, because it is below the " + F.pct(Fd.coe, 1) + " cost of equity.");
+    var row = function (label, t, why) {
+      return "<tr><td>" + label + "</td><td>" + (t ? F.pct(p.g[t - 1], 1) : "–") + "</td><td>" + (t ? F.pct(p.roe[t - 1], 1) : F.pct(Fd.roeN, 1)) + "</td><td>" + (t ? F.pct(p.pay[t - 1], 0) : F.pct(Fd.totPay, 0)) + "</td><td>" + bnx(ni[t]) + "</td><td>" + bnx(bv[t]) + "</td><td>" + why + "</td></tr>";
+    };
+    $("rProjTbl").innerHTML = "<thead><tr><th>Year</th><th>Growth that year</th><th>Return on equity</th><th>Share of profit paid out</th><th>Profit</th><th>Book value</th><th>Where it comes from</th></tr></thead><tbody>" +
+      row("Today (last 12 months)", 0, "Actual figures") + row("Year 1", 1, "ROE × share kept") + row("Year 5", 5, "Same as year 1") + row("Year 10", 10, "Faded to the long run") + "</tbody>";
   }
   function bnx(v) { var a = Math.abs(v), sg = v < 0 ? "−" : ""; return sg + (a >= 1e6 ? "$" + (a / 1e6).toFixed(2) + "T" : a >= 1e3 ? "$" + (a / 1e3).toFixed(1) + "B" : "$" + a.toFixed(0) + "M"); }
   function drawProj(r) {
@@ -603,9 +635,34 @@
       row("Earnings per share excluding one-offs", F.usd(b.epsEx)) + row("Operating cash flow", F.mm(T.ocf)) + row("Capital spending", F.mm(T.capex)) + row("Free cash flow", F.mm(b.fcf)) +
       row("Cash and investments", F.mm(inp.cash)) + row("Total debt", F.mm(inp.debt)) + row("Shareholders' equity", F.mm(inp.equity)) + row("Shares outstanding", F.num(inp.shares) + " million") + "</tbody></table>";
     $("rWacc").innerHTML = '<table class="tbl"><thead><tr><th>Discount rate build</th><th></th></tr></thead><tbody>' +
-      row("Risk-free rate", F.pct(w.rf, 2)) + row("Beta", w.beta.toFixed(2)) + row("Equity risk premium", F.pct(w.erp, 2)) + row("Cost of equity = risk-free + beta × premium", F.pct(w.coe, 2)) +
+      row("Risk-free rate", F.pct(w.rf, 2)) + row("Beta", w.beta.toFixed(2)) + row("Equity risk premium", F.pct(w.erp, 2)) + row("Cost of equity = risk-free + beta × premium", F.pct(w.coeRaw, 2)) + row("Minimum cost of equity (setting)", F.pct(w.coeFloor, 2)) + row("Cost of equity used", F.pct(w.coe, 2) + (w.coe > w.coeRaw ? " (minimum applied)" : "")) +
       row("Cost of debt (risk-free + spread)", F.pct(w.kd, 2)) + row("Share of equity in funding (market value)", F.pct(w.we, 1)) + row("Tax rate", F.pct(w.tax, 1)) + row("WACC", "<strong>" + F.pct(w.wacc, 2) + "</strong>") + "</tbody></table>" +
-      '<p style="color:var(--muted);font-size:14px;margin:12px 0 0">WACC is used for the cash flow methods. The net income method uses the cost of equity.</p>';
+      '<p style="color:var(--muted);font-size:14px;margin:12px 0 0">WACC is used for the cash flow methods. The net income method uses the cost of equity.' + (r.gCapped ? " Long-run growth is capped at the risk-free rate (" + F.pct(r.settings.gT, 2) + "), because no company can outgrow the economy forever." : "") + '</p>';
+    if (r.group && r.group.id === "financial") renderDataFin(r, row);
+  }
+  /* banks and insurers: the figures behind the equity methods, and where the beta comes from */
+  function renderDataFin(r, row) {
+    var Fd = r.fin, g = r.group, w = r.wacc, inp = r.inputs;
+    $("rWacc").innerHTML = '<table class="tbl"><thead><tr><th>Cost of equity build</th><th></th></tr></thead><tbody>' +
+      row("Risk-free rate", F.pct(w.rf, 2)) + row("Industry beta (" + esc(g.betaSource) + ", Damodaran, Jan 2026)", g.rawBeta.toFixed(2)) +
+      row("Beta used (adjusted towards 1.0: 0.67 × beta + 0.33)", w.beta.toFixed(2)) + row("Equity risk premium", F.pct(w.erp, 2)) +
+      row("Cost of equity = risk-free + beta × premium", F.pct(Fd.coeRaw, 2)) + row("Minimum cost of equity (setting)", F.pct(Fd.coeFloor, 2)) +
+      row("Cost of equity used", "<strong>" + F.pct(Fd.coe, 2) + "</strong>" + (Fd.coe > Fd.coeRaw ? " (minimum applied)" : "")) + "</tbody></table>" +
+      '<p style="color:var(--muted);font-size:14px;margin:12px 0 0">Banks and insurers are valued on their equity only, so WACC is not used. A bank\'s own beta measured from its share price is often unreliable, so the average for its industry is used instead' + (fin(inp.beta) ? " (this stock's own 5-year beta: " + inp.beta.toFixed(2) + ")" : "") + '. Moving the beta slider overrides it.</p>';
+    var yrs = Fd.hist.map(function (h) { return "<th>" + esc(h.year) + "</th>"; }).join("");
+    function line(name, f) { return "<tr><td>" + name + "</td>" + Fd.hist.map(function (h) { return "<td>" + f(h) + "</td>"; }).join("") + "</tr>"; }
+    var histT = Fd.hist.length ? '<table class="tbl" style="margin-top:14px"><thead><tr><th>Year by year</th>' + yrs + "</tr></thead><tbody>" +
+      line("Profit to common shareholders", function (h) { return bnx(h.ni); }) +
+      line("Return on equity", function (h) { return F.pct(h.roe, 1); }) +
+      line("Dividends paid", function (h) { return fin(h.divs) ? bnx(h.divs) : "–"; }) +
+      line("Buybacks", function (h) { return fin(h.buybacks) ? bnx(h.buybacks) : "–"; }) + "</tbody></table>" : "";
+    $("rIn").innerHTML += '<table class="tbl" style="margin-top:14px"><thead><tr><th>Bank and insurer figures</th><th></th></tr></thead><tbody>' +
+      row("Preferred stock (taken out of book value)", F.mm(Fd.prefEq)) + row("Preferred dividends, last 12 months (taken out of profit)", F.mm(Fd.prefTTM)) +
+      row("Book value for common shareholders", F.mm(Fd.commonEq)) + row("Profit for common shareholders", F.mm(Fd.niC)) +
+      row("Return on equity, last 12 months", F.pct(Fd.roeTTM, 1)) + row("Return on equity used (" + esc(Fd.roeSrc) + ")", F.pct(Fd.roeN, 1)) +
+      row("Share of profit paid as dividends", F.pct(Fd.divPay, 0)) + row("Share paid as dividends + buybacks", F.pct(Fd.totPay, 0)) +
+      row("Cash returned, last 12 months", F.mm(Fd.returned)) + "</tbody></table>" + histT +
+      (Fd.notes.length ? '<p style="color:var(--muted);font-size:14px;margin:12px 0 0">' + Fd.notes.map(esc).join(" ") + "</p>" : "");
   }
 
   function renderRatios(r) {

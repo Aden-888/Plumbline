@@ -114,7 +114,7 @@
     }
     if (out.length < n && sq.length >= 3) {
       /* near misses, searched among the larger companies so the guesses stay sensible */
-      var top = idx.length > 4000 ? idx.slice(0, 4000) : idx, cand = [], capN = sq.length <= 4 ? 1 : 2;
+      var top = idx.length > 4000 ? idx.slice(0, 4000) : idx, cand = [], capN = sq.length <= 4 ? 1 : sq.length <= 6 ? 2 : 3; /* v2.8: longer names allow one more typo ("starbux") */
       top.forEach(function (e) {
         var d1 = up.length <= 6 ? editDist(up, e.o.ticker, 1) : 9;
         var d2 = Math.min(editDist(sq, e.first, capN), editDist(sq, e.sq.slice(0, Math.max(sq.length, e.first.length)), capN));

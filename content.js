@@ -137,6 +137,104 @@
           ];
         }
       },
+      /* ---- banks, insurers and other lenders (v2.8, following Aswath Damodaran) ---- */
+      ddm: {
+        what: "Adds up the dividends the company is expected to pay each year, then converts them into today's money. After year 10, dividends are assumed to grow at the long-run rate forever.",
+        why: "For a bank, deposits and loans are its products, so normal cash flow and debt figures are not meaningful. Dividends are one of the few cash flows to shareholders that can be measured cleanly. Growth is not a guess: it comes from the bank's own return on equity and the share of profit it keeps, plus the boost to each share from buybacks.",
+        fit: "Best for mature banks and insurers with a steady dividend history.",
+        watch: "It undervalues companies that return most of their cash through buybacks instead of dividends. The free cash flow to equity method covers that case.",
+        steps: function (r, m) {
+          var d = m.d, f = r.fin;
+          return [
+            ["Return on equity used (" + f.roeSrc + ")", F.pct(f.roeN)],
+            ["Normal earnings per share = ROE × book value per share (" + F.usd(f.bvps) + ")", F.usd(d.eps0) + " (last 12 months: " + F.usd(f.epsC) + ")"],
+            ["Share of profit paid as dividends (" + f.hist.length + "-year total)", F.pct(f.divPay, 0)],
+            ["Growth per share, years 1–5 = ROE × share kept + buyback effect (" + F.pct(f.bbYield) + ")", F.pct(f.g1div) + " a year (capped at " + F.pct(f.gMax, 0) + ")"],
+            ["Dividend per share in year 1", F.usd(d.dps1)],
+            ["Years 6–10: growth fades to " + F.pct(f.gT, 0) + ", ROE settles at " + F.pct(f.roeL), "Payout rises to " + F.pct(1 - f.gT / f.roeL, 0)],
+            ["Discount rate (cost of equity)", F.pct(f.coe, 2)],
+            ["Today's value of 10 years of dividends", F.usd(d.pv)],
+            ["Terminal value, in today's money", F.usd(d.pvTv) + " (" + F.pct(d.tvShare, 0) + " of the total)"],
+            ["Fair value per share", F.usd(m.value)]
+          ];
+        }
+      },
+      fcfe: {
+        what: "Values all the cash the company could return to shareholders each year, through dividends and buybacks, after keeping enough capital to grow.",
+        why: "Regulators make banks and insurers hold extra equity when they grow. That retained capital is their real reinvestment, in place of spending on equipment. Free cash flow to equity is profit minus that reinvestment, so it captures buybacks as well as dividends.",
+        fit: "Works well for banks and insurers that return a lot of cash through buybacks.",
+        watch: "Buybacks are lumpy from year to year, so the payout uses a multi-year total. This is the only bank method that starts from the last 12 months of profit (drifting back to the normal level over 10 years), so an unusually good or bad year moves it more than the others.",
+        steps: function (r, m) {
+          var d = m.d, f = r.fin;
+          return [
+            ["Profit for common shareholders (last 12 months)", F.mm(f.niC)],
+            ["Cash actually returned in the last 12 months (dividends + buybacks)", F.mm(f.returned)],
+            ["Share of profit returned (" + f.hist.length + "-year total)", F.pct(f.totPay, 0)],
+            ["Growth, years 1–5 = ROE " + F.pct(f.roeN) + " × share kept", F.pct(f.g1tot) + " a year"],
+            ["Cash available to shareholders in year 1 = profit × (1 − growth ÷ ROE)", F.mm(d.fcfe1)],
+            ["Years 6–10: growth fades to " + F.pct(f.gT, 0) + ", ROE settles at " + F.pct(f.roeL), ""],
+            ["Discount rate (cost of equity)", F.pct(f.coe, 2)],
+            ["Today's value of 10 years of cash to shareholders", F.mm(d.pv)],
+            ["Terminal value, in today's money", F.mm(d.pvTv) + " (" + F.pct(d.tvShare, 0) + " of the total)"],
+            ["Divided by shares outstanding (" + F.num(r.inputs.shares) + " million)", F.usd(m.value)]
+          ];
+        }
+      },
+      excess: {
+        what: "Starts with the company's book value (what it owns minus what it owes), then adds the value of earning more than shareholders require. If the company earns less, value is subtracted.",
+        why: "This is the clearest test of whether a bank or insurer creates value. A company earning a return on equity above its cost of equity deserves to trade above book value. One earning below it deserves to trade below book value.",
+        fit: "Works for every bank and insurer, including those that pay no dividend. It leans on book value, which is reliable for financial firms because most of their assets are loans and securities.",
+        watch: "Book value is only as good as the company's accounting. Large unrecognised loan losses or overvalued securities would make it too high.",
+        steps: function (r, m) {
+          var d = m.d, f = r.fin;
+          return [
+            ["Book value for common shareholders today", F.mm(d.bv0)],
+            ["Return on equity used (" + f.roeSrc + ")", F.pct(f.roeN)],
+            ["Cost of equity (the return shareholders require)", F.pct(f.coe, 2)],
+            ["Value created in year 1 = (ROE − cost of equity) × book value", F.mm(d.ex1)],
+            ["Book value grows " + F.pct(f.g1tot != null ? f.g1tot : f.g1div) + " a year from retained profit; ROE settles at " + F.pct(f.roeL) + " by year 10", ""],
+            ["Today's value of 10 years of value created", F.mm(d.pv)],
+            ["Value created after year 10, in today's money", F.mm(d.pvTv)],
+            ["Equity value = book value + value created", F.mm(d.equity)],
+            ["Divided by shares outstanding (" + F.num(r.inputs.shares) + " million)", F.usd(m.value)]
+          ];
+        }
+      },
+      jpb: {
+        what: "Works out the price-to-book ratio the company deserves from its return on equity, then applies it to book value per share.",
+        why: "A plain historical P/B ignores whether profitability has changed. This version links the multiple directly to how much the company earns on its equity compared with what shareholders require: fair P/B = (ROE − growth) ÷ (cost of equity − growth).",
+        fit: "A quick, transparent check for banks and insurers. It needs only three numbers.",
+        watch: "It assumes today's average return on equity lasts forever. That is more generous than the excess return model, which lets high returns fade.",
+        steps: function (r, m) {
+          var d = m.d, f = r.fin;
+          return [
+            ["Return on equity used (" + f.roeSrc + ")", F.pct(f.roeN)],
+            ["Cost of equity", F.pct(f.coe, 2)],
+            ["Long-run growth", F.pct(f.gT, 1)],
+            ["Fair P/B = (ROE − growth) ÷ (cost of equity − growth)", F.x(d.mult, 2)],
+            ["Today's price-to-book (for comparison)", F.x(d.current, 2)],
+            ["Book value per common share", F.usd(d.bvps)],
+            ["Fair value = fair P/B × book value per share", F.usd(m.value)]
+          ];
+        }
+      },
+      pegy: {
+        what: "Peter Lynch's PEG rule with dividends added. A fair P/E equals the growth rate plus the dividend yield, so 8% growth and a 3% yield support a P/E of 11.",
+        why: "Banks and insurers grow slowly but pay generous dividends. A plain PEG ignores dividends and would call almost every bank overvalued. Growth here comes from the company's own return on equity and payout, not from forecasts.",
+        fit: "A simple cross-check for dividend-paying financial companies.",
+        watch: "The dividend yield uses today's share price, so this value moves slightly when the price moves.",
+        steps: function (r, m) {
+          var d = m.d;
+          return [
+            ["Growth per share (ROE × share kept + buyback effect)", F.pct(d.growth)],
+            ["Dividend yield (last 12 months of dividends ÷ price)", F.pct(d.yield)],
+            ["Target PEG (setting)", r.settings.peg.toFixed(2)],
+            ["Fair P/E = (growth + yield) × target", F.x(d.fairPE, 1)],
+            ["Earnings per share for common shareholders", F.usd(d.eps)],
+            ["Fair value = fair P/E × earnings per share", F.usd(m.value)]
+          ];
+        }
+      },
       peg: {
         what: "Matches the price-to-earnings ratio to the company's expected earnings growth. A fair P/E equals the growth rate, so 15% growth supports a P/E of 15.",
         why: "This is Peter Lynch's well-known rule of thumb. It stops investors from calling a stock expensive just because its P/E is high when its profits are growing very fast.",

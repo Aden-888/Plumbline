@@ -22,6 +22,12 @@
     });
   }
   function num(x, d) { return typeof x === "number" && isFinite(x) ? x : d; }
+  /* the valuation engine (for its industry groups), in the browser or in Node */
+  function engine() {
+    if (root.IV) return root.IV;
+    try { if (typeof require === "function") return require("./engine.js"); } catch (e) {}
+    return null;
+  }
   function first(a) { return Array.isArray(a) && a.length ? a[0] : null; }
   function ok(a) { return a.filter(function (v) { return isFinite(v) && v > 0; }); }
 
@@ -57,14 +63,19 @@
       ps: rows.map(function (x) { return num(x.priceToSalesRatio, NaN); }),
       pb: rows.map(function (x) { return num(x.priceToBookRatio, NaN); })
     };
-    if (ok(hist.ps).length < 2 || ok(hist.pb).length < 2) throw new Error("Not enough valuation history for " + t + " (needs at least 2 years of ratios; recent listings often lack this).");
+    /* v2.8: price-to-book history is optional. Companies with negative equity (McDonald's, Starbucks, Hilton) have none. */
+    if (ok(hist.ps).length < 2) throw new Error("Not enough valuation history for " + t + " (needs at least 2 years of share prices and sales; recent listings often lack this).");
     hist.ps = ok(hist.ps); hist.pb = ok(hist.pb); hist.pe = hist.pe.filter(function (v) { return isFinite(v); });
 
+    var negEq = num(bs.totalStockholdersEquity, 0) < 0;
     var caveats = ["These figures were loaded automatically. The model assumes no one-off investment gains in earnings, and growth settings follow a default rule. Compare the inputs with the company's filings before you rely on the result."];
     (R.extraCaveats || []).forEach(function (c) { caveats.push(c); });
+    if (negEq) caveats.push("Shareholders' equity is negative, usually because the company has spent more on buybacks and dividends than it has earned over the years (common at McDonald's, Starbucks and Hilton). Book value means little here, so the price-to-book method is left out and return on equity cannot be measured.");
     if (fxNote) caveats.push(fxNote + " Historical ratios come straight from the data provider, so check them against another source.");
     var ind = String((p && (p.industry || "")) + " " + (p && (p.sector || ""))).toLowerCase();
-    if (/bank|insurance|reit|real estate|asset management|capital markets|mortgage/.test(ind)) caveats.push("This looks like a financial or real estate company. Cash flow and book value mean different things for these businesses, so the cash flow and price-to-book methods can be misleading. Rely most on the earnings-based methods and check the nine values carefully.");
+    var E = engine(), isFinGroup = E && E.classify ? E.classify({ industry: ind }).id === "financial" : false;
+    if (isFinGroup) caveats.unshift("This is a bank, insurer or other lender. Their cash flow and debt work differently from other companies, so Plumbline values them with methods built for financial firms (following Aswath Damodaran): dividends, cash returned to shareholders, return on equity and book value. The cash flow and sales-based methods are not used, and the discount rate uses the average beta for its industry, not the stock's own beta.");
+    else if (/bank|insurance|reit|real estate|asset management|capital markets|mortgage/.test(ind)) caveats.push("This looks like a financial or real estate company. Cash flow and book value mean different things for these businesses, so the cash flow and price-to-book methods can be misleading. Rely most on the earnings-based methods and check the nine values carefully.");
     if (annualBase) caveats.push("Your data plan does not include trailing 12-month figures, so revenue, profit and cash flow are from the last full fiscal year" + (fy ? " (" + String(fy.date).slice(0, 4) + ")" : "") + ". They may be up to a year out of date.");
 
     /* analyst estimates, or a clearly labelled fallback built from past growth */

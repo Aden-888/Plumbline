@@ -3,4 +3,5 @@ node_modules/
 
 # backtest downloads and results
 backtest-cache/
-backtest-output/
+backtest-output*/
+checkmany-output.*

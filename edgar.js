@@ -61,17 +61,20 @@ function isAnnualForm(f) { return /^10-K|^20-F|^40-F/.test(f.form || ""); }
 
 /* all facts for the first concept names that have data; a period reported under an earlier name is not repeated */
 function collect(facts, names, unit) {
-  var out = [], claimed = {};
+  var out = [], claimed = {}, claimedAnnual = {};
   names.forEach(function (n) {
     var c = facts["us-gaap"] && facts["us-gaap"][n], arr = c && c.units && c.units[unit];
     if (!arr) return;
-    var mine = {};
+    var mine = {}, mineAnnual = {};
     arr.forEach(function (f) {
-      var k = (f.start || "") + "|" + f.end;
-      if (claimed[k]) return;
-      mine[k] = 1; out.push(f);
+      var k = (f.start || "") + "|" + f.end, ann = isAnnualForm(f);
+      /* v2.8: a later name still fills a period whose annual (10-K) figure the earlier name never gave.
+         VeriSign and LyondellBasell tag quarterly profit as NetIncomeLoss but yearly profit as ProfitLoss. */
+      if (claimed[k] && (!ann || claimedAnnual[k])) return;
+      mine[k] = 1; if (ann) mineAnnual[k] = 1; out.push(f);
     });
     Object.keys(mine).forEach(function (k) { claimed[k] = 1; });
+    Object.keys(mineAnnual).forEach(function (k) { claimedAnnual[k] = 1; });
   });
   return out;
 }
@@ -141,9 +144,10 @@ var C = {
   ocf: ["NetCashProvidedByUsedInOperatingActivities", "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"],
   capex: ["PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets", "PaymentsForCapitalImprovements"],
   software: ["PaymentsToDevelopSoftware", "PaymentsForSoftware"],
-  eps: ["EarningsPerShareDiluted"],
-  dil: ["WeightedAverageNumberOfDilutedSharesOutstanding"],
-  equity: ["StockholdersEquity", "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"],
+  /* v2.8: partnerships (Energy Transfer, Enterprise Products) report per unit and "partners' capital" */
+  eps: ["EarningsPerShareDiluted", "NetIncomeLossNetOfTaxPerOutstandingLimitedPartnershipUnitDiluted"],
+  dil: ["WeightedAverageNumberOfDilutedSharesOutstanding", "WeightedAverageLimitedPartnershipUnitsOutstandingDiluted"],
+  equity: ["StockholdersEquity", "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest", "PartnersCapital", "PartnersCapitalIncludingPortionAttributableToNoncontrollingInterest"],
   cashST: ["CashCashEquivalentsAndShortTermInvestments"],
   cash: ["CashAndCashEquivalentsAtCarryingValue", "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"],
   sti: ["ShortTermInvestments", "MarketableSecuritiesCurrent", "AvailableForSaleSecuritiesDebtSecuritiesCurrent"],
@@ -168,12 +172,79 @@ var C = {
   defRev: ["ContractWithCustomerLiabilityCurrent", "DeferredRevenueCurrent"],
   /* lease obligations, counted as debt (same as stockanalysis.com) */
   opLease: ["OperatingLeaseLiability"], opLeaseC: ["OperatingLeaseLiabilityCurrent"], opLeaseNC: ["OperatingLeaseLiabilityNoncurrent"],
-  finLease: ["FinanceLeaseLiability"], finLeaseC: ["FinanceLeaseLiabilityCurrent"], finLeaseNC: ["FinanceLeaseLiabilityNoncurrent"]
+  finLease: ["FinanceLeaseLiability"], finLeaseC: ["FinanceLeaseLiabilityCurrent"], finLeaseNC: ["FinanceLeaseLiabilityNoncurrent"],
+  /* v2.8: cash returned to shareholders and preferred stock (used by the bank and insurer methods) */
+  divCommon: ["PaymentsOfDividendsCommonStock", "PaymentsOfOrdinaryDividends", "DividendsCommonStockCash", "DividendsCommonStock"],
+  divAll: ["PaymentsOfDividends"],
+  buyback: ["PaymentsForRepurchaseOfCommonStock", "PaymentsForRepurchaseOfEquity"],
+  prefDiv: ["PreferredStockDividendsIncomeStatementImpact", "DividendsPreferredStock", "DividendsPreferredStockCash", "PreferredStockDividendsAndOtherAdjustments"],
+  prefEq: ["PreferredStockValue", "PreferredStockValueOutstanding"],
+  /* banks that do not tag one revenue line: net interest income + non-interest income */
+  nii: ["InterestIncomeExpenseNet"],
+  nonii: ["NoninterestIncome"]
 };
 
+/* bank revenue built from its two parts, for periods where both are reported */
+function bankRevenue(us) {
+  var a = collect(us, C.nii, "USD"), b = collect(us, C.nonii, "USD"), by = {}, out = [];
+  b.forEach(function (f) { var k = (f.start || "") + "|" + f.end; if (!by[k] || f.filed > by[k].filed) by[k] = f; });
+  a.forEach(function (f) {
+    if (!f.start) return;
+    var g = by[f.start + "|" + f.end];
+    if (g) out.push({ start: f.start, end: f.end, val: f.val + g.val, form: f.form, filed: f.filed > g.filed ? f.filed : g.filed });
+  });
+  return out;
+}
+function latestAnnualEnd(list) { var k = Object.keys(annualMap(list)).sort(); return k.length ? k[k.length - 1] : ""; }
+
+/* ---------- figures for the bank and insurer methods ($ millions) ---------- */
+/* a cash flow item: the first list, or else the second list minus the third (e.g. all dividends minus preferred) */
+function flow(us, primary, fallback, minus) {
+  var p = collect(us, primary, "USD"), f = fallback ? collect(us, fallback, "USD") : [], m = minus ? collect(us, minus, "USD") : [];
+  var Ap = annualMap(p), Af = annualMap(f), Am = annualMap(m), tp = ttm(p), tf = ttm(f), tm = ttm(m);
+  return {
+    found: p.length > 0 || f.length > 0,
+    ttm: tp ? tp.value : (tf ? Math.max(0, tf.value - (tm ? tm.value : 0)) : null),
+    year: function (end) {
+      if (Ap[end]) return Ap[end].last.val;
+      if (Af[end]) return Math.max(0, Af[end].last.val - (Am[end] ? Am[end].last.val : 0));
+      return null;
+    }
+  };
+}
+function financialData(us, nA, eqAll, bEnd) {
+  var M = 1e6, ends = Object.keys(nA).sort().reverse().slice(0, 5).reverse();
+  var div = flow(us, C.divCommon, C.divAll, C.prefDiv), bb = flow(us, C.buyback), pd = flow(us, C.prefDiv);
+  var pe = collect(us, C.prefEq, "USD");
+  function prefAt(end, tol) { var f = instantAt(pe, end, tol); return f ? f.val : 0; }
+  function m(v) { return v == null ? null : v / M; }
+  var F = { years: [], ni: [], eqEnd: [], eqStart: [], divs: [], buybacks: [], prefDivs: [], prefEqEnd: [], prefEqStart: [] };
+  ends.forEach(function (end) {
+    var e1 = instantAt(eqAll, end, 20), yAgo = new Date(Date.parse(end) - 365 * 864e5).toISOString().slice(0, 10), e0 = instantAt(eqAll, yAgo, 45);
+    F.years.push("FY" + end.slice(0, 4));
+    F.ni.push(nA[end].last.val / M);
+    F.eqEnd.push(e1 ? e1.val / M : null);
+    F.eqStart.push(e0 ? e0.val / M : null);
+    F.divs.push(m(div.year(end)));
+    F.buybacks.push(bb.found ? m(bb.year(end)) || 0 : 0);
+    F.prefDivs.push(m(pd.year(end)) || 0);
+    F.prefEqEnd.push(prefAt(end, 20) / M);
+    F.prefEqStart.push(prefAt(yAgo, 45) / M);
+  });
+  F.ttm = { divs: m(div.ttm), buybacks: bb.found ? m(bb.ttm) || 0 : 0, prefDivs: m(pd.ttm) || 0 };
+  F.prefEqNow = prefAt(bEnd, 20) / M;
+  F.divFound = div.found; F.buybackFound = bb.found;
+  return F;
+}
+
 /* ---------- Yahoo price data ---------- */
-function yahoo(sym, range) {
-  var url = YF + "v8/finance/chart/" + encodeURIComponent(sym) + "?range=" + range + "&interval=1mo&events=split";
+/* range (e.g. "10y") with monthly bars, or opts { from: "2009-01-01", interval: "1d" } for an exact period.
+   Note: Yahoo silently returns 3-month bars for range=max with a monthly interval, so long histories should
+   ask for daily bars over an exact period instead (backtest.js does this). */
+function yahoo(sym, range, opts) {
+  opts = opts || {};
+  var span = opts.from ? "period1=" + Math.floor(Date.parse(opts.from) / 1000) + "&period2=" + Math.floor(Date.now() / 1000) : "range=" + range;
+  var url = YF + "v8/finance/chart/" + encodeURIComponent(sym) + "?" + span + "&interval=" + (opts.interval || "1mo") + "&events=split";
   return getJSON(url, BROWSER_UA, "the price data source").then(function (j) {
     var r = j && j.chart && j.chart.result && j.chart.result[0];
     if (!r || !r.timestamp) throw fail("No price data was found for " + sym + ".");
@@ -271,14 +342,35 @@ function build(t, co, facts, sub, px, mkt, today) {
   var hasUSD = ["Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax", "NetIncomeLoss", "ProfitLoss"].some(function (n) { return us["us-gaap"] && us["us-gaap"][n] && us["us-gaap"][n].units && us["us-gaap"][n].units.USD; });
   if (!hasUSD) throw fail(t + " does not file US-style (US GAAP, in dollars) financial statements with the SEC, so this free source cannot value it. Foreign companies (for example ASML) need a paid data plan or the manual entry form.");
 
-  var rev = collect(us, C.rev, "USD"), ni = collect(us, C.ni, "USD"), pretax = collect(us, C.pretax, "USD"), tax = collect(us, C.tax, "USD");
+  var rev = collect(us, C.rev, "USD"), bRev = bankRevenue(us);
+  /* many banks report net interest income and fee income but no single revenue line, or stopped using it */
+  if (bRev.length && latestAnnualEnd(bRev) > latestAnnualEnd(rev)) rev = bRev;
+  var ni = collect(us, C.ni, "USD"), pretax = collect(us, C.pretax, "USD"), tax = collect(us, C.tax, "USD");
   var ocf = collect(us, C.ocf, "USD"), capex = collect(us, C.capex, "USD"), soft = collect(us, C.software, "USD");
   var eps = collect(us, C.eps, "USD/shares"), dil = collect(us, C.dil, "shares");
+  /* v2.8: some filers tag share counts in millions by mistake (McDonald's reports 716.4 instead of 716,400,000).
+     A count far below the company's usual figure is scaled back up. */
+  var dilVals = dil.map(function (f) { return f.val; }).filter(function (v) { return v > 0; }).sort(function (a, b) { return a - b; });
+  var dilMed = dilVals.length ? dilVals[dilVals.length >> 1] : 0;
+  /* the cover-page share count is always written in full, so it is the better yardstick when it exists
+     (Nutanix tags most of its history in thousands, so its own median is in thousands too) */
+  var deiRef = facts.facts && facts.facts.dei && facts.facts.dei.EntityCommonStockSharesOutstanding && facts.facts.dei.EntityCommonStockSharesOutstanding.units && facts.facts.dei.EntityCommonStockSharesOutstanding.units.shares;
+  if (deiRef && deiRef.length) { var dv = deiRef.map(function (f) { return f.val; }).filter(function (v) { return v > 0; }).sort(function (a, b) { return a - b; }); if (dv.length) dilMed = dv[dv.length >> 1]; }
+  if (dilMed > 0) dil = dil.map(function (f) {
+    if (!(f.val > 0) || f.val * 100 > dilMed) return f;
+    var k = [1e3, 1e6].sort(function (a, b) { return Math.abs(Math.log(f.val * a / dilMed)) - Math.abs(Math.log(f.val * b / dilMed)); })[0];
+    return Object.assign({}, f, { val: f.val * k });
+  });
   var tRev = ttm(rev), tNi = ttm(ni), tOcf = ttm(ocf), tEps = ttm(eps);
   if (!tRev || !tNi) throw fail("The SEC filings for " + t + " do not contain a full year of revenue and profit yet, so it cannot be valued (recent listings often lack this).");
   if (!tOcf) throw fail("Cash flow figures are missing in the SEC filings for " + t + ".");
   var tPre = ttm(pretax), tTax = ttm(tax), tCap = ttm(capex), tSoft = ttm(soft);
   var caveats = [];
+  /* v2.8: companies that switched to foreign-style (IFRS) accounts, such as Petrobras, only have old US-style figures */
+  var lastBar = px.bars.length ? px.bars[px.bars.length - 1].t : Date.now();
+  if ((lastBar - Date.parse(tNi.end)) / 864e5 > 730) throw fail("The latest US-style (US GAAP) figures in " + t + "'s SEC filings are from " + tNi.end.slice(0, 4) + ". The company now reports in another format (often foreign companies using IFRS), so this free source cannot value it. Use the manual entry form.");
+  /* an earnings-per-share series that stopped years ago (for example after a change of share classes) is ignored */
+  if (tEps && (Date.parse(tNi.end) - Date.parse(tEps.end)) / 864e5 > 400) tEps = null;
 
   /* balance sheet at the newest date */
   var eqAll = collect(us, C.equity, "USD"), eq = latestInstant(eqAll);
@@ -324,12 +416,17 @@ function build(t, co, facts, sub, px, mkt, today) {
   var dei = facts.facts && facts.facts.dei && facts.facts.dei.EntityCommonStockSharesOutstanding && facts.facts.dei.EntityCommonStockSharesOutstanding.units && facts.facts.dei.EntityCommonStockSharesOutstanding.units.shares;
   var deiNow = dei && dei.length ? dei.slice().sort(function (a, b) { return a.end < b.end ? 1 : (a.end > b.end ? -1 : (a.filed < b.filed ? 1 : -1)); })[0] : null;
   var dilNow = null; dil.forEach(function (f) { if (!dilNow || f.end > dilNow.end || (f.end === dilNow.end && days(f.start, f.end) > days(dilNow.start, dilNow.end))) dilNow = f; });
+  /* v2.8: share figures that stopped being reported years ago are not used (KKR, Visa) */
+  if (dilNow && days(dilNow.end, tNi.end) > 400) dilNow = null;
+  if (deiNow && days(deiNow.end, tNi.end) > 400) deiNow = null;
   var shares = deiNow ? deiNow.val : null;
   if (dilNow && (!shares || shares / dilNow.val < 0.6 || shares / dilNow.val > 1.6)) {
     if (shares) caveats.push("The share count on the filing cover (" + (shares / 1e6).toFixed(0) + "M) did not match the weighted diluted count (" + (dilNow.val / 1e6).toFixed(0) + "M), which can happen with several share classes. The diluted count was used.");
     shares = dilNow.val;
   }
-  if (!shares) throw fail("The share count is missing in the SEC filings for " + t + ".");
+  if (!shares) throw fail("The SEC filings for " + t + " do not report a current share count in a form this free source can read (this happens with several share classes, as at Visa). Use the manual entry form.");
+  /* cover-page share counts, used when a year has no diluted share figure (KKR reports these by share class only) */
+  var deiList = dei || [];
 
   var price = px.meta.regularMarketPrice;
   if (!(price > 0)) throw fail("No share price was found for " + t + ".");
@@ -344,6 +441,8 @@ function build(t, co, facts, sub, px, mkt, today) {
   ends.forEach(function (end) {
     var sf = splitAfter(px.splits, end);
     var epsO = eA[end] ? eA[end].first.val : null, dilO = dA[end] ? dA[end].first.val : null;
+    if (dilO == null) { var dc = nearestInstant(deiList, end, 150); if (dc) dilO = dc.val; }
+    if (epsO == null && dilO > 0 && nA[end]) epsO = nA[end].first.val / dilO;
     var epsAdj = epsO != null ? epsO / sf : null, dilAdj = dilO != null ? dilO * sf : null;
     var revO = rA[end].first.val;
     fyRows.push({ date: end, revenue: rA[end].last.val, epsDiluted: epsAdj != null ? epsAdj : undefined, reportedCurrency: "USD" });
@@ -398,10 +497,11 @@ function build(t, co, facts, sub, px, mkt, today) {
     extraCaveats: caveats
   };
   /* the TTM EPS mixes filings from different dates, so for a recent split use net income over diluted shares instead */
-  if (!(R.incomeTTM[0].epsDiluted > 0) || recentSplit) { if (dilNow && tNi.value) R.incomeTTM[0].epsDiluted = tNi.value / dilNow.val; }
+  if (!(R.incomeTTM[0].epsDiluted > 0) || recentSplit || !tEps) { if (tNi.value) R.incomeTTM[0].epsDiluted = tNi.value / (dilNow ? dilNow.val : shares); }
   var inp = LiveData.map(t, R, today);
   inp.source = "SEC filings + Yahoo Finance";
   inp.industry = sub.sicDescription || "";
+  try { inp.fin = financialData(us, nA, eqAll, bEnd); } catch (e) { inp.fin = null; }
   try {
     inp.quality = qualityData(us, tRev, bEnd, rA, fyRows, ocf, capex, soft);
     var recv = inst(C.recv), dr = inst(C.defRev);
