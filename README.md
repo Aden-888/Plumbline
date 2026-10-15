@@ -17,6 +17,8 @@ Effect on the built-in examples: NVIDIA (growth, beta 2.2) $282.13 to $293.83; S
 
 **Testing.** The backtest uses the new rules by default; add `--lifecycle 0` to switch them off and compare. Pass marks, set before any run: (1) on the fresh test (`--fresh-test 500`), the cyclical group's average rank link must be higher with the rules than without; (2) the growth group's must not be lower; (3) the overall rank link must not fall by more than 0.01. If (1) fails, cyclical averaging should be switched off again.
 
+**Result (15 Oct 2026, 2,752 calls):** all three passed. Cyclical rank link +0.125 with the rules vs +0.106 without (better in 6 of 10 years); growth unchanged at -0.011; overall +0.065 vs +0.060. The gain came mainly from Mean P/E on cycle-average earnings (+0.03 to +0.09 for cyclicals). Modest evidence on a list already used once today, so the rules stay on and the forward track record remains the real test.
+
 ## v3.7: AI-era profile for hyperscalers
 
 Hyperscalers (Microsoft, Amazon, Alphabet, Meta, Oracle and CoreWeave) sell the computing power behind AI. They get two tweaks, both earned by business quality like the chip profile:
