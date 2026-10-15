@@ -1,1 +1,1 @@
-{"name": "plumbline", "version": "3.4.3", "private": true, "scripts": {"start": "node server.js", "backtest": "node backtest.js"}, "engines": {"node": ">=18"}}
+{"name": "plumbline", "version": "3.5.0", "private": true, "scripts": {"start": "node server.js", "backtest": "node backtest.js"}, "engines": {"node": ">=18"}}

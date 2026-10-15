@@ -225,6 +225,7 @@
     inp = Object.assign({}, inp); /* own copy, so a live price never changes the built-in figures */
     state.inputs = inp; state.quote = null; state.qcache = {}; state.range = "1y"; state.seq = (state.seq || 0) + 1;
     state.defaults = Object.assign(IV.defaultSettings(inp), inp.settings || {});
+    if (inp.settings && inp.settings.g5 != null) state.defaults.profile = null; /* hand-set growth (built-in examples) */
     state.settings = Object.assign({}, state.defaults);
     state.open = {};
     try { state.quality = QS.compute(inp); } catch (e) { state.quality = { ok: false, reason: "error" }; }
@@ -600,7 +601,8 @@
     var P = r.proj, s = r.settings, g = r.growth, inp = r.inputs;
     var src = inp.live ? "the company's recent growth (the free data source has no analyst estimates)" : "analyst estimates";
     $("rProjText").innerHTML = "Plumbline assumes " + esc(inp.name) + "'s cash flow grows about <strong>" + F.pct(g.cf[0], 0) + "</strong> next year and <strong>" + F.pct(g.cf[1], 0) + "</strong> the year after. Growth then settles towards " + F.pct(s.g5, 0) + " a year by year 5, " + F.pct(s.g10, 0) + " by year 10 and " + F.pct(s.gT, 0) + " by year 20. " +
-      "On that path, free cash flow would grow from " + F.mm(P.fcf[0]) + " today to about " + F.mm(P.fcf[10]) + " in year 10. The first two years come from " + src + ".";
+      "On that path, free cash flow would grow from " + F.mm(P.fcf[0]) + " today to about " + F.mm(P.fcf[10]) + " in year 10. The first two years come from " + src + "." +
+      (r.sector && r.sector.id === "aiSemi" ? " <span class=\"projai\">As a semiconductor company, it uses Plumbline's <strong>AI-era growth profile</strong>: year-5 growth lifted towards " + F.pct(r.sector.g5Min, 0) + " (never more than " + F.pct(r.sector.lift, 0) + " above the near-term rate) and a slower fade to year 10, reflecting AI data-centre demand. The discount rate and long-run growth are unchanged, so the value still comes from the cash the business generates. Move the growth sliders in Assumptions to test a weaker cycle.</span>" : "");
     var row = function (label, t, why) {
       return "<tr><td>" + label + "</td><td>" + (t ? F.pct(P.gCF[t - 1], 1) : "–") + "</td><td>" + bnx(P.fcf[t]) + "</td><td>" + bnx(P.ni[t]) + "</td><td>" + why + "</td></tr>";
     };
@@ -645,7 +647,9 @@
 
   function renderData(r) {
     var inp = r.inputs, T = inp.ttm, b = r.base, w = r.wacc;
-    var all = inp.caveats || [], li = function (c) { return "<li>" + esc(c) + "</li>"; };
+    var all = (inp.caveats || []).slice(), li;
+    if (r.sector && r.sector.id === "aiSemi") all.splice(1, 0, "Semiconductor company: the growth assumptions use the AI-era profile (year-5 growth lifted towards " + F.pct(r.sector.g5Min, 0) + " and a slower fade to year 10). This is a forward-looking judgement about AI demand, not something the backtest could test, and chip demand has always moved in cycles. If the cycle turns, the cash-flow values will be too high.");
+    li = function (c) { return "<li>" + esc(c) + "</li>"; };
     var wasOpen = $("cavMore") && $("cavMore").open;
     $("rCav").innerHTML = '<p class="sec__lede">The most important notes about this result. Every model rests on data and assumptions that can be wrong.</p><p class="srcline">Data: ' + esc(inp.source || (inp.manual ? "entered by you" : inp.live ? "live data provider" : "checked built-in figures")) + (inp.ttmEnd ? " · Financials to " + esc(inp.ttmEnd) : "") + (inp.asOf ? " · Price as of " + esc(inp.asOf) : "") + '</p><ul class="cav">' + all.slice(0, 3).map(li).join("") + "</ul>" +
       (all.length > 3 ? '<details class="qmore" id="cavMore"' + (wasOpen ? " open" : "") + '><summary>Show ' + (all.length - 3) + " more note" + (all.length - 3 === 1 ? "" : "s") + '</summary><ul class="cav" style="margin-top:10px">' + all.slice(3).map(li).join("") + "</ul></details>" : "");

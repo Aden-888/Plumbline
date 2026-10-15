@@ -236,7 +236,7 @@ async function main() {
         if (!(p.meta.regularMarketPrice > 0)) throw new Error("no share price on this date (not yet listed?)");
         var label = D.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
         var inp = Edgar._build(co.ticker, co, f, raw.sub, p, m, label);
-        var s = Object.assign(IV.defaultSettings(inp), inp.settings || {});
+        var s = Object.assign(IV.defaultSettings(inp, { noProfile: true }), inp.settings || {});
         var tb = tnx && barBefore(tnx.bars, D);
         if (tb && tb.close > 0.05 && tb.close < 15) s.rf = tb.close / 100; else row.note = "10-year yield not found, 5% used";
         if (arg("floor", null) != null) s.coeFloor = +arg("floor");

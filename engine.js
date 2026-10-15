@@ -68,14 +68,43 @@
     return { id: "mature", label: "Mature", why: cagr != null ? "revenue grew " + (cagr * 100).toFixed(0) + "% a year" : "steady business", cagr: cagr };
   }
 
-  /* Default settings. Anything the user can change on the site lives here. */
-  function defaultSettings(inp) {
+  /* ---------- sector growth profile (v3.5): AI-era semiconductors ----------
+     Chip designers, makers and the equipment makers that supply them. AI data centres have lifted the industry's
+     expected growth: McKinsey (Oct 2026) puts chip revenue growth at about 19% a year to 2030, against a 9%
+     average in 2014-2024. Plumbline takes a middle path rather than the boom-time number:
+       - year-5 growth keeps more of the near-term rate (95% instead of 85%), and is lifted towards 12% for slower
+         growers, but never by more than 4 points above the near-term rate (and only when growth is expected at
+         all). Still capped at 25%;
+       - growth then fades more slowly (year 10 keeps 65% of the year-5 rate instead of 50%).
+     The discount rate, the long-run growth rate (3%, never above the risk-free rate) and every multiple-based
+     method are unchanged, so the value still rests on the cash the company can generate.
+     Not used in the backtest: the AI demand cycle did not exist for most of the 2010s, so applying it to past
+     dates would be hindsight. */
+  var SEMI_RE = /semiconductor/;
+  var SEMI_TICKERS = { NVDA: 1, AMD: 1, AVGO: 1, LRCX: 1, KLAC: 1, AMAT: 1, ASML: 1, TER: 1, ONTO: 1, ENTG: 1, MKSI: 1, ACLS: 1, FORM: 1, COHU: 1, NVMI: 1, CAMT: 1, KLIC: 1, VECO: 1, UCTT: 1, ICHR: 1, AEHR: 1, PLAB: 1, AMKR: 1 };
+  var SEMI = { g5Min: 0.12, lift: 0.04, keep5: 0.95, keep10: 0.65, cap: 0.25 };
+  function sectorProfile(inp) {
+    if (classify(inp).id === "financial") return null;
+    var ind = String((inp.industry || "") + " " + (inp.sector || "")).toLowerCase();
+    if (!SEMI_RE.test(ind) && !SEMI_TICKERS[String(inp.ticker || "").toUpperCase()]) return null;
+    return { id: "aiSemi", label: "AI-era semiconductor", g5Min: SEMI.g5Min, lift: SEMI.lift, keep5: SEMI.keep5, keep10: SEMI.keep10 };
+  }
+
+  /* Default settings. Anything the user can change on the site lives here.
+     opt.noProfile: skip sector growth profiles (the backtest uses this). */
+  function defaultSettings(inp, opt) {
     var g2 = inp.est ? growthPath(inp).cf[1] : 0.05;
     var gT = 0.03;
+    var sp = opt && opt.noProfile ? null : sectorProfile(inp);
     var g5 = Math.min(0.25, Math.max(gT, 0.85 * g2));
     var g10 = Math.max(gT, 0.5 * g5);
+    if (sp) {
+      g5 = Math.min(SEMI.cap, Math.max(gT, sp.keep5 * g2, g2 > 0 ? Math.min(sp.g5Min, g2 + sp.lift) : gT));
+      g10 = Math.max(gT, sp.keep10 * g5);
+    }
     var grp = classify(inp);
     return {
+      profile: sp ? sp.id : null,
       rf: 0.05, erp: 0.05, spread: 0.006, beta: grp.id === "financial" ? grp.beta : fin(inp.beta) ? inp.beta : 1,
       g5: g5, g10: g10, gT: gT,
       peg: 1, psg: 0.1, peCap: 100,
@@ -168,6 +197,7 @@
 
     var grp = out.group = classify(inp);
     out.type = companyType(inp);
+    out.sector = s.profile ? sectorProfile(inp) : null;
     var H = inp.hist;
     var pb = avg(H.pb);
     var peKeep = H.pe.filter(function (x) { return fin(x) && x > 0 && x <= s.peCap; });
@@ -385,7 +415,7 @@
     function sum(a) { return a.reduce(function (p, q) { return p + q; }, 0); }
   }
 
-  var api = { compute: compute, defaultSettings: defaultSettings, classify: classify, companyType: companyType, growthPath: growthPath, avg: avg, median: median, fin: fin, FIN_BETAS: FIN_BETAS };
+  var api = { compute: compute, defaultSettings: defaultSettings, sectorProfile: sectorProfile, classify: classify, companyType: companyType, growthPath: growthPath, avg: avg, median: median, fin: fin, FIN_BETAS: FIN_BETAS };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.IV = api;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -1,5 +1,20 @@
 # Plumbline v3.3: stock intrinsic value and business quality
 
+## v3.5: AI-era growth profile for semiconductor companies
+
+Chip companies (SEC industry "semiconductors", plus the main chip-equipment makers such as Lam Research, KLA and ASML) now get a more favourable growth path in the cash-flow methods. AI data-centre demand has lifted the industry's outlook: McKinsey (October 2026) expects chip revenue to grow about 19% a year to 2030, against a 9% average in 2014-2024. Plumbline takes a middle path rather than the boom-time number.
+
+| Setting | Other companies | Semiconductors (v3.5) |
+|---|---|---|
+| Growth by year 5 | 85% of next year's growth rate | 95% of it, lifted towards 12% for slower growers (never more than 4 points above the near-term rate) |
+| Growth by year 10 | Half the year-5 rate | 65% of the year-5 rate (a slower fade) |
+| Cap on year-5 growth | 25% | 25% (unchanged) |
+| Long-run growth, discount rate, multiples | Unchanged | Unchanged |
+
+Because only the growth path changes, the value still comes from the cash the business is expected to generate. Example (NVIDIA example data, default rule): year-10 growth rises from 12.5% to 16.3%, and the fair-value median moves from $301.72 to $334.34. A company whose growth is expected to fall gets no lift.
+
+This is a forward-looking judgement, so it is not used in the backtest (applying AI-era growth to 2015 would be hindsight). The forecast section and the notes say when it is in use, and the growth sliders in Assumptions can still be moved to test a weaker cycle.
+
 ## v3.4.1: overview tweaks
 
 - v3.4.3 clean-up: the price line shows only today's change (no clock time), the figures line up with the chart title, the verdict sits level with the chart legend on laptops, the chart's shading is lighter, and price labels no longer sit under the value or price tags.
