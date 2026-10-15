@@ -11,6 +11,7 @@
     { "src": "/api/search", "dest": "/api/search.js" },
     { "src": "/api/tickers", "dest": "/api/tickers.js" },
     { "src": "/api/quote", "dest": "/api/quote.js" },
+    { "src": "/api/profile", "dest": "/api/profile.js" },
     { "handle": "filesystem" },
     { "src": "/", "dest": "/index.html" }
   ]

@@ -953,3 +953,13 @@ a, .jump a, .m summary::after, .qmore > summary { color: var(--accent); }
 .vt li.ok i { color: var(--buy); } .vt li.no i { color: #e29a93; }
 .vt li span { display: flex; flex-direction: column; } .vt li small { color: var(--faint); font-size: 12px; }
 .vt p { margin: 0; padding: 8px 14px 12px; font-size: 12.5px; color: var(--faint); }
+
+/* v3.3: "What the company does" paragraph above the Business Quality scorecard */
+.about { max-width: 760px; margin: 6px 0 22px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-left: 2px solid var(--accent); border-radius: var(--radius); }
+.about[hidden] { display: none; }
+.about__k { margin: 0 0 6px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.about__t { margin: 0; font-size: 16px; line-height: 1.6; color: var(--text); }
+.about__src { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+.about__src a { color: var(--accent); text-decoration: none; }
+.about__src a:hover { text-decoration: underline; }
+@media (max-width: 600px) { .about { padding: 14px; } .about__t { font-size: 15px; } }

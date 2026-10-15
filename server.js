@@ -13,6 +13,7 @@ if (!KEY) {
       var c = l.match(/^\s*SEC_CONTACT\s*=\s*(.+?)\s*$/); if (c && !process.env.SEC_CONTACT) process.env.SEC_CONTACT = c[1].replace(/^["']|["']$/g, "");
       var d = l.match(/^\s*DATA_SOURCE\s*=\s*(.+?)\s*$/); if (d && !process.env.DATA_SOURCE) process.env.DATA_SOURCE = d[1].replace(/^["']|["']$/g, "");
       var w = l.match(/^\s*SITE_PASSWORD\s*=\s*(.+?)\s*$/); if (w && !process.env.SITE_PASSWORD) process.env.SITE_PASSWORD = w[1].replace(/^["']|["']$/g, "");
+      var k = l.match(/^\s*(ANTHROPIC_API_KEY|ANTHROPIC_MODEL)\s*=\s*(.+?)\s*$/); if (k && !process.env[k[1]]) process.env[k[1]] = k[2].replace(/^["']|["']$/g, ""); /* optional AI company summary */
     });
   } catch (e) {}
 }
@@ -54,6 +55,12 @@ http.createServer(function (req, res) {
     Loader.quote(qt, u.searchParams.get("range")).then(function (d) { send(res, 200, d); }, function (e) { send(res, 502, { error: e.message || "Could not load the price." }); });
     return;
   }
+  if (u.pathname === "/api/profile") {
+    var pt = String(u.searchParams.get("t") || "").toUpperCase().replace(/[^A-Z0-9.\-]/g, "").slice(0, 12);
+    if (!pt) return send(res, 400, { error: "Enter a ticker." });
+    require("./profile.js").profile(pt).then(function (d) { send(res, 200, d); }, function () { send(res, 200, { none: true }); });
+    return;
+  }
   if (u.pathname === "/api/tickers") {
     Loader.tickerList().then(function (l) { send(res, 200, l); }, function (e) { send(res, 502, { error: e.message || "Could not load the company list." }); });
     return;
@@ -81,5 +88,5 @@ http.createServer(function (req, res) {
     res.end(buf);
   });
 }).listen(PORT, function () {
-  console.log("Plumbline v3.2 is running at http://localhost:" + PORT + "\nData source: " + (SOURCE === "fmp" ? "FMP only" : "SEC filings + Yahoo prices (free), " + (KEY ? "FMP as backup" : "no key needed")) + (process.env.SEC_CONTACT ? "" : "\nTip: add SEC_CONTACT=your@email to a .env file. The SEC asks apps to identify themselves.") + (PASS ? "\nPassword protection is on." : ""));
+  console.log("Plumbline v3.3 is running at http://localhost:" + PORT + "\nData source: " + (SOURCE === "fmp" ? "FMP only" : "SEC filings + Yahoo prices (free), " + (KEY ? "FMP as backup" : "no key needed")) + (process.env.SEC_CONTACT ? "" : "\nTip: add SEC_CONTACT=your@email to a .env file. The SEC asks apps to identify themselves.") + (PASS ? "\nPassword protection is on." : ""));
 });

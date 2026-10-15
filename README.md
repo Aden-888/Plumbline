@@ -1,4 +1,10 @@
-# Plumbline v3.2: stock intrinsic value and business quality
+# Plumbline v3.3: stock intrinsic value and business quality
+
+## v3.3: "What the company does"
+- A short paragraph about the business now sits at the top of Step 2, above the Business Quality scorecard (`profile.js`, `/api/profile?t=TICKER`, cached for a week on Vercel).
+- Source: the company's English Wikipedia summary (first 3 sentences). The article is found through Wikidata using the company's SEC registration number (CIK), so it cannot pick a different company with a similar name. If Wikidata has no entry, a Wikipedia search on the name is used, and the result is only accepted if it reads like a company description. If nothing is found, the box stays hidden.
+- Optional AI summary: add the environment variable `ANTHROPIC_API_KEY` (on Vercel: Project > Settings > Environment Variables, then redeploy; locally: a line in `.env`) and Claude (`claude-haiku-5-5` by default, change with `ANTHROPIC_MODEL`) rewrites the Wikipedia text into 2-3 plain-English sentences: what the company sells, who its customers are and how it makes money, using only facts in the text. The page then says "Summarised by AI from Wikipedia" and warns that AI summaries can contain mistakes. Without a key, the Wikipedia text is shown as it is, free.
+- Wikipedia text is CC BY-SA, so the page always credits Wikipedia and links to the article.
 
 ## v3.2: banks and insurers get their own methods (following Aswath Damodaran)
 - Each company is now sorted into a group from its SEC industry label (`IV.classify` in `engine.js`). Most companies stay in the **general** group and use the same nine methods as before (NVDA $282.13 and CRM $330.49 are unchanged).

@@ -234,7 +234,7 @@
     document.title = inp.ticker + " intrinsic value | Plumbline";
     buildShell(); update(true);
     window.scrollTo({ top: 0 });
-    wirePx(); loadQuote(state.range, true);
+    wirePx(); loadQuote(state.range, true); loadProfile();
   }
   function home() {
     $("results").classList.add("hidden"); $("loading").classList.add("hidden");
@@ -298,7 +298,7 @@
       '<div class="pxc__chart" id="pxChart"><div class="pxc__skel"></div></div>' +
       '<div class="pxc__legend" aria-hidden="true"><span><i class="lk lk--px"></i>Share price</span><span><i class="lk lk--iv"></i>Intrinsic value today</span><span><i class="lk lk--buy"></i>BUY zone</span><span><i class="lk lk--sell"></i>SELL zone</span></div>' +
       '<p class="pxc__note">Hover or touch the chart to see the price on any day. The intrinsic value line is today\'s estimate, drawn across the whole period so you can see how far the price has moved around it.</p></div>' +
-      '<section class="sec" id="quality"><p class="bridge">Step 2 · Is the business behind the stock any good?</p><h2>Business quality scorecard</h2><p class="sec__lede">The valuation above says whether the stock is cheap. This scorecard says whether the business is good. It grades the company on 13 measures across three areas, using its own financial statements. Each measure scores Strong, Good or Weak, and core measures count double.</p><div id="rQuality"></div></section>' +
+      '<section class="sec" id="quality"><p class="bridge">Step 2 · Is the business behind the stock any good?</p><div class="about" id="rAbout" hidden></div><h2>Business quality scorecard</h2><p class="sec__lede">The valuation above says whether the stock is cheap. This scorecard says whether the business is good. It grades the company on 13 measures across three areas, using its own financial statements. Each measure scores Strong, Good or Weak, and core measures count double.</p><div id="rQuality"></div></section>' +
       '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is the Plumbline value (the median of the <span class="nMeth">nine</span>) and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#4cb782"></i>Undervalued</span><span><i style="background:#c9a75a"></i>Fair</span><span><i style="background:#d66b63"></i>Overvalued</span><span><i class="sq" style="background:#8fb4e6"></i>Plumbline value (median)</span></div></div></section>' +
       '<section class="sec" id="methods"><p class="bridge">Step 4 · Each of the <span class="nMeth">nine</span> methods in detail</p><h2>How each method got its number</h2><p class="sec__lede">Select a method to see why it is used, where it works best and how its number was built from this company\'s own figures.</p><p class="swipe-hint">Swipe to see all <span class="nMeth">nine</span> methods. Tap one for the full calculation.</p><div class="mlist" id="rMethods"></div></section>' +
       '<section class="sec" id="average"><p class="bridge">Step 5 · The methods disagree, so here\'s how one number is chosen</p><h2>How <span class="nMeth">nine</span> values become one</h2><div id="rAvgText"></div><div class="card"><div class="chart" id="rStats"></div></div><div class="avg" id="rAvg"></div></section>' +
@@ -432,6 +432,17 @@
       '<span class="gz gz--buy" style="width:' + pc(buyMax) + '"></span><span class="gz gz--hold" style="left:' + pc(buyMax) + ";width:calc(" + pc(sellMin) + " - " + pc(buyMax) + ')"></span><span class="gz gz--sell" style="left:' + pc(sellMin) + ';right:0"></span>' +
       '<span class="gm gm--iv" style="left:' + pc(iv) + '"><em>Value ' + F.usd(iv, 0) + '</em></span><span class="gm gm--px" style="left:' + pc(px) + '"><em>Price ' + F.usd(px, 0) + "</em></span></div>" +
       '<div class="gauge__lab"><span>BUY</span><span>HOLD</span><span>SELL</span></div></div>';
+  }
+  /* "What the company does": a short description from Wikipedia (rewritten by AI when the server has a key) */
+  function loadProfile() {
+    var inp = state.inputs, my = state.seq, el = $("rAbout");
+    if (!el || !inp || inp.manual || window.PLUMBLINE_STATIC || location.protocol.indexOf("http") !== 0) return;
+    fetch("/api/profile?t=" + encodeURIComponent(inp.ticker)).then(function (r) { return r.ok ? r.json() : null; }, function () { return null; }).then(function (d) {
+      if (my !== state.seq || !d || d.none || !d.text) return;
+      el.innerHTML = '<p class="about__k">What ' + esc(inp.name || inp.ticker) + ' does</p><p class="about__t">' + esc(d.text) + '</p>' +
+        '<p class="about__src">' + (d.ai ? "Summarised by AI from " : "From ") + '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">Wikipedia</a> (CC BY-SA)' + (d.ai ? ". AI summaries can contain mistakes." : ".") + '</p>';
+      el.hidden = false;
+    });
   }
   function loadQuote(range, first) {
     var inp = state.inputs, my = state.seq;
