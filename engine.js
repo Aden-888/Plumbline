@@ -68,43 +68,68 @@
     return { id: "mature", label: "Mature", why: cagr != null ? "revenue grew " + (cagr * 100).toFixed(0) + "% a year" : "steady business", cagr: cagr };
   }
 
-  /* ---------- sector growth profile (v3.5): AI-era semiconductors ----------
+  /* ---------- sector growth profile (v3.6): AI-era semiconductors, earned by business quality ----------
      Chip designers, makers and the equipment makers that supply them. AI data centres have lifted the industry's
      expected growth: McKinsey (Oct 2026) puts chip revenue growth at about 19% a year to 2030, against a 9%
-     average in 2014-2024. Plumbline takes a middle path rather than the boom-time number:
-       - year-5 growth keeps more of the near-term rate (95% instead of 85%), and is lifted towards 12% for slower
-         growers, but never by more than 4 points above the near-term rate (and only when growth is expected at
-         all). Still capped at 25%;
-       - growth then fades more slowly (year 10 keeps 65% of the year-5 rate instead of 50%).
-     The discount rate, the long-run growth rate (3%, never above the risk-free rate) and every multiple-based
-     method are unchanged, so the value still rests on the cash the company can generate.
-     Not used in the backtest: the AI demand cycle did not exist for most of the 2010s, so applying it to past
-     dates would be hindsight. */
+     average in 2014-2024. Plumbline gives that tailwind only to chip companies that have earned it, judged by
+     the business-quality score and positive free cash flow:
+       full  (quality A or B, score 65+): year-5 growth keeps 95% of the near-term rate, lifted towards
+             15% for slower growers but never more than 5 points above the near-term rate (cap 25%); year 10 keeps 70%
+             of the year-5 rate. Mean P/B and PSG are left out of the median: book value says little about an asset-light
+             chip designer (Damodaran), and PSG's target has no accepted standard.
+       part  (quality C, score 50-65): a smaller lift (towards 10%, at most 2 points), year 10 keeps 60%, cap 25%.
+       none  (quality D or F, negative free cash flow, shrinking sales, or no quality score): the normal rules,
+             with no tailwind at all. A weak chip company is valued like any other weak company.
+     The discount rate and the long-run growth rate (3%, never above the risk-free rate) never change.
+     Not used in the backtest: applying AI-era growth to past dates would be hindsight. */
   var SEMI_RE = /semiconductor/;
   var SEMI_TICKERS = { NVDA: 1, AMD: 1, AVGO: 1, LRCX: 1, KLAC: 1, AMAT: 1, ASML: 1, TER: 1, ONTO: 1, ENTG: 1, MKSI: 1, ACLS: 1, FORM: 1, COHU: 1, NVMI: 1, CAMT: 1, KLIC: 1, VECO: 1, UCTT: 1, ICHR: 1, AEHR: 1, PLAB: 1, AMKR: 1 };
-  var SEMI = { g5Min: 0.12, lift: 0.04, keep5: 0.95, keep10: 0.65, cap: 0.25 };
-  function sectorProfile(inp) {
-    if (classify(inp).id === "financial") return null;
+  var SEMI_TIERS = {
+    full: { id: "full", g5Min: 0.15, lift: 0.05, keep5: 0.95, keep10: 0.70, cap: 0.25, drop: { pb: "Book value says little about the value of an asset-light chip company, so this method is left out for high-quality semiconductor companies.", psg: "The PSG target has no accepted standard, so this method is left out for high-quality semiconductor companies." } },
+    part: { id: "part", g5Min: 0.10, lift: 0.02, keep5: 0.90, keep10: 0.60, cap: 0.25, drop: {} }
+  };
+  function isSemi(inp) {
+    if (classify(inp).id === "financial") return false;
     var ind = String((inp.industry || "") + " " + (inp.sector || "")).toLowerCase();
-    if (!SEMI_RE.test(ind) && !SEMI_TICKERS[String(inp.ticker || "").toUpperCase()]) return null;
-    return { id: "aiSemi", label: "AI-era semiconductor", g5Min: SEMI.g5Min, lift: SEMI.lift, keep5: SEMI.keep5, keep10: SEMI.keep10 };
+    return SEMI_RE.test(ind) || !!SEMI_TICKERS[String(inp.ticker || "").toUpperCase()];
+  }
+  function qualityOf(inp, opt) {
+    if (opt && opt.quality) return opt.quality;
+    try {
+      var Q = (typeof globalThis !== "undefined" && globalThis.QS) || (typeof require === "function" ? require("./quality.js") : null);
+      return Q ? Q.compute(inp) : null;
+    } catch (e) { return null; }
+  }
+  /* { id, tier, why, ... } for a chip company (tier null when the tailwind is not earned), or null */
+  function sectorProfile(inp, opt) {
+    if (!isSemi(inp)) return null;
+    var q = qualityOf(inp, opt), T = inp.ttm || {}, fcf = fin(T.ocf) && fin(T.capex) ? T.ocf - T.capex : null;
+    var g2 = inp.est ? growthPath(inp).cf[1] : null;
+    var base = { id: "aiSemi", label: "AI-era semiconductor", quality: q && q.ok ? { grade: q.grade, score: q.score } : null };
+    var no = function (why) { return Object.assign(base, { tier: null, why: why }); };
+    if (!q || !q.ok) return no("there is not enough data to score the business");
+    if (q.score < 50) return no("the business scores " + q.grade + " (" + Math.round(q.score) + "/100)");
+    if (!(fcf > 0)) return no("free cash flow is negative");
+    if (!(g2 > 0)) return no("sales or cash flow are expected to shrink");
+    var t = q.score >= 65 ? SEMI_TIERS.full : SEMI_TIERS.part;
+    return Object.assign({}, t, base, { tier: t.id, why: "the business scores " + q.grade + " (" + Math.round(q.score) + "/100) with positive free cash flow" });
   }
 
   /* Default settings. Anything the user can change on the site lives here.
-     opt.noProfile: skip sector growth profiles (the backtest uses this). */
+     opt.noProfile: skip sector growth profiles (the backtest uses this). opt.quality: a quality score already worked out. */
   function defaultSettings(inp, opt) {
     var g2 = inp.est ? growthPath(inp).cf[1] : 0.05;
     var gT = 0.03;
-    var sp = opt && opt.noProfile ? null : sectorProfile(inp);
+    var sp = opt && opt.noProfile ? null : sectorProfile(inp, opt);
     var g5 = Math.min(0.25, Math.max(gT, 0.85 * g2));
     var g10 = Math.max(gT, 0.5 * g5);
-    if (sp) {
-      g5 = Math.min(SEMI.cap, Math.max(gT, sp.keep5 * g2, g2 > 0 ? Math.min(sp.g5Min, g2 + sp.lift) : gT));
+    if (sp && sp.tier) {
+      g5 = Math.min(sp.cap, Math.max(gT, sp.keep5 * g2, Math.min(sp.g5Min, g2 + sp.lift)));
       g10 = Math.max(gT, sp.keep10 * g5);
     }
     var grp = classify(inp);
     return {
-      profile: sp ? sp.id : null,
+      profile: sp ? sp.id : null, profileTier: sp ? sp.tier : null,
       rf: 0.05, erp: 0.05, spread: 0.006, beta: grp.id === "financial" ? grp.beta : fin(inp.beta) ? inp.beta : 1,
       g5: g5, g10: g10, gT: gT,
       peg: 1, psg: 0.1, peCap: 100,
@@ -197,7 +222,7 @@
 
     var grp = out.group = classify(inp);
     out.type = companyType(inp);
-    out.sector = s.profile ? sectorProfile(inp) : null;
+    out.sector = s.profile ? Object.assign(sectorProfile(inp) || {}, { tier: s.profileTier || null }) : null;
     var H = inp.hist;
     var pb = avg(H.pb);
     var peKeep = H.pe.filter(function (x) { return fin(x) && x > 0 && x <= s.peCap; });
@@ -256,6 +281,11 @@
 
     /* ---- averages and verdict ---- */
     function finish() {
+      /* v3.6: high-quality chip companies leave out the methods that do not fit them (see sectorProfile) */
+      if (s.profile === "aiSemi" && s.profileTier && SEMI_TIERS[s.profileTier]) {
+        var drop = SEMI_TIERS[s.profileTier].drop;
+        out.methods.forEach(function (x) { if (drop[x.id] && fin(x.value)) { x.left = x.value; x.value = null; x.upside = null; x.why = drop[x.id]; x.excluded = true; } });
+      }
       var vals = out.methods.filter(function (x) { return fin(x.value); }).map(function (x) { return x.value; });
       var sorted = vals.slice().sort(function (x, y) { return x - y; });
       var stats = { n: vals.length };

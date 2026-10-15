@@ -1,5 +1,17 @@
 # Plumbline v3.3: stock intrinsic value and business quality
 
+## v3.6: the chip-sector tailwind is now earned by business quality
+
+v3.5 moved values only a little, because the growth lift touched just the cash-flow methods and the median of nine diluted it. v3.6 makes the AI-era profile stronger for good chip companies and switches it off completely for weak ones.
+
+| Business quality | What a semiconductor company gets |
+|---|---|
+| A or B (score 65+), positive free cash flow, growth expected | **Full profile.** Year-5 growth keeps 95% of the near-term rate, lifted towards 15% (at most 5 points above the near-term rate, cap 25%). Year-10 growth keeps 70% of the year-5 rate. Mean P/B and PSG are left out of the median: book value says little about an asset-light chip company, and PSG's target has no accepted standard. |
+| C (score 50-65), positive free cash flow, growth expected | **Partial profile.** Lift towards 10% (at most 2 points), year 10 keeps 60%. All nine methods count. |
+| D or F, negative free cash flow, shrinking sales, or no quality score | **No tailwind.** The normal rules, exactly like any other weak company. |
+
+The discount rate and long-run growth never change, so the headline still comes from cash flow. On the NVIDIA example data (quality A, 91/100) the fair-value median moves from $301.72 (normal rules) to $361.68, which is the 20-year free-cash-flow DCF itself. A C-grade chip company with the same numbers would get $329.82, and a D-grade one $301.72. The Methods list shows left-out methods struck through with the reason, and the forecast section says which tier applied and why.
+
 ## v3.5: AI-era growth profile for semiconductor companies
 
 Chip companies (SEC industry "semiconductors", plus the main chip-equipment makers such as Lam Research, KLA and ASML) now get a more favourable growth path in the cash-flow methods. AI data-centre demand has lifted the industry's outlook: McKinsey (October 2026) expects chip revenue to grow about 19% a year to 2030, against a 9% average in 2014-2024. Plumbline takes a middle path rather than the boom-time number.

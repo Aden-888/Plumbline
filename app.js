@@ -224,11 +224,11 @@
   function show(inp) {
     inp = Object.assign({}, inp); /* own copy, so a live price never changes the built-in figures */
     state.inputs = inp; state.quote = null; state.qcache = {}; state.range = "1y"; state.seq = (state.seq || 0) + 1;
-    state.defaults = Object.assign(IV.defaultSettings(inp), inp.settings || {});
-    if (inp.settings && inp.settings.g5 != null) state.defaults.profile = null; /* hand-set growth (built-in examples) */
+    try { state.quality = QS.compute(inp); } catch (e) { state.quality = { ok: false, reason: "error" }; }
+    state.defaults = Object.assign(IV.defaultSettings(inp, { quality: state.quality }), inp.settings || {});
+    if (inp.settings && inp.settings.g5 != null) { state.defaults.profile = null; state.defaults.profileTier = null; } /* hand-set growth (built-in examples) */
     state.settings = Object.assign({}, state.defaults);
     state.open = {};
-    try { state.quality = QS.compute(inp); } catch (e) { state.quality = { ok: false, reason: "error" }; }
     $("hero").classList.add("hidden"); $("loading").classList.add("hidden");
     $("barForm").classList.remove("hidden"); $("barInput").value = "";
     try { history.replaceState(null, "", "?t=" + inp.ticker); } catch (e) {}
@@ -557,9 +557,9 @@
       var c = window.CONTENT.methods[m.id], ok = fin(m.value);
       var bar = ok ? '<div class="m__bar"><b style="width:' + Math.max(1, m.value / axis * 100).toFixed(1) + "%;background:" + barCol(m.upside, s) + '"></b><u style="left:' + (price / axis * 100).toFixed(1) + '%" title="Current price"></u></div>' : '<span class="na">Not available</span>';
       var steps = ok ? c.steps(r, m).map(function (x) { return "<tr><td>" + esc(x[0]) + "</td><td>" + esc(x[1]) + "</td></tr>"; }).join("") : "";
-      return '<details class="m" data-id="' + m.id + '"' + (state.open[m.id] ? " open" : "") + '><summary><div class="m__name">' + esc(m.name) + "<small>" + esc(m.short) + '</small></div><span class="m__type">' + esc(m.type) + '</span><div class="m__barcell">' + bar + '</div><div class="m__valcell"><div class="m__val">' + (ok ? F.usd(m.value) : "n/a") + '</div><div class="m__up ' + (ok ? cls(m.upside, s) : "") + '">' + (ok ? F.spct(m.upside, 0) : "") + '</div></div><span class="m__chev" aria-hidden="true">›</span></summary>' +
+      return '<details class="m" data-id="' + m.id + '"' + (state.open[m.id] ? " open" : "") + '><summary><div class="m__name">' + esc(m.name) + "<small>" + esc(m.short) + '</small></div><span class="m__type">' + esc(m.type) + '</span><div class="m__barcell">' + bar + '</div><div class="m__valcell"><div class="m__val' + (m.excluded ? " m__val--out" : "") + '">' + (ok ? F.usd(m.value) : m.excluded ? F.usd(m.left) : "n/a") + '</div><div class="m__up ' + (ok ? cls(m.upside, s) : "") + '">' + (ok ? F.spct(m.upside, 0) : m.excluded ? "Left out" : "") + '</div></div><span class="m__chev" aria-hidden="true">›</span></summary>' +
         '<div class="m__body"><div><h4>What it is</h4><p>' + esc(c.what) + "</p><h4>Why it is used</h4><p>" + esc(c.why) + "</p><h4>Where it works best</h4><p>" + esc(c.fit) + "</p><h4>What to watch</h4><p>" + esc(c.watch) + "</p></div>" +
-        "<div><h4>How this number was built</h4>" + (ok ? '<table class="calc">' + steps + "</table>" : '<p class="na">This method could not run: ' + esc(m.why || "missing data") + ".</p>") + "</div></div></details>";
+        "<div><h4>How this number was built</h4>" + (ok ? '<table class="calc">' + steps + "</table>" : m.excluded ? '<p class="na">Left out of the median (it would have given ' + F.usd(m.left) + "). " + esc(m.why) + "</p>" : '<p class="na">This method could not run: ' + esc(m.why || "missing data") + ".</p>") + "</div></div></details>";
     }).join("");
   }
 
@@ -594,6 +594,14 @@
   }
 
   function bn(v) { return v >= 1e6 ? "$" + (v / 1e6).toFixed(1) + "T" : v >= 1e3 ? "$" + (v / 1e3).toFixed(0) + "B" : "$" + v.toFixed(0) + "M"; }
+  /* v3.6: one plain sentence on how the AI-era chip profile was applied (or why not) */
+  function semiLine(sp) {
+    if (!sp.tier) return "This is a semiconductor company, but it does not get Plumbline's AI-era growth tailwind because " + esc(sp.why) + ". A weak chip business is valued like any other weak business.";
+    var full = sp.tier === "full";
+    return "As a semiconductor company where " + esc(sp.why) + ", it gets Plumbline's <strong>" + (full ? "full" : "partial") + " AI-era growth profile</strong>: growth by year 5 is lifted towards " + F.pct(sp.g5Min, 0) + " (at most " + Math.round(sp.lift * 100) + " percentage points above the near-term rate) and fades more slowly to year 10." +
+      (full ? " Mean P/B and PSG are left out of the median, because book value and sales-growth targets say little about a high-quality chip company." : "") +
+      " The discount rate and long-run growth do not change, so the value still comes from the cash the business generates.";
+  }
   function renderProj(r) {
     if (r.group && r.group.id === "financial") return renderProjFin(r);
     $("projBridge").textContent = "Step 6 · The cash flow methods depend on a forecast. Here's what it assumes";
@@ -602,7 +610,7 @@
     var src = inp.live ? "the company's recent growth (the free data source has no analyst estimates)" : "analyst estimates";
     $("rProjText").innerHTML = "Plumbline assumes " + esc(inp.name) + "'s cash flow grows about <strong>" + F.pct(g.cf[0], 0) + "</strong> next year and <strong>" + F.pct(g.cf[1], 0) + "</strong> the year after. Growth then settles towards " + F.pct(s.g5, 0) + " a year by year 5, " + F.pct(s.g10, 0) + " by year 10 and " + F.pct(s.gT, 0) + " by year 20. " +
       "On that path, free cash flow would grow from " + F.mm(P.fcf[0]) + " today to about " + F.mm(P.fcf[10]) + " in year 10. The first two years come from " + src + "." +
-      (r.sector && r.sector.id === "aiSemi" ? " <span class=\"projai\">As a semiconductor company, it uses Plumbline's <strong>AI-era growth profile</strong>: year-5 growth lifted towards " + F.pct(r.sector.g5Min, 0) + " (never more than " + F.pct(r.sector.lift, 0) + " above the near-term rate) and a slower fade to year 10, reflecting AI data-centre demand. The discount rate and long-run growth are unchanged, so the value still comes from the cash the business generates. Move the growth sliders in Assumptions to test a weaker cycle.</span>" : "");
+      (r.sector && r.sector.id === "aiSemi" ? " <span class=\"projai\">" + semiLine(r.sector) + "</span>" : "");
     var row = function (label, t, why) {
       return "<tr><td>" + label + "</td><td>" + (t ? F.pct(P.gCF[t - 1], 1) : "–") + "</td><td>" + bnx(P.fcf[t]) + "</td><td>" + bnx(P.ni[t]) + "</td><td>" + why + "</td></tr>";
     };
@@ -648,7 +656,7 @@
   function renderData(r) {
     var inp = r.inputs, T = inp.ttm, b = r.base, w = r.wacc;
     var all = (inp.caveats || []).slice(), li;
-    if (r.sector && r.sector.id === "aiSemi") all.splice(1, 0, "Semiconductor company: the growth assumptions use the AI-era profile (year-5 growth lifted towards " + F.pct(r.sector.g5Min, 0) + " and a slower fade to year 10). This is a forward-looking judgement about AI demand, not something the backtest could test, and chip demand has always moved in cycles. If the cycle turns, the cash-flow values will be too high.");
+    if (r.sector && r.sector.id === "aiSemi") all.splice(1, 0, r.sector.tier ? "Semiconductor company with a " + (r.sector.tier === "full" ? "strong" : "fair") + " business: the growth assumptions use Plumbline's AI-era profile. This is a forward-looking judgement about AI demand that the backtest could not test, and chip demand has always moved in cycles. If the cycle turns, the cash-flow values will be too high." : "Semiconductor company, but the AI-era growth tailwind is not applied because " + r.sector.why + ". It is valued with the normal rules.");
     li = function (c) { return "<li>" + esc(c) + "</li>"; };
     var wasOpen = $("cavMore") && $("cavMore").open;
     $("rCav").innerHTML = '<p class="sec__lede">The most important notes about this result. Every model rests on data and assumptions that can be wrong.</p><p class="srcline">Data: ' + esc(inp.source || (inp.manual ? "entered by you" : inp.live ? "live data provider" : "checked built-in figures")) + (inp.ttmEnd ? " · Financials to " + esc(inp.ttmEnd) : "") + (inp.asOf ? " · Price as of " + esc(inp.asOf) : "") + '</p><ul class="cav">' + all.slice(0, 3).map(li).join("") + "</ul>" +
