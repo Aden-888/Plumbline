@@ -292,12 +292,12 @@
       '<canvas class="rain rain--res" id="rainRes" aria-hidden="true"></canvas>' +
       '<div class="wrap res">' +
       '<div class="head" id="overview"><h2>' + esc(inp.name) + ' <span class="head__tk">' + esc(inp.ticker) + '</span></h2><div class="head__meta">' + (inp.exchange ? '<span>' + esc(inp.exchange) + "</span>" : "") + '<span id="hdPrice">Price as of ' + esc(inp.asOf) + "</span></div></div>" +
-      '<p class="bridge" style="margin:18px 0 -10px">Step 1 · Calculated intrinsic value</p><div id="rVerdict"></div>' +
-      '<div class="pxc" id="pxCard"><div class="pxc__head"><div><h3>Share price vs intrinsic value</h3><p class="pxc__sub" id="pxSub">Loading price history…</p></div>' +
+      '<p class="bridge" style="margin:18px 0 -10px">Step 1 · Calculated intrinsic value</p>' +
+      '<div class="ov"><div class="ov__l" id="rVerdict"></div>' +
+      '<div class="ov__r" id="pxCard"><div class="pxc__head"><div><h3>Share price vs intrinsic value</h3><p class="pxc__sub" id="pxSub">Loading price history…</p></div>' +
       '<div class="seg" id="pxRange" role="group" aria-label="Time range"><button type="button" data-r="1mo">1M</button><button type="button" data-r="6mo">6M</button><button type="button" data-r="1y" class="on">1Y</button><button type="button" data-r="5y">5Y</button></div></div>' +
       '<div class="pxc__chart" id="pxChart"><div class="pxc__skel"></div></div>' +
-      '<div class="pxc__legend" aria-hidden="true"><span><i class="lk lk--px"></i>Share price</span><span><i class="lk lk--iv"></i>Intrinsic value today</span><span><i class="lk lk--buy"></i>BUY zone</span><span><i class="lk lk--sell"></i>SELL zone</span></div>' +
-      '<p class="pxc__note">Hover or touch the chart to see the price on any day. The intrinsic value line is today\'s estimate, drawn across the whole period so you can see how far the price has moved around it.</p></div>' +
+      '<div class="pxc__legend" aria-hidden="true"><span><i class="lk lk--px"></i>Share price</span><span><i class="lk lk--iv"></i>Intrinsic value</span><span><i class="lk lk--buy"></i>BUY zone</span><span><i class="lk lk--sell"></i>SELL zone</span></div></div></div>' +
       '<section class="sec" id="quality"><p class="bridge">Step 2 · Is the business behind the stock any good?</p><div class="about" id="rAbout" hidden></div><h2>Business quality scorecard</h2><p class="sec__lede">The valuation above says whether the stock is cheap. This scorecard says whether the business is good. It grades the company on 13 measures across three areas, using its own financial statements. Each measure scores Strong, Good or Weak, and core measures count double.</p><div id="rQuality"></div></section>' +
       '<section class="sec" id="chart"><p class="bridge">Step 3 · Now let\'s see how the estimated value was reached</p><h2>Valuation chart</h2><p class="sec__lede">Each bar is one method. The white dashed line is the Plumbline value (the median of the <span class="nMeth">nine</span>) and the green dashed line is the current share price. Bars that reach past the green line say the stock looks cheap on that method.</p><div class="card"><div class="chart" id="rBars"></div><div class="legend"><span><i style="background:#4cb782"></i>Undervalued</span><span><i style="background:#c9a75a"></i>Fair</span><span><i style="background:#d66b63"></i>Overvalued</span><span><i class="sq" style="background:#8fb4e6"></i>Plumbline value (median)</span></div></div></section>' +
       '<section class="sec" id="methods"><p class="bridge">Step 4 · Each of the <span class="nMeth">nine</span> methods in detail</p><h2>How each method got its number</h2><p class="sec__lede">Select a method to see why it is used, where it works best and how its number was built from this company\'s own figures.</p><p class="swipe-hint">Swipe to see all <span class="nMeth">nine</span> methods. Tap one for the full calculation.</p><div class="mlist" id="rMethods"></div></section>' +
@@ -388,36 +388,21 @@
     Object.keys(ONLY_FIN).forEach(function (k) { var el = $("s_" + k); if (el) el.closest(".ctl").style.display = isFin ? "" : "none"; });
     var pm = $("projMore"); if (pm) pm.style.display = isFin ? "none" : "";
     if (!r.stats.n) { $("rVerdict").innerHTML = '<div class="notice notice--error"><h3>Not enough data</h3><p>None of the ' + numWord(r.methods.length) + ' methods could be calculated for this stock.</p></div>'; renderQuality(r); return; }
-    renderVerdict(r, initial); renderQuality(r); renderMethods(r); renderAvg(r); renderProj(r); renderData(r); renderSetSum(r);
+    renderVerdict(r, initial); if (!initial) drawPx(); renderQuality(r); renderMethods(r); renderAvg(r); renderProj(r); renderData(r); renderSetSum(r);
     Charts.bars($("rBars"), r); Charts.strip($("rStats"), r, { stats: true });
     if ($("projMore") && $("projMore").open) drawProj(r);
     if (initial) { var rb = $("rBars"), rq = $("rQuality"); rb.classList.add("grow"); if (rq) rq.classList.add("grow"); setTimeout(function () { rb.classList.remove("grow"); if (rq) rq.classList.remove("grow"); }, 1600); }
   }
 
   function renderVerdict(r, initial) {
-    var st = r.stats, inp = r.inputs, s = r.settings, v = st.verdict, q = state.quality;
-    var up = st.upside, pctTxt = Math.abs(up * 100).toFixed(1) + "%";
-    var head = up >= 0 ? "Worth " + pctTxt + " more than the price" : "Worth " + pctTxt + " less than the price";
-    var why = v === "BUY" ? "That clears the " + F.spct(s.buy, 0) + " margin needed for a BUY."
-      : v === "SELL" ? "That is past the " + F.spct(s.sell, 0) + " SELL line."
-      : "That is inside the HOLD range (" + F.spct(s.sell, 0) + " to " + F.spct(s.buy, 0) + "), so the gap is too small to act on.";
-    var notes = [];
-    if (r.group && r.group.id === "financial") notes.push("Valued as a " + esc(r.group.label.toLowerCase()) + ", with the methods built for banks and insurers.");
-    if (st.n < r.methods.length) notes.push((r.methods.length - st.n) + " method(s) could not be calculated (" + r.methods.filter(function (m) { return !fin(m.value); }).map(function (m) { return m.short; }).join(", ") + "), so the value uses the other " + st.n + ".");
-    if (st.max / st.min > 3) notes.push("The methods disagree a lot (" + F.usd(st.min, 0) + " to " + F.usd(st.max, 0) + "), so Plumbline takes the middle result rather than the average, which one extreme estimate could pull off course.");
-    var qRow = q && q.ok ? '<dt>Business quality</dt><dd><a href="#quality" class="qlink">' + q.grade + " · " + Math.round(q.score) + "/100</a></dd>" : "";
-    var html =
-      '<div class="verdict verdict--' + v + '"><div class="verdict__main">' + pvHtml(r) +
-      (notes.length ? '<p class="verdict__sum">' + notes.join(" ") + "</p>" : "") + "</div>" +
-      '<div class="verdict__side"><p class="pv__k">Verdict</p>' +
-      '<div class="vhead"><span class="pill pill--' + v + '"><i></i>' + v + '</span><p class="vhead__t">' + head + '</p></div>' +
-      '<p class="vhead__why">' + why + "</p>" +
-      '<dl class="kv"><dt>Upside / (downside)</dt><dd class="' + cls(up, s) + '">' + F.spct(up) + "</dd>" +
-      "<dt>Methods above the price</dt><dd>" + st.above + " of " + st.n + "</dd>" +
-      "<dt>Range of estimates</dt><dd>" + F.usd(st.min, 0) + " – " + F.usd(st.max, 0) + "</dd>" +
-      "<dt>Average of all " + numWord(st.n) + "</dt><dd>" + F.usd(st.mean) + "</dd>" +
-      (inp.est.target ? "<dt>Analyst average target</dt><dd>" + F.usd(inp.est.target) + "</dd>" : "") + qRow + "</dl>" +
-      '<p class="verdict__rule">BUY at ' + F.spct(s.buy, 0) + " upside or more · SELL at " + F.spct(s.sell, 0) + " or worse · change these in Assumptions</p></div></div>";
+    var st = r.stats, inp = r.inputs, s = r.settings, v = st.verdict, q = state.quality, up = st.upside;
+    var head = '<b class="vc--' + v + '">' + Math.abs(up * 100).toFixed(1) + "%</b> " + (up >= 0 ? "upside" : "downside") + " to fair value";
+    var why = v === "BUY" ? "Clears the " + F.spct(s.buy, 0) + " BUY threshold"
+      : v === "SELL" ? "Beyond the " + F.spct(s.sell, 0) + " SELL threshold"
+      : "Within the HOLD band (" + F.spct(s.sell, 0) + " to " + F.spct(s.buy, 0) + ")";
+    var html = pvHtml(r) +
+      '<div class="vrow"><span class="pill pill--' + v + '"><i></i>' + v + '</span><div class="vrow__t"><p>' + head + "</p><small>" + why + "</small></div></div>" +
+      (q && q.ok ? '<a class="qrow" href="#quality"><span>Business quality</span><b>' + q.grade + ' <em>' + Math.round(q.score) + "/100</em></b></a>" : "");
     $("rVerdict").innerHTML = html;
     if (initial) countUp($("vNum"), st.median);
     var dk = $("dock");
@@ -432,15 +417,8 @@
     var qd = q && q.time ? new Date(q.time) : null, today = qd && qd.toDateString() === new Date().toDateString();
     var when = qd ? (today ? "" : qd.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", ") + qd.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "As of " + esc(inp.asOf || "");
     var sub = (chg != null ? '<span class="' + (chg >= 0 ? "pos" : "neg") + '">' + (chg >= 0 ? "+" : "−") + Math.abs(chg).toFixed(2) + " (" + (chg >= 0 ? "+" : "−") + Math.abs(chg / q.prevClose * 100).toFixed(2) + "%) today</span> · " : "") + when;
-    /* the gauge: where the price sits against the BUY, HOLD and SELL ranges around the intrinsic value */
-    var buyMax = iv / (1 + s.buy), sellMin = iv / (1 + s.sell), D = Math.max(px * 1.12, sellMin * 1.18);
-    var pc = function (v) { return Math.max(0, Math.min(100, v / D * 100)).toFixed(2) + "%"; };
     return '<div class="pv"><div class="pv__c"><p class="pv__k"><span><span class="hide-sm">Share </span>price</span>' + (q ? ' <span class="live"><i></i>Live</span>' : "") + '</p><p class="pv__v" id="pvPrice">' + F.usd(px) + '</p><p class="pv__s">' + sub + "</p></div>" +
-      '<div class="pv__c"><p class="pv__k">Intrinsic value</p><p class="pv__v pv__v--iv" id="vNum">' + F.usd(iv) + '</p><p class="pv__s">Fair value · middle of ' + st.n + " methods</p></div></div>" +
-      '<div class="gauge" role="img" aria-label="Share price ' + F.usd(px) + " against intrinsic value " + F.usd(iv) + '"><div class="gauge__bar">' +
-      '<span class="gz gz--buy" style="width:' + pc(buyMax) + '"></span><span class="gz gz--hold" style="left:' + pc(buyMax) + ";width:calc(" + pc(sellMin) + " - " + pc(buyMax) + ')"></span><span class="gz gz--sell" style="left:' + pc(sellMin) + ';right:0"></span>' +
-      '<span class="gm gm--iv" style="left:' + pc(iv) + '"><em>Value ' + F.usd(iv, 0) + '</em></span><span class="gm gm--px" style="left:' + pc(px) + '"><em>Price ' + F.usd(px, 0) + "</em></span></div>" +
-      '<div class="gauge__lab"><span>BUY</span><span>HOLD</span><span>SELL</span></div></div>';
+      '<div class="pv__c"><p class="pv__k">Intrinsic value</p><p class="pv__v pv__v--iv" id="vNum">' + F.usd(iv) + '</p><p class="pv__s">Middle of ' + st.n + " valuation methods</p></div></div>";
   }
   /* "What the company does": a short description from Wikipedia (rewritten by AI when the server has a key) */
   function loadProfile() {

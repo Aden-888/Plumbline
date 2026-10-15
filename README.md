@@ -1,5 +1,12 @@
 # Plumbline v3.3: stock intrinsic value and business quality
 
+## v3.4: one clean overview card
+
+- **Step 1 is now a single card.** The left side keeps only what most people read: the share price, the intrinsic value, the BUY/HOLD/SELL verdict with the upside (e.g. "27.5% upside to fair value · Clears the +20% BUY threshold"), and the business-quality grade, which links to the scorecard.
+- **The price chart moved into the card**, on the right, so the price history sits next to the value it is compared with. It redraws when you change the assumptions. On phones the chart sits under the summary.
+- **Removed from the overview** (all still shown further down the page): the gauge, the methods-above-the-price count, the range of estimates, the average of all methods, the analyst target and the long explanatory notes.
+- Fixed a stray empty tooltip box showing under the price chart.
+
 ## v3.3.2: a cleaner summary card and a fold-out business description
 
 - **Summary card, split in two.** The left side shows the share price, the intrinsic value and the gauge. The right side now carries the verdict: the BUY/HOLD/SELL pill, one line on how far the value is from the price, why that gives this verdict, and the key figures (methods above the price, range of estimates, average, analyst target, business quality). On phones the two halves stack.

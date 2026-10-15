@@ -1012,3 +1012,43 @@ a, .jump a, .m summary::after, .qmore > summary { color: var(--accent); }
 .verdict__sum { font-size: 13.5px; color: var(--muted); margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line-soft); max-width: none; }
 .gz--buy { background: rgba(76, 183, 130, .32); } .gz--hold { background: rgba(201, 167, 90, .26); } .gz--sell { background: rgba(214, 107, 99, .32); }
 @media (max-width: 900px) { .vhead__t { font-size: 16.5px; } .verdict__main .gauge { margin-top: 38px; } }
+
+/* v3.4: Step 1 overview. Compact summary on the left, the price chart on the right, in one card */
+.ov { display: grid; grid-template-columns: minmax(300px, .82fr) minmax(0, 1.5fr); margin-top: 22px; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; position: relative;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface)); box-shadow: var(--shadow); }
+.ov::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(143, 180, 230, .45), transparent); }
+.ov__l { padding: 30px 30px 26px; display: flex; flex-direction: column; gap: 26px; border-right: 1px solid var(--line); }
+.ov__r { padding: 24px 24px 18px; min-width: 0; background: rgba(5, 11, 20, .25); }
+.ov .pv { grid-template-columns: 1fr; gap: 22px; }
+.ov .pv__v { font-size: clamp(34px, 3.6vw, 48px); }
+.vrow { display: flex; align-items: center; gap: 14px; padding: 18px 0 0; border-top: 1px solid var(--line-soft); }
+.vrow .pill { flex: none; }
+.vrow__t p { margin: 0; font-size: 16px; font-weight: 500; color: var(--text); }
+.vrow__t b { font-weight: 700; font-family: var(--mono); font-feature-settings: "tnum" 1; }
+.vrow__t small { display: block; margin-top: 3px; font-size: 12.5px; color: var(--muted); }
+.vc--BUY { color: var(--buy); } .vc--HOLD { color: var(--hold); } .vc--SELL { color: var(--sell); }
+.qrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); font-size: 14px; text-decoration: none; transition: border-color .2s; }
+.qrow:hover { border-color: rgba(143, 180, 230, .5); }
+.qrow b { color: var(--text); font-size: 16px; font-weight: 700; }
+.qrow em { font-style: normal; font-weight: 500; color: var(--muted); font-size: 13.5px; margin-left: 4px; }
+.qrow::after { content: "→"; color: var(--faint); margin-left: -4px; }
+.ov__r .pxc__head { margin-bottom: 8px; }
+.ov__r .pxc__head h3 { font-size: 15.5px; }
+.ov__r .pxc__legend { margin-top: 8px; }
+@media (min-width: 861px) { .ov .pv { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 860px) {
+  .ov { grid-template-columns: 1fr; }
+  .ov__l { border-right: 0; border-bottom: 1px solid var(--line); padding: 22px 20px; gap: 20px; }
+  .ov__r { padding: 18px 14px 14px; }
+  .ov .pv { grid-template-columns: 1fr 1fr; gap: 16px; }
+  .ov .pv__v { font-size: clamp(28px, 8vw, 40px); }
+  .qrow { margin-top: 0; }
+}
+.pxtip[hidden] { display: none; }
+.ov { grid-template-columns: minmax(360px, .9fr) minmax(0, 1.5fr); }
+.ov .pv { gap: 18px 20px; }
+.ov .pv__v { font-size: clamp(32px, 2.8vw, 42px); }
+.vrow .pill { padding: 7px 15px; font-size: 13px; }
+.vrow__t p { font-size: 15.5px; }
+@media (max-width: 860px) { .ov { grid-template-columns: 1fr; } .ov .pv__v { font-size: clamp(28px, 8vw, 38px); } }
+.qrow b { margin-left: auto; } .qrow::after { margin-left: 2px; }
