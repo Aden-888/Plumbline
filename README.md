@@ -1,5 +1,17 @@
 # Plumbline v3.3: stock intrinsic value and business quality
 
+## v3.7: AI-era profile for hyperscalers
+
+Hyperscalers (Microsoft, Amazon, Alphabet, Meta, Oracle and CoreWeave) sell the computing power behind AI. They get two tweaks, both earned by business quality like the chip profile:
+
+| What | How it works |
+|---|---|
+| Growth tailwind | A or B quality: year-5 growth lifted towards 14% (at most 4 points above the near-term rate), year 10 keeps 70% of it. C quality: towards 10% (at most 2 points), year 10 keeps 60%. Cap stays 25%. |
+| Capital spending | They are building data centres at a record pace, so today's capex squeezes free cash flow. For the free-cash-flow methods only, capex is set halfway between today's level and the company's own six-year average capex-to-sales ratio, never below depreciation and never above today's capex. |
+| Weak or cash-burning hyperscalers | Quality D or F, or negative free cash flow even after the capex adjustment: no tweaks at all. |
+
+Operating-cash-flow, net-income and multiple-based methods are untouched, as are the discount rate and long-run growth. The loader now records each year's capex so the six-year average can be worked out. Example (test data, capex jumping from about 8% to 30% of sales, C-grade business): the fair-value median moves from $152.27 to $173.22. Not used in the backtest.
+
 ## v3.6: the chip-sector tailwind is now earned by business quality
 
 v3.5 moved values only a little, because the growth lift touched just the cash-flow methods and the median of nine diluted it. v3.6 makes the AI-era profile stronger for good chip companies and switches it off completely for weak ones.

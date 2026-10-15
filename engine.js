@@ -84,15 +84,56 @@
      Not used in the backtest: applying AI-era growth to past dates would be hindsight. */
   var SEMI_RE = /semiconductor/;
   var SEMI_TICKERS = { NVDA: 1, AMD: 1, AVGO: 1, LRCX: 1, KLAC: 1, AMAT: 1, ASML: 1, TER: 1, ONTO: 1, ENTG: 1, MKSI: 1, ACLS: 1, FORM: 1, COHU: 1, NVMI: 1, CAMT: 1, KLIC: 1, VECO: 1, UCTT: 1, ICHR: 1, AEHR: 1, PLAB: 1, AMKR: 1 };
-  var SEMI_TIERS = {
-    full: { id: "full", g5Min: 0.15, lift: 0.05, keep5: 0.95, keep10: 0.70, cap: 0.25, drop: { pb: "Book value says little about the value of an asset-light chip company, so this method is left out for high-quality semiconductor companies.", psg: "The PSG target has no accepted standard, so this method is left out for high-quality semiconductor companies." } },
-    part: { id: "part", g5Min: 0.10, lift: 0.02, keep5: 0.90, keep10: 0.60, cap: 0.25, drop: {} }
+
+  /* ---------- v3.7: hyperscalers (the big cloud and AI computing providers) ----------
+     Microsoft, Amazon, Alphabet, Meta and Oracle, plus CoreWeave. Demand for their computing power is the main
+     AI-era story, and it shows up in two ways:
+     1. Growth: the same quality-gated tailwind as chips, a little milder (towards 14% by year 5 for A/B, 10% for C).
+     2. Capital spending: they are building data centres at a record pace, so today's capex is far above what a
+        steady business needs, and free cash flow looks squeezed. For the free-cash-flow methods only, capex is set
+        halfway between today's level and the company's own six-year average capex-to-sales ratio (part of the boom
+        is growth investment, part is the new normal), never below depreciation (the cost of replacing worn-out
+        assets) and never above today's capex. The operating cash
+        flow, net income and multiple methods are untouched.
+     Weak or cash-burning hyperscalers (quality D/F, or negative cash flow even after normalising) get neither. */
+  var HYPER_TICKERS = { MSFT: 1, AMZN: 1, GOOGL: 1, GOOG: 1, META: 1, ORCL: 1, CRWV: 1 };
+
+  var PROFILES = {
+    aiSemi: { id: "aiSemi", label: "AI-era semiconductor", noun: "semiconductor company",
+      tiers: {
+        full: { g5Min: 0.15, lift: 0.05, keep5: 0.95, keep10: 0.70, cap: 0.25, drop: { pb: "Book value says little about the value of an asset-light chip company, so this method is left out for high-quality semiconductor companies.", psg: "The PSG target has no accepted standard, so this method is left out for high-quality semiconductor companies." } },
+        part: { g5Min: 0.10, lift: 0.02, keep5: 0.90, keep10: 0.60, cap: 0.25, drop: {} } } },
+    hyperscaler: { id: "hyperscaler", label: "AI-era hyperscaler", noun: "hyperscaler (large cloud and AI computing provider)", capexNorm: true,
+      tiers: {
+        full: { g5Min: 0.14, lift: 0.04, keep5: 0.95, keep10: 0.70, cap: 0.25, drop: {} },
+        part: { g5Min: 0.10, lift: 0.02, keep5: 0.90, keep10: 0.60, cap: 0.25, drop: {} } } }
   };
-  function isSemi(inp) {
-    if (classify(inp).id === "financial") return false;
+
+  function detectProfile(inp) {
+    if (classify(inp).id === "financial") return null;
+    var tk = String(inp.ticker || "").toUpperCase();
+    if (HYPER_TICKERS[tk]) return PROFILES.hyperscaler;
     var ind = String((inp.industry || "") + " " + (inp.sector || "")).toLowerCase();
-    return SEMI_RE.test(ind) || !!SEMI_TICKERS[String(inp.ticker || "").toUpperCase()];
+    if (SEMI_RE.test(ind) || SEMI_TICKERS[tk]) return PROFILES.aiSemi;
+    return null;
   }
+  function isSemi(inp) { var p = detectProfile(inp); return !!p && p.id === "aiSemi"; }
+
+  /* Capex normalised to the company's own six-year average capex-to-sales ratio (hyperscalers only).
+     Returns null when the history is too short to judge. */
+  function capexNorm(inp) {
+    var Q = inp.quality, T = inp.ttm || {};
+    if (!Q || !Q.capex || !Q.rev || !fin(T.capex) || !fin(T.rev) || !(T.rev > 0)) return null;
+    var r = [];
+    for (var i = 0; i < Q.rev.length; i++) if (fin(Q.capex[i]) && fin(Q.rev[i]) && Q.rev[i] > 0) r.push(Q.capex[i] / Q.rev[i]);
+    if (r.length < 4) return null;
+    var avgR = avg(r), da = fin(Q.da) && Q.da > 0 ? Q.da : 0;
+    /* halfway between today's capex and the six-year-average level: part of the boom is growth investment that
+       will pay back later, but part of it is the new normal for running AI data centres */
+    var used = Math.min(T.capex, Math.max(da, (avgR * T.rev + T.capex) / 2));
+    return { ttm: T.capex, used: used, ratio: avgR, ratioNow: T.capex / T.rev, da: da || null, years: r.length };
+  }
+
   function qualityOf(inp, opt) {
     if (opt && opt.quality) return opt.quality;
     try {
@@ -100,19 +141,23 @@
       return Q ? Q.compute(inp) : null;
     } catch (e) { return null; }
   }
-  /* { id, tier, why, ... } for a chip company (tier null when the tailwind is not earned), or null */
+  /* { id, label, tier, why, ... } for a profiled company (tier null when the tailwind is not earned), or null */
   function sectorProfile(inp, opt) {
-    if (!isSemi(inp)) return null;
-    var q = qualityOf(inp, opt), T = inp.ttm || {}, fcf = fin(T.ocf) && fin(T.capex) ? T.ocf - T.capex : null;
+    var P = detectProfile(inp);
+    if (!P) return null;
+    var q = qualityOf(inp, opt), T = inp.ttm || {};
+    var cn = P.capexNorm ? capexNorm(inp) : null;
+    var capUse = cn ? cn.used : T.capex;
+    var fcf = fin(T.ocf) && fin(capUse) ? T.ocf - capUse : null;
     var g2 = inp.est ? growthPath(inp).cf[1] : null;
-    var base = { id: "aiSemi", label: "AI-era semiconductor", quality: q && q.ok ? { grade: q.grade, score: q.score } : null };
+    var base = { id: P.id, label: P.label, noun: P.noun, quality: q && q.ok ? { grade: q.grade, score: q.score } : null, capex: cn };
     var no = function (why) { return Object.assign(base, { tier: null, why: why }); };
     if (!q || !q.ok) return no("there is not enough data to score the business");
     if (q.score < 50) return no("the business scores " + q.grade + " (" + Math.round(q.score) + "/100)");
-    if (!(fcf > 0)) return no("free cash flow is negative");
+    if (!(fcf > 0)) return no(cn ? "free cash flow is negative even after normalising capital spending" : "free cash flow is negative");
     if (!(g2 > 0)) return no("sales or cash flow are expected to shrink");
-    var t = q.score >= 65 ? SEMI_TIERS.full : SEMI_TIERS.part;
-    return Object.assign({}, t, base, { tier: t.id, why: "the business scores " + q.grade + " (" + Math.round(q.score) + "/100) with positive free cash flow" });
+    var t = q.score >= 65 ? "full" : "part";
+    return Object.assign({}, P.tiers[t], base, { tier: t, why: "the business scores " + q.grade + " (" + Math.round(q.score) + "/100) with positive free cash flow" });
   }
 
   /* Default settings. Anything the user can change on the site lives here.
@@ -180,7 +225,10 @@
     var epsEx = niEx / inp.dilShares;
     var salesPS = T.rev / inp.shares;
     var bookPS = inp.equity / inp.shares;
-    var fcf = T.ocf - T.capex;
+    /* v3.7: hyperscalers with an earned profile use normalised capex in the free-cash-flow methods */
+    var capexUsed = T.capex;
+    if (s.profile === "hyperscaler" && s.profileTier && s.capexNorm !== false) { var cn0 = capexNorm(inp); if (cn0) { capexUsed = cn0.used; out.capexNorm = cn0; } }
+    var fcf = T.ocf - capexUsed;
     var mcap = inp.price * inp.shares;
 
     /* ---- discount rate (CAPM + after-tax cost of debt) ---- */
@@ -282,8 +330,8 @@
     /* ---- averages and verdict ---- */
     function finish() {
       /* v3.6: high-quality chip companies leave out the methods that do not fit them (see sectorProfile) */
-      if (s.profile === "aiSemi" && s.profileTier && SEMI_TIERS[s.profileTier]) {
-        var drop = SEMI_TIERS[s.profileTier].drop;
+      if (s.profile && s.profileTier && PROFILES[s.profile] && PROFILES[s.profile].tiers[s.profileTier]) {
+        var drop = PROFILES[s.profile].tiers[s.profileTier].drop;
         out.methods.forEach(function (x) { if (drop[x.id] && fin(x.value)) { x.left = x.value; x.value = null; x.upside = null; x.why = drop[x.id]; x.excluded = true; } });
       }
       var vals = out.methods.filter(function (x) { return fin(x.value); }).map(function (x) { return x.value; });
@@ -445,7 +493,7 @@
     function sum(a) { return a.reduce(function (p, q) { return p + q; }, 0); }
   }
 
-  var api = { compute: compute, defaultSettings: defaultSettings, sectorProfile: sectorProfile, classify: classify, companyType: companyType, growthPath: growthPath, avg: avg, median: median, fin: fin, FIN_BETAS: FIN_BETAS };
+  var api = { compute: compute, defaultSettings: defaultSettings, sectorProfile: sectorProfile, capexNorm: capexNorm, classify: classify, companyType: companyType, growthPath: growthPath, avg: avg, median: median, fin: fin, FIN_BETAS: FIN_BETAS };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.IV = api;
 })(typeof window !== "undefined" ? window : globalThis);

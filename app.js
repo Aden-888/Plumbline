@@ -594,12 +594,14 @@
   }
 
   function bn(v) { return v >= 1e6 ? "$" + (v / 1e6).toFixed(1) + "T" : v >= 1e3 ? "$" + (v / 1e3).toFixed(0) + "B" : "$" + v.toFixed(0) + "M"; }
-  /* v3.6: one plain sentence on how the AI-era chip profile was applied (or why not) */
-  function semiLine(sp) {
-    if (!sp.tier) return "This is a semiconductor company, but it does not get Plumbline's AI-era growth tailwind because " + esc(sp.why) + ". A weak chip business is valued like any other weak business.";
-    var full = sp.tier === "full";
-    return "As a semiconductor company where " + esc(sp.why) + ", it gets Plumbline's <strong>" + (full ? "full" : "partial") + " AI-era growth profile</strong>: growth by year 5 is lifted towards " + F.pct(sp.g5Min, 0) + " (at most " + Math.round(sp.lift * 100) + " percentage points above the near-term rate) and fades more slowly to year 10." +
-      (full ? " Mean P/B and PSG are left out of the median, because book value and sales-growth targets say little about a high-quality chip company." : "") +
+  /* v3.6/v3.7: plain sentences on how an AI-era profile (chips or hyperscalers) was applied, or why not */
+  function semiLine(sp, r) {
+    var noun = sp.noun || "semiconductor company";
+    if (!sp.tier) return "This is a " + esc(noun) + ", but it does not get Plumbline's AI-era growth tailwind because " + esc(sp.why) + ". A weak business is valued like any other weak business.";
+    var full = sp.tier === "full", cn = r && r.capexNorm, drops = Object.keys(sp.drop || {});
+    return "As a " + esc(noun) + " where " + esc(sp.why) + ", it gets Plumbline's <strong>" + (full ? "full" : "partial") + " AI-era growth profile</strong>: growth by year 5 is lifted towards " + F.pct(sp.g5Min, 0) + " (at most " + Math.round(sp.lift * 100) + " percentage points above the near-term rate) and fades more slowly to year 10." +
+      (drops.length ? " Mean P/B and PSG are left out of the median, because book value and sales-growth targets say little about a high-quality chip company." : "") +
+      (cn ? " It is also in the middle of a data-centre building boom: capital spending is " + F.pct(cn.ratioNow, 0) + " of sales against a " + cn.years + "-year average of " + F.pct(cn.ratio, 0) + ". Part of that is growth investment that should pay back later, so the free-cash-flow methods use a level halfway between the two (" + F.mm(cn.used) + " instead of " + F.mm(cn.ttm) + " a year), never less than depreciation." : "") +
       " The discount rate and long-run growth do not change, so the value still comes from the cash the business generates.";
   }
   function renderProj(r) {
@@ -610,7 +612,7 @@
     var src = inp.live ? "the company's recent growth (the free data source has no analyst estimates)" : "analyst estimates";
     $("rProjText").innerHTML = "Plumbline assumes " + esc(inp.name) + "'s cash flow grows about <strong>" + F.pct(g.cf[0], 0) + "</strong> next year and <strong>" + F.pct(g.cf[1], 0) + "</strong> the year after. Growth then settles towards " + F.pct(s.g5, 0) + " a year by year 5, " + F.pct(s.g10, 0) + " by year 10 and " + F.pct(s.gT, 0) + " by year 20. " +
       "On that path, free cash flow would grow from " + F.mm(P.fcf[0]) + " today to about " + F.mm(P.fcf[10]) + " in year 10. The first two years come from " + src + "." +
-      (r.sector && r.sector.id === "aiSemi" ? " <span class=\"projai\">" + semiLine(r.sector) + "</span>" : "");
+      (r.sector ? " <span class=\"projai\">" + semiLine(r.sector, r) + "</span>" : "");
     var row = function (label, t, why) {
       return "<tr><td>" + label + "</td><td>" + (t ? F.pct(P.gCF[t - 1], 1) : "–") + "</td><td>" + bnx(P.fcf[t]) + "</td><td>" + bnx(P.ni[t]) + "</td><td>" + why + "</td></tr>";
     };
@@ -656,7 +658,7 @@
   function renderData(r) {
     var inp = r.inputs, T = inp.ttm, b = r.base, w = r.wacc;
     var all = (inp.caveats || []).slice(), li;
-    if (r.sector && r.sector.id === "aiSemi") all.splice(1, 0, r.sector.tier ? "Semiconductor company with a " + (r.sector.tier === "full" ? "strong" : "fair") + " business: the growth assumptions use Plumbline's AI-era profile. This is a forward-looking judgement about AI demand that the backtest could not test, and chip demand has always moved in cycles. If the cycle turns, the cash-flow values will be too high." : "Semiconductor company, but the AI-era growth tailwind is not applied because " + r.sector.why + ". It is valued with the normal rules.");
+    if (r.sector) all.splice(1, 0, r.sector.tier ? (r.sector.id === "hyperscaler" ? "Hyperscaler" : "Semiconductor company") + " with a " + (r.sector.tier === "full" ? "strong" : "fair") + " business: the growth assumptions use Plumbline's AI-era profile" + (r.capexNorm ? ", and the free-cash-flow methods use capital spending halfway between today's building-boom level and the company's six-year average" : "") + ". This is a forward-looking judgement about AI demand that the backtest could not test. If AI spending slows or the investment does not pay off, the cash-flow values will be too high." : "This is a " + r.sector.noun + ", but the AI-era tailwind is not applied because " + r.sector.why + ". It is valued with the normal rules.");
     li = function (c) { return "<li>" + esc(c) + "</li>"; };
     var wasOpen = $("cavMore") && $("cavMore").open;
     $("rCav").innerHTML = '<p class="sec__lede">The most important notes about this result. Every model rests on data and assumptions that can be wrong.</p><p class="srcline">Data: ' + esc(inp.source || (inp.manual ? "entered by you" : inp.live ? "live data provider" : "checked built-in figures")) + (inp.ttmEnd ? " · Financials to " + esc(inp.ttmEnd) : "") + (inp.asOf ? " · Price as of " + esc(inp.asOf) : "") + '</p><ul class="cav">' + all.slice(0, 3).map(li).join("") + "</ul>" +

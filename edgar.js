@@ -321,13 +321,14 @@ function qualityData(us, tRev, bEnd, rA, fyRows, ocf, capex, soft) {
   var ends = Object.keys(rA).sort().reverse().slice(0, 6).reverse();
   var ocfA = annualMap(ocf), capA = annualMap(capex), softA = annualMap(soft), retList = collect(us, C.ret, "USD");
   var epsBy = {}; fyRows.forEach(function (r) { epsBy[r.date] = r.epsDiluted; });
-  var q = { years: [], rev: [], eps: [], fcf: [], retained: [] };
+  var q = { years: [], rev: [], eps: [], fcf: [], retained: [], capex: [] };
   ends.forEach(function (end) {
     q.years.push("FY" + end.slice(0, 4));
     q.rev.push(rA[end].last.val / M);
     q.eps.push(typeof epsBy[end] === "number" ? epsBy[end] : null);
     var o = ocfA[end] ? ocfA[end].last.val : null;
     q.fcf.push(o == null ? null : (o - (capA[end] ? capA[end].last.val : 0) - (softA[end] ? softA[end].last.val : 0)) / M);
+    q.capex.push(capA[end] ? ((capA[end].last.val + (softA[end] ? softA[end].last.val : 0)) / M) : null); /* v3.7: capex history for the hyperscaler profile */
     var re = instantAt(retList, end, 20);
     q.retained.push(re ? re.val / M : null);
   });
