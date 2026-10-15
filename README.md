@@ -2,6 +2,8 @@
 
 ## v3.8.2: cash-flow value in the Assumptions read-out
 
+Why the headline stays the median (decided 15 Oct 2026): a headline that always moves with the sliders would need a blend of the cash-flow and multiple methods. On the fresh-test backtest data (2,752 calls, yearly rank link) the blends did worse than the median: median +0.065 (positive 7/10 years), 50/50 blend +0.041 (6/10), one-third cash flow +0.046 (6/10), cash-flow methods alone +0.038, multiples alone +0.057. So the median stays, and the Cash-flow value box shows the slider effect when a market multiple sits in the middle (for example Mean P/B for Sea).
+
 The read-out above the sliders now also shows the **cash-flow value** (the middle of the cash-flow methods: DCF-20, DFCF-20, DNI-20 and DFCF-Terminal, or DDM, FCFE and excess return for banks). These always respond to the discount-rate and growth sliders. The headline intrinsic value is the median of all methods, so when that median sits on a market multiple (for example Mean P/S for Microsoft) it can stay still while the cash-flow value moves.
 
 ## v3.8.1: sliders always recalculate
