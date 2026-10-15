@@ -1,5 +1,11 @@
 # Plumbline v3.3: stock intrinsic value and business quality
 
+## v3.4.1: overview tweaks
+
+- The intrinsic value label now reads "Fair-value median from 9 valuation methods".
+- A "See why" button under the two numbers jumps to the valuation chart, so people can see how the value was built.
+- Business quality now sits in the verdict block, on its own line under the upside.
+
 ## v3.4: one clean overview card
 
 - **Step 1 is now a single card.** The left side keeps only what most people read: the share price, the intrinsic value, the BUY/HOLD/SELL verdict with the upside (e.g. "27.5% upside to fair value · Clears the +20% BUY threshold"), and the business-quality grade, which links to the scorecard.

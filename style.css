@@ -1052,3 +1052,16 @@ a, .jump a, .m summary::after, .qmore > summary { color: var(--accent); }
 .vrow__t p { font-size: 15.5px; }
 @media (max-width: 860px) { .ov { grid-template-columns: 1fr; } .ov .pv__v { font-size: clamp(28px, 8vw, 38px); } }
 .qrow b { margin-left: auto; } .qrow::after { margin-left: 2px; }
+/* v3.4.1: "See why" link under the two numbers, business quality inside the verdict block */
+.ov .pv { row-gap: 0; }
+.seewhy { grid-column: 1 / -1; justify-self: start; display: inline-flex; align-items: center; gap: 8px; margin-top: 20px; padding: 8px 16px; border: 1px solid rgba(143, 180, 230, .4); border-radius: 999px;
+  font-size: 13.5px; font-weight: 600; color: var(--accent); text-decoration: none; background: rgba(143, 180, 230, .06); transition: background .2s, border-color .2s; }
+.seewhy:hover { background: rgba(143, 180, 230, .14); border-color: var(--accent); }
+.seewhy span { transition: transform .2s; } .seewhy:hover span { transform: translateX(3px); }
+.vrow { align-items: flex-start; padding-top: 22px; }
+.vrow .pill { margin-top: 2px; }
+.qline { display: inline-flex; align-items: baseline; gap: 6px; margin-top: 10px; font-size: 13.5px; color: var(--muted); text-decoration: none; border-bottom: 1px dashed transparent; }
+.qline b { color: var(--text); font-size: 14.5px; } .qline em { font-style: normal; color: var(--muted); }
+.qline::after { content: "→"; color: var(--faint); transition: transform .2s; } .qline:hover { color: var(--text); } .qline:hover::after { transform: translateX(3px); }
+.ov__l { justify-content: center; }
+.seewhy { width: fit-content; }
