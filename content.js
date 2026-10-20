@@ -2,16 +2,16 @@
    reasoning always matches what the model just calculated. */
 (function () {
   var F = {};
-  F.usd = function (x, d) { return fin(x) ? "$" + x.toLocaleString("en-US", { minimumFractionDigits: d == null ? 2 : d, maximumFractionDigits: d == null ? 2 : d }) : "n/a"; };
+  F.usd = function (x, d) { return fin(x) ? ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + x.toLocaleString("en-US", { minimumFractionDigits: d == null ? 2 : d, maximumFractionDigits: d == null ? 2 : d }) : "n/a"; };
   F.pct = function (x, d) { return fin(x) ? (x * 100).toFixed(d == null ? 1 : d) + "%" : "n/a"; };
   F.spct = function (x, d) { return fin(x) ? (x >= 0 ? "+" : "−") + Math.abs(x * 100).toFixed(d == null ? 1 : d) + "%" : "n/a"; };
   F.x = function (x, d) { return fin(x) ? x.toFixed(d == null ? 1 : d) + "x" : "n/a"; };
   F.mm = function (x) {
     if (!fin(x)) return "n/a";
     var a = Math.abs(x), s = x < 0 ? "−" : "";
-    if (a >= 1e6) return s + "$" + (a / 1e6).toFixed(2) + " trillion";
-    if (a >= 1e3) return s + "$" + (a / 1e3).toFixed(1) + " billion";
-    return s + "$" + a.toFixed(0) + " million";
+    if (a >= 1e6) return s + ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + (a / 1e6).toFixed(2) + " trillion";
+    if (a >= 1e3) return s + ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + (a / 1e3).toFixed(1) + " billion";
+    return s + ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + a.toFixed(0) + " million";
   };
   F.num = function (x, d) { return fin(x) ? x.toLocaleString("en-US", { maximumFractionDigits: d == null ? 0 : d }) : "n/a"; };
   function fin(x) { return typeof x === "number" && isFinite(x); }

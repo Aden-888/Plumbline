@@ -46,6 +46,8 @@
     if (!t) return;
     $("heroMsg").innerHTML = "";
     if (window.PRESETS[t]) return show(window.PRESETS[t]);
+    /* v3.11: an SGX code such as D05.SI goes straight to the loader */
+    if (/^[A-Z0-9]{2,5}[.\-]SI$/.test(t)) { t = t.replace("-", "."); setLoading(true, "Fetching data for " + t + "…"); loadLive(t).then(function (inp) { setLoading(false); show(inp); }).catch(function (e) { setLoading(false); fail(t, e.message || String(e)); }); return; }
     /* a company name such as "salesforce" or "nvidia" opens the same checked data as its ticker */
     var byName = presetByName(raw);
     if (byName) return show(byName);
@@ -118,13 +120,15 @@
     if (S.I || !window.SearchCore) return S.I;
     var list = SearchCore.POPULAR.map(function (o) { return { ticker: o.ticker, title: o.title }; });
     Object.keys(window.PRESETS).forEach(function (k) { if (!list.some(function (o) { return o.ticker === k; })) list.push({ ticker: k, title: window.PRESETS[k].name }); });
-    S.I = SearchCore.makeIndex(list);
+    S.I = SearchCore.makeIndex(list.concat(sgxList()));
     try { var c = JSON.parse(localStorage.getItem(TK_KEY) || "null"); if (c && c.list && c.list.length > 1000 && Date.now() - c.at < 7 * 864e5) useFull(c.list); } catch (e) {}
     return S.I;
   }
+  /* v3.11: Singapore-listed companies (sgx.js), added after the US list so a US company always ranks first */
+  function sgxList() { return window.SGX ? SGX.LIST.map(function (o) { return { ticker: o.ticker, title: o.title + " (SGX)" }; }) : []; }
   function useFull(rows) {
     var nice = niceNames();
-    S.I = SearchCore.makeIndex(rows.map(function (r) { return { ticker: r[0], title: nice[String(r[0]).toUpperCase()] || r[1] }; }));
+    S.I = SearchCore.makeIndex(rows.map(function (r) { return { ticker: r[0], title: nice[String(r[0]).toUpperCase()] || r[1] }; }).concat(sgxList()));
     S.full = true;
   }
   function loadFull() {
@@ -223,6 +227,9 @@
 
   function show(inp) {
     inp = Object.assign({}, inp); /* own copy, so a live price never changes the built-in figures */
+    /* v3.11: money is shown in the stock's own currency (S$ for SGX stocks quoted in Singapore dollars) */
+    var cur = String(inp.currency || "USD").toUpperCase();
+    globalThis.PL_CUR = cur === "SGD" ? "S$" : cur === "USD" ? "$" : cur + " ";
     state.inputs = inp; state.quote = null; state.qcache = {}; state.range = "1y"; state.seq = (state.seq || 0) + 1;
     try { state.quality = QS.compute(inp); } catch (e) { state.quality = { ok: false, reason: "error" }; }
     state.defaults = Object.assign(IV.defaultSettings(inp, { quality: state.quality }), inp.settings || {});
@@ -243,6 +250,7 @@
     closeSheet();
     try { history.replaceState(null, "", location.pathname); } catch (e) {}
     document.title = "Plumbline: what is this stock fundamentally worth?";
+    globalThis.PL_CUR = "$";
     drawHero(true); window.scrollTo({ top: 0 });
   }
 
@@ -616,7 +624,7 @@
       card("Trimmed mean", st.trimmed, "Drops the single highest and lowest values, then averages the rest.");
   }
 
-  function bn(v) { return v >= 1e6 ? "$" + (v / 1e6).toFixed(1) + "T" : v >= 1e3 ? "$" + (v / 1e3).toFixed(0) + "B" : "$" + v.toFixed(0) + "M"; }
+  function bn(v) { return v >= 1e6 ? ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + (v / 1e6).toFixed(1) + "T" : v >= 1e3 ? ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + (v / 1e3).toFixed(0) + "B" : ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + v.toFixed(0) + "M"; }
   /* v3.6/v3.7: plain sentences on how an AI-era profile (chips or hyperscalers) was applied, or why not */
   function semiLine(sp, r) {
     var noun = sp.noun || "semiconductor company";
@@ -672,7 +680,7 @@
     $("rProjTbl").innerHTML = "<thead><tr><th>Year</th><th>Growth that year</th><th>Return on equity</th><th>Share of profit paid out</th><th>Profit</th><th>Book value</th><th>Where it comes from</th></tr></thead><tbody>" +
       row("Today (last 12 months)", 0, "Actual figures") + row("Year 1", 1, "ROE × share kept") + row("Year 5", 5, "Same as year 1") + row("Year 10", 10, "Faded to the long run") + "</tbody>";
   }
-  function bnx(v) { var a = Math.abs(v), sg = v < 0 ? "−" : ""; return sg + (a >= 1e6 ? "$" + (a / 1e6).toFixed(2) + "T" : a >= 1e3 ? "$" + (a / 1e3).toFixed(1) + "B" : "$" + a.toFixed(0) + "M"); }
+  function bnx(v) { var a = Math.abs(v), sg = v < 0 ? "−" : ""; return sg + (a >= 1e6 ? ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + (a / 1e6).toFixed(2) + "T" : a >= 1e3 ? ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + (a / 1e3).toFixed(1) + "B" : ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + a.toFixed(0) + "M"); }
   function drawProj(r) {
     var P = r.proj;
     Charts.lines($("rProj"), [

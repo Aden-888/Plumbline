@@ -9,7 +9,7 @@
     return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
   }
   function dotColor(up, s) { return up >= s.buy ? C.buy : up <= s.sell ? C.sell : C.hold; }
-  function usd0(v) { return "$" + Math.round(v).toLocaleString("en-US"); }
+  function usd0(v) { return ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + Math.round(v).toLocaleString("en-US"); }
 
   /* Strip plot: every method as a dot on a dollar line, with the price and the median marked. */
   function strip(el, r, opt) {
@@ -282,7 +282,7 @@
     o.push("</svg>");
     el.innerHTML = o.join("");
   }
-  function usd2(v) { return "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function usd2(v) { return ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
   /* Quality scorecard: a ring that fills to the score, and small trend lines for yearly figures. */
   function ring(score, color) {

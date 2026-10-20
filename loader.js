@@ -2,9 +2,18 @@
    Order: free SEC filings + Yahoo prices first (almost any US company). If that fails and an FMP key
    exists, Financial Modeling Prep is tried. DATA_SOURCE=fmp forces FMP, DATA_SOURCE=edgar forces SEC + Yahoo. */
 "use strict";
-var LiveData = require("./api.js"), Edgar = require("./edgar.js");
+var LiveData = require("./api.js"), Edgar = require("./edgar.js"), SGX = require("./sgx.js");
 
 function loadAny(t) {
+  /* v3.11: Singapore stocks (D05.SI, or a listed code such as C38U) come from Yahoo Finance */
+  if (SGX.normalize(t)) return SGX.load(t);
+  return loadUS(t).catch(function (err) {
+    /* a company name that is not a US company may be an SGX one ("dbs group", "singtel") */
+    if (SGX.normalize(t, { names: true })) return SGX.load(SGX.normalize(t, { names: true }));
+    throw err;
+  });
+}
+function loadUS(t) {
   var KEY = process.env.FMP_API_KEY || "", SOURCE = (process.env.DATA_SOURCE || "auto").toLowerCase();
   if (SOURCE === "fmp") return KEY ? LiveData.load(t, KEY) : Promise.reject(new Error("DATA_SOURCE is fmp but FMP_API_KEY is not set."));
   if (SOURCE === "edgar" || !KEY) return Edgar.load(t);
