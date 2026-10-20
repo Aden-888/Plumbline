@@ -21,11 +21,11 @@
   function cents(x) { return Math.round(x * 100) + " cents"; }
   function mm(x) {
     var a = Math.abs(x), s = x < 0 ? "−" : "";
-    if (a >= 1e6) return s + "$" + (a / 1e6).toFixed(2) + " trillion";
-    if (a >= 1e3) return s + "$" + (a / 1e3).toFixed(1) + " billion";
-    return s + "$" + a.toFixed(0) + " million";
+    if (a >= 1e6) return s + ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + (a / 1e6).toFixed(2) + " trillion";
+    if (a >= 1e3) return s + ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + (a / 1e3).toFixed(1) + " billion";
+    return s + ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + a.toFixed(0) + " million";
   }
-  function usd(x) { return (x < 0 ? "−$" : "$") + Math.abs(x).toFixed(2); }
+  function usd(x) { return (x < 0 ? "−$" : ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$")) + Math.abs(x).toFixed(2); }
 
   /* Trend of a yearly list: how many years it rose, overall direction and yearly growth rate. */
   function trend(list, labels) {
@@ -211,7 +211,7 @@
      Returns null when a measure is only Good (not worth a headline) or cannot be read. */
   function headline(m) {
     if (m.level == null || m.level === 1) return null;
-    var s = m.level === 2, v = m.value, c = fin(v) ? Math.round(v * 100) + " cents" : "", x2 = fin(v) ? "$" + v.toFixed(2) : "";
+    var s = m.level === 2, v = m.value, c = fin(v) ? Math.round(v * 100) + " cents" : "", x2 = fin(v) ? ((typeof globalThis !== "undefined" && globalThis.PL_CUR) || "$") + v.toFixed(2) : "";
     switch (m.id) {
       case "roic": return s ? "Very efficient: earns " + c + " a year for every $1 invested in the business" : "Low returns: earns only " + c + " a year for every $1 invested";
       case "roe": return s ? "Strong returns for shareholders: " + m.show + " a year on their money" : "Weak returns for shareholders: " + m.show + " a year on their money";

@@ -264,7 +264,8 @@ function yahoo(sym, range, opts) {
 var QUOTE_INT = { "1mo": "1d", "6mo": "1d", "1y": "1d", "5y": "1wk" };
 function quote(sym, range) {
   range = QUOTE_INT[range] ? range : "1y";
-  var url = YF + "v8/finance/chart/" + encodeURIComponent(String(sym).toUpperCase().replace(/\./g, "-")) + "?range=" + range + "&interval=" + QUOTE_INT[range];
+  var S0 = String(sym).toUpperCase(), ysym = /\.SI$/.test(S0) ? S0 : S0.replace(/\./g, "-"); /* v3.11: keep the .SI suffix of SGX tickers */
+  var url = YF + "v8/finance/chart/" + encodeURIComponent(ysym) + "?range=" + range + "&interval=" + QUOTE_INT[range];
   return getJSON(url, BROWSER_UA, "the price data source").then(function (j) {
     var r = j && j.chart && j.chart.result && j.chart.result[0];
     if (!r || !r.timestamp) throw fail("No price data was found for " + sym + ".");
@@ -559,4 +560,4 @@ function rawCompany(co) {
   ]).then(function (r) { return { facts: r[0], sub: r[1] || {} }; });
 }
 
-module.exports = { load: load, quote: quote, rawCompany: rawCompany, yahoo: yahoo, _concepts: C, resolve: resolve, search: search, tickerList: tickerList, _setTickers: _setTickers, _build: build, _ttm: ttm, _collect: collect };
+module.exports = { getJSON: getJSON, BROWSER_UA: BROWSER_UA, load: load, quote: quote, rawCompany: rawCompany, yahoo: yahoo, _concepts: C, resolve: resolve, search: search, tickerList: tickerList, _setTickers: _setTickers, _build: build, _ttm: ttm, _collect: collect };
