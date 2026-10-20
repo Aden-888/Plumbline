@@ -168,12 +168,15 @@
      2. Equity risk premium = Plumbline's 5% US premium, adjusted by the gap between the country risk premium
         of the country the company EARNS its revenue in and the US one (Damodaran, January 2026: US 0.23%,
         Singapore 0%, Hong Kong 0.78%, China 0.91%, Malaysia 1.55%, Thailand 2.07%). US stocks stay at 5%.
-     3. The minimum cost of equity is kept 3 points above the local risk-free rate (8% for US-dollar cash flows).
+     3. The minimum cost of equity keeps the same 5-point gap above long-run growth in every currency (8% for US
+        dollars, where long-run growth is 3%; 7.34% for Singapore dollars, where growth is capped at 2.34%). A
+        gap measured from the risk-free rate instead would shrink to 3 points in Singapore and inflate terminal
+        values by about two-thirds.
      4. Long-run growth is already capped at the risk-free rate, so Singapore-dollar companies settle at 2.34%. */
   var RF = { USD: 0.05, SGD: 0.0234 };
   var CRP = { US: 0.0023, SG: 0, HK: 0.0078, CN: 0.0091, MY: 0.0155, TH: 0.0207 };
   var COUNTRY_NAME = { US: "the United States", SG: "Singapore", HK: "Hong Kong", CN: "China", MY: "Malaysia", TH: "Thailand" };
-  var FLOOR_GAP = 0.03, BASE_ERP = 0.05;
+  var FLOOR_GAP = 0.05, BASE_ERP = 0.05, LONG_RUN_G = 0.03;
   /* companies listed in the US or Singapore that earn most of their revenue elsewhere */
   var REV_COUNTRY = {
     LKNCY: "CN", CHA: "CN", BABA: "CN", BIDU: "CN", PDD: "CN", JD: "CN", NTES: "CN", BEKE: "CN", LI: "CN", XPEV: "CN", NIO: "CN", TME: "CN", HTHT: "CN",
@@ -186,7 +189,7 @@
     var rf = RF[cur] != null ? RF[cur] : RF.USD, crp = CRP[country] != null ? CRP[country] : CRP.US;
     var erp = country === "US" ? BASE_ERP : BASE_ERP - CRP.US + crp;
     var std = rf === RF.USD && Math.abs(erp - BASE_ERP) < 1e-9;
-    return { currency: RF[cur] != null ? cur : "USD", country: country, countryName: COUNTRY_NAME[country] || country, rf: rf, erp: erp, crp: crp, coeFloor: rf === RF.USD ? 0.08 : rf + FLOOR_GAP, standard: std };
+    return { currency: RF[cur] != null ? cur : "USD", country: country, countryName: COUNTRY_NAME[country] || country, rf: rf, erp: erp, crp: crp, coeFloor: rf === RF.USD ? 0.08 : Math.min(LONG_RUN_G, rf) + FLOOR_GAP, standard: std };
   }
 
   /* Default settings. Anything the user can change on the site lives here.
