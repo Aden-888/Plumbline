@@ -160,6 +160,38 @@
     return Object.assign({}, P.tiers[t], base, { tier: t, why: "the business scores " + q.grade + " (" + Math.round(q.score) + "/100) with positive free cash flow" });
   }
 
+  /* ---------- v3.12: market inputs by currency and by where the company earns its money ----------
+     1. Risk-free rate follows the CURRENCY OF THE CASH FLOWS (Damodaran): a Singapore-dollar company is discounted
+        at a Singapore-dollar rate. Statements converted to US dollars (SEC filers such as Luckin, manual entry)
+        use the US rate. Rates: 10-year government yields minus the rating default spread (zero for these two).
+        US 5% is Plumbline's long-standing setting (10-year Treasury 5.26% in Oct 2026); SGD 2.34% (16 Oct 2026).
+     2. Equity risk premium = Plumbline's 5% US premium, adjusted by the gap between the country risk premium
+        of the country the company EARNS its revenue in and the US one (Damodaran, January 2026: US 0.23%,
+        Singapore 0%, Hong Kong 0.78%, China 0.91%, Malaysia 1.55%, Thailand 2.07%). US stocks stay at 5%.
+     3. The minimum cost of equity keeps the same 5-point gap above long-run growth in every currency (8% for US
+        dollars, where long-run growth is 3%; 7.34% for Singapore dollars, where growth is capped at 2.34%). A
+        gap measured from the risk-free rate instead would shrink to 3 points in Singapore and inflate terminal
+        values by about two-thirds.
+     4. Long-run growth is already capped at the risk-free rate, so Singapore-dollar companies settle at 2.34%. */
+  var RF = { USD: 0.05, SGD: 0.0234 };
+  var CRP = { US: 0.0023, SG: 0, HK: 0.0078, CN: 0.0091, MY: 0.0155, TH: 0.0207 };
+  var COUNTRY_NAME = { US: "the United States", SG: "Singapore", HK: "Hong Kong", CN: "China", MY: "Malaysia", TH: "Thailand" };
+  var FLOOR_GAP = 0.05, BASE_ERP = 0.05, LONG_RUN_G = 0.03;
+  /* companies listed in the US or Singapore that earn most of their revenue elsewhere */
+  var REV_COUNTRY = {
+    LKNCY: "CN", CHA: "CN", BABA: "CN", BIDU: "CN", PDD: "CN", JD: "CN", NTES: "CN", BEKE: "CN", LI: "CN", XPEV: "CN", NIO: "CN", TME: "CN", HTHT: "CN",
+    EDU: "CN", TAL: "CN", BILI: "CN", ZTO: "CN", TCOM: "CN", YMM: "CN", VIPS: "CN", QFIN: "CN", FUTU: "HK", YUMC: "CN", MNSO: "CN", IQ: "CN", WB: "CN",
+    "BS6.SI": "CN", "AU8U.SI": "CN", "H78.SI": "HK", "J36.SI": "HK", "D01.SI": "HK", "NS8U.SI": "HK", "Y92.SI": "TH"
+  };
+  function market(inp) {
+    var cur = String(inp.currency || "USD").toUpperCase(), tk = String(inp.ticker || "").toUpperCase();
+    var country = inp.revenueCountry || REV_COUNTRY[tk] || (/\.SI$/.test(tk) || inp.exchange === "SGX" ? "SG" : "US");
+    var rf = RF[cur] != null ? RF[cur] : RF.USD, crp = CRP[country] != null ? CRP[country] : CRP.US;
+    var erp = country === "US" ? BASE_ERP : BASE_ERP - CRP.US + crp;
+    var std = rf === RF.USD && Math.abs(erp - BASE_ERP) < 1e-9;
+    return { currency: RF[cur] != null ? cur : "USD", country: country, countryName: COUNTRY_NAME[country] || country, rf: rf, erp: erp, crp: crp, coeFloor: rf === RF.USD ? 0.08 : Math.min(LONG_RUN_G, rf) + FLOOR_GAP, standard: std };
+  }
+
   /* Default settings. Anything the user can change on the site lives here.
      opt.noProfile: skip sector growth profiles (the backtest uses this). opt.quality: a quality score already worked out. */
   function defaultSettings(inp, opt) {
@@ -172,13 +204,13 @@
       g5 = Math.min(sp.cap, Math.max(gT, sp.keep5 * g2, Math.min(sp.g5Min, g2 + sp.lift)));
       g10 = Math.max(gT, sp.keep10 * g5);
     }
-    var grp = classify(inp);
+    var grp = classify(inp), mk = market(inp);
     return {
       profile: sp ? sp.id : null, profileTier: sp ? sp.tier : null,
-      rf: 0.05, erp: 0.05, spread: 0.006, beta: grp.id === "financial" ? grp.beta : fin(inp.beta) ? inp.beta : 1,
+      rf: mk.rf, erp: mk.erp, spread: 0.006, beta: grp.id === "financial" ? grp.beta : fin(inp.beta) ? inp.beta : 1,
       g5: g5, g10: g10, gT: gT,
       peg: 1, psg: 0.1, peCap: 100, multAdj: 1,
-      coeFloor: 0.08, gCap: true,
+      coeFloor: mk.coeFloor, gCap: true, market: mk,
       buy: 0.2, sell: -0.2
     };
   }
@@ -551,7 +583,7 @@
     function sum(a) { return a.reduce(function (p, q) { return p + q; }, 0); }
   }
 
-  var api = { compute: compute, defaultSettings: defaultSettings, sectorProfile: sectorProfile, capexNorm: capexNorm, classify: classify, companyType: companyType, growthPath: growthPath, avg: avg, median: median, fin: fin, FIN_BETAS: FIN_BETAS };
+  var api = { compute: compute, defaultSettings: defaultSettings, market: market, sectorProfile: sectorProfile, capexNorm: capexNorm, classify: classify, companyType: companyType, growthPath: growthPath, avg: avg, median: median, fin: fin, FIN_BETAS: FIN_BETAS };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.IV = api;
 })(typeof window !== "undefined" ? window : globalThis);
