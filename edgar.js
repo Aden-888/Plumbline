@@ -136,6 +136,10 @@ function instantFirstFiled(list, end) {
   return best;
 }
 
+/* v3.10: ordinary shares per ADS for foreign companies whose SEC filings use US-style accounts. Check a new entry
+   against the company's 20-F cover page ("each representing N Class A ordinary shares"). */
+var ADS_RATIO = { LKNCY: 8, BABA: 8, BIDU: 8, PDD: 4, JD: 2, NTES: 5, BEKE: 3, LI: 2, XPEV: 2, TME: 2, HTHT: 10, EDU: 10 };
+
 var C = {
   rev: ["Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax", "RevenueFromContractWithCustomerIncludingAssessedTax", "SalesRevenueNet", "SalesRevenueGoodsNet", "SalesRevenueServicesNet", "RevenuesNetOfInterestExpense"],
   ni: ["NetIncomeLoss", "ProfitLoss", "NetIncomeLossAvailableToCommonStockholdersBasic"],
@@ -362,6 +366,17 @@ function build(t, co, facts, sub, px, mkt, today) {
     var k = [1e3, 1e6].sort(function (a, b) { return Math.abs(Math.log(f.val * a / dilMed)) - Math.abs(Math.log(f.val * b / dilMed)); })[0];
     return Object.assign({}, f, { val: f.val * k });
   });
+  /* v3.10: American Depositary Shares. Foreign companies file share counts and EPS per ORDINARY share, but the US
+     price is per ADS, and one ADS can hold several ordinary shares (8 for Luckin). The SEC data does not say how
+     many, so known ratios are listed in ADS_RATIO. Share counts are divided by the ratio and EPS multiplied by it,
+     so every per-share figure is per ADS, the same unit as the price. */
+  var adsR = ADS_RATIO[String(t).toUpperCase()] || 1;
+  var dei = facts.facts && facts.facts.dei && facts.facts.dei.EntityCommonStockSharesOutstanding && facts.facts.dei.EntityCommonStockSharesOutstanding.units && facts.facts.dei.EntityCommonStockSharesOutstanding.units.shares;
+  if (adsR !== 1) {
+    eps = eps.map(function (f) { return Object.assign({}, f, { val: f.val * adsR }); });
+    dil = dil.map(function (f) { return Object.assign({}, f, { val: f.val / adsR }); });
+    if (dei) dei = dei.map(function (f) { return Object.assign({}, f, { val: f.val / adsR }); });
+  }
   var tRev = ttm(rev), tNi = ttm(ni), tOcf = ttm(ocf), tEps = ttm(eps);
   if (!tRev || !tNi) throw fail("The SEC filings for " + t + " do not contain a full year of revenue and profit yet, so it cannot be valued (recent listings often lack this).");
   if (!tOcf) throw fail("Cash flow figures are missing in the SEC filings for " + t + ".");
@@ -413,8 +428,9 @@ function build(t, co, facts, sub, px, mkt, today) {
     caveats.push("Debt includes " + (leases / 1e9).toFixed(1) + " billion dollars of lease obligations (rent contracts for offices, stores and equipment), in line with how stockanalysis.com reports total debt.");
   }
 
-  /* shares: cover-page count, checked against the diluted weighted count */
-  var dei = facts.facts && facts.facts.dei && facts.facts.dei.EntityCommonStockSharesOutstanding && facts.facts.dei.EntityCommonStockSharesOutstanding.units && facts.facts.dei.EntityCommonStockSharesOutstanding.units.shares;
+  /* shares: cover-page count, checked against the diluted weighted count (already per ADS, see ADS_RATIO) */
+  if (adsR !== 1) caveats.push("Each US-traded share (ADS) of " + t + " represents " + adsR + " ordinary shares. The SEC filings report shares and earnings per ordinary share, so they were converted to per-ADS figures to match the share price.");
+  else if (/^20-F/.test(String((sub.filings && sub.filings.recent && sub.filings.recent.form || []).find(function (f) { return /^(10-K|20-F)/.test(f); }) || ""))) caveats.push("This is a foreign company (it files a 20-F). If its US shares are ADSs that each hold several ordinary shares, the per-share values here will be off by that ratio. Check the ADS ratio, and use the manual entry form if it is not 1.");
   var deiNow = dei && dei.length ? dei.slice().sort(function (a, b) { return a.end < b.end ? 1 : (a.end > b.end ? -1 : (a.filed < b.filed ? 1 : -1)); })[0] : null;
   var dilNow = null; dil.forEach(function (f) { if (!dilNow || f.end > dilNow.end || (f.end === dilNow.end && days(f.start, f.end) > days(dilNow.start, dilNow.end))) dilNow = f; });
   /* v2.8: share figures that stopped being reported years ago are not used (KKR, Visa) */
