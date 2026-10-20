@@ -698,6 +698,8 @@
   function renderData(r) {
     var inp = r.inputs, T = inp.ttm, b = r.base, w = r.wacc;
     var all = (inp.caveats || []).slice(), li;
+    var mk = state.defaults && state.defaults.market;
+    if (mk && !mk.standard) all.splice(1, 0, "Discount rate inputs follow the company's currency (" + mk.currency + ") and where it earns its revenue (" + mk.countryName + "): risk-free rate " + F.pct(mk.rf, 2) + (mk.currency === "USD" ? "" : " (10-year government bond yield in " + mk.currency + ")") + ", equity risk premium " + F.pct(mk.erp, 2) + " (Plumbline's 5% US premium adjusted for " + mk.countryName + "'s country risk, following Aswath Damodaran) and a minimum cost of equity of " + F.pct(mk.coeFloor, 2) + ". Long-run growth is capped at the risk-free rate.");
     if (r.sector) all.splice(1, 0, r.sector.tier ? (r.sector.id === "hyperscaler" ? "Hyperscaler" : "Semiconductor company") + " with a " + (r.sector.tier === "full" ? "strong" : "fair") + " business: the growth assumptions use Plumbline's AI-era profile" + (r.capexNorm ? ", and the free-cash-flow methods use capital spending halfway between today's building-boom level and the company's six-year average" : "") + ". This is a forward-looking judgement about AI demand that the backtest could not test. If AI spending slows or the investment does not pay off, the cash-flow values will be too high." : "This is a " + r.sector.noun + ", but the AI-era tailwind is not applied because " + r.sector.why + ". It is valued with the normal rules.");
     li = function (c) { return "<li>" + esc(c) + "</li>"; };
     var wasOpen = $("cavMore") && $("cavMore").open;

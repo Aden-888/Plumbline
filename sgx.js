@@ -167,7 +167,7 @@
     var curNote = X !== 1 ? " Financial statements are reported in " + ((S.annualTotalRevenue[0] || {}).cur || "another currency") + " and were converted to " + priceCur + " at " + X.toFixed(4) + "." : "";
     caveats.push(b == null ? "Beta could not be calculated, so 1.0 is used." : "Beta of " + betaUse.toFixed(2) + " was calculated from the last 5 years of monthly price moves against Singapore's Straits Times Index" + (betaUse !== b ? " (capped between 0.5 and 2.0)." : "."));
     caveats.push("Data comes from Yahoo Finance (financial statements and prices), which reports about four years of results for SGX companies, so the history used is shorter than for US stocks." + curNote);
-    caveats.push("Values are in " + priceCur + ". The discount rate uses Plumbline's standard 5% risk-free rate and 5% equity risk premium, which are higher than Singapore government bond yields, so values lean conservative.");
+    caveats.push("Values are in " + priceCur + ".");
     if (leases > 0) caveats.push("Debt includes about " + (leases / 1e9).toFixed(1) + " billion of lease obligations.");
 
     var R = {
@@ -185,6 +185,7 @@
       extraCaveats: caveats
     };
     var inp = LiveData.map(sym, R, today);
+    if (!(pre > 0)) inp.ttm.tax = 0.17; /* Singapore's corporate tax rate when the effective rate cannot be measured */
     inp.source = "Yahoo Finance (SGX)";
     inp.industry = info.industry;
     inp.currency = priceCur;
