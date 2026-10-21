@@ -13,11 +13,21 @@ function loadAny(t) {
     throw err;
   });
 }
+/* v3.13: a foreign company whose SEC filings use IFRS (TSMC, ASML) is valued from Yahoo Finance's statements instead */
+function viaYahoo(t) {
+  return function (err) {
+    if (!(err && err.foreign)) throw err;
+    return SGX.loadForeign(err.ticker || t, err.info).catch(function (yErr) {
+      var e = new Error(err.message + " Plumbline also tried Yahoo Finance's financial statements, but they could not be used (" + yErr.message + ")");
+      e.suggest = err.suggest; throw e;
+    });
+  };
+}
 function loadUS(t) {
   var KEY = process.env.FMP_API_KEY || "", SOURCE = (process.env.DATA_SOURCE || "auto").toLowerCase();
   if (SOURCE === "fmp") return KEY ? LiveData.load(t, KEY) : Promise.reject(new Error("DATA_SOURCE is fmp but FMP_API_KEY is not set."));
-  if (SOURCE === "edgar" || !KEY) return Edgar.load(t);
-  return Edgar.load(t).catch(function (edErr) {
+  if (SOURCE === "edgar" || !KEY) return Edgar.load(t).catch(viaYahoo(t));
+  return Edgar.load(t).catch(viaYahoo(t)).catch(function (edErr) {
     console.log("[" + t + "] SEC + Yahoo failed (" + edErr.message + "). Trying FMP.");
     return LiveData.load(t, KEY).catch(function (fmpErr) { fmpErr.suggest = edErr.suggest || fmpErr.suggest; fmpErr.message = edErr.message; throw fmpErr; });
   });

@@ -1,5 +1,16 @@
 # Plumbline v3.3: stock intrinsic value and business quality
 
+## v3.13: foreign companies that file IFRS accounts (TSMC, ASML, Novo Nordisk)
+
+Before v3.13, a US-listed foreign company whose SEC filings use foreign-style (IFRS) accounts could not be valued: the free SEC data only reads US-style (US GAAP) figures, so TSM, ASML, NVO, SAP and similar stocks stopped with a "use the manual entry form" message.
+
+- **New fallback:** when the SEC loader finds a foreign filer (IFRS facts, or 20-F / 40-F / 6-K filings) that it cannot read, `loader.js` values it from Yahoo Finance's financial statements instead (`SGX.loadForeign` in `sgx.js`, the same code that loads Singapore stocks). The company name and SEC industry still come from the SEC, so chip companies such as TSMC get the AI-era semiconductor profile.
+- **Currency:** statements in TWD, EUR, DKK and other currencies are converted to US dollars at today's rate (past years use the same rate, noted on the page). The discount rate uses the US inputs because the cash flows are in US dollars.
+- **ADS ratio worked out automatically:** Yahoo reports share counts and EPS per ordinary share, but the US price is per ADS (one TSMC ADS = 5 shares). Plumbline divides Yahoo's market value by today's ADS price to get the number of ADSs, compares it with the share count, and rounds to a usual ratio (0.5, 1, 2, 5, 8 ...). When Yahoo has no market value it uses the checked `ADS_RATIO` list in `edgar.js` (now also covering about 45 large foreign companies). When neither is available, it assumes 1 and says so on the page.
+- Beta is measured against the S&P 500. History is about four years (Yahoo's limit), and there are no analyst estimates, so growth uses the company's past growth (capped at 35%), as for other live tickers.
+- Offline tests with a TSMC data set: ratio detected as 5 (from the market value) and 5 from the list when the market value is missing; values are per ADS in US$. US companies and SGX stocks are unchanged.
+- Still not covered: foreign companies that are not SEC registrants (for example Nestlé's OTC shares) and companies with several share classes.
+
 ## v3.9: every method now has a slider ("Valuation multiples vs history")
 
 The headline is the median of the nine methods. Before v3.9, Mean P/S, Mean P/E and Mean P/B had no slider, so when one of them sat in the middle (for example Mean P/B for Sea) no slider could move the headline. The new **Valuation multiples vs history** slider scales the company's past average P/S, P/E and P/B: 100% (the default) uses them as they are, 80% says the stock deserves 20% lower multiples than it used to get, 120% higher. Range 50% to 150%.
@@ -162,7 +173,7 @@ A static website (no build step). Open `index.html` in a browser, or upload the 
 Data sources (all free, no key): company financials from SEC EDGAR filings, prices and splits from Yahoo Finance.
 Analyst estimates are not available there, so growth for the first years comes from the company's own past growth (labelled on the page).
 Optional: add `FMP_API_KEY=...` to `.env` to use Financial Modeling Prep as a backup (foreign companies), or set `DATA_SOURCE=fmp` if you pay for FMP and want its analyst estimates.
-Limits: US companies that file 10-K/10-Q in dollars. Foreign filers (for example ASML) and very recent listings need the manual entry form.
+Limits: very recent listings need the manual entry form. Foreign companies that file IFRS accounts (for example ASML, TSMC) are valued from Yahoo Finance since v3.13.
 
 ## v3.1: original valuation model restored
 
