@@ -137,8 +137,13 @@ function instantFirstFiled(list, end) {
 }
 
 /* v3.10: ordinary shares per ADS for foreign companies whose SEC filings use US-style accounts. Check a new entry
-   against the company's 20-F cover page ("each representing N Class A ordinary shares"). */
-var ADS_RATIO = { LKNCY: 8, BABA: 8, BIDU: 8, PDD: 4, JD: 2, NTES: 5, BEKE: 3, LI: 2, XPEV: 2, TME: 2, HTHT: 10, EDU: 10 };
+   against the company's 20-F cover page ("each representing N Class A ordinary shares").
+   v3.13: also a fallback for foreign companies that file IFRS accounts (valued from Yahoo Finance by sgx.js), used
+   only when the ratio cannot be worked out from Yahoo's market value. 0.5 means two ADSs make one ordinary share. */
+var ADS_RATIO = { LKNCY: 8, BABA: 8, BIDU: 8, PDD: 4, JD: 2, NTES: 5, BEKE: 3, LI: 2, XPEV: 2, TME: 2, HTHT: 10, EDU: 10,
+  TSM: 5, ASML: 1, NVO: 1, SAP: 1, AZN: 0.5, SNY: 0.5, GSK: 2, NVS: 1, TM: 10, SONY: 1, HSBC: 5, BP: 6, SHEL: 2, BHP: 2, RIO: 1,
+  UL: 1, DEO: 4, BTI: 1, INFY: 1, WIT: 1, TTE: 1, ARM: 1, SPOT: 1, NU: 1, TCOM: 1, NGG: 5, PBR: 2, VALE: 1, ITUB: 1, ERIC: 1,
+  NOK: 1, PHG: 1, RELX: 1, UBS: 1, ING: 1, SAN: 1, BBVA: 1, RACE: 1, STLA: 1, MUFG: 1, EQNR: 1, E: 2, LYG: 4, BCS: 4 };
 
 var C = {
   rev: ["Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax", "RevenueFromContractWithCustomerIncludingAssessedTax", "SalesRevenueNet", "SalesRevenueGoodsNet", "SalesRevenueServicesNet", "RevenuesNetOfInterestExpense"],
@@ -345,8 +350,16 @@ function qualityData(us, tRev, bEnd, rA, fyRows, ocf, capex, soft) {
 /* ---------- main ---------- */
 function build(t, co, facts, sub, px, mkt, today) {
   var us = facts.facts || {};
+  /* v3.13: foreign companies that file IFRS accounts (TSMC, ASML, Novo Nordisk) are flagged, so loader.js can value
+     them from Yahoo Finance's statements instead (sgx.js loadForeign) */
+  var forms = (sub && sub.filings && sub.filings.recent && sub.filings.recent.form) || [];
+  var foreignFiler = !!us["ifrs-full"] || forms.some(function (f) { return /^(20-F|40-F|6-K)/.test(f); });
+  function foreignFail(msg) {
+    var T = String(t).toUpperCase();
+    return foreignFiler ? fail(msg, { foreign: true, ticker: T, info: { title: (sub && sub.name) || co.title, industry: (sub && sub.sicDescription) || "", exchange: (sub && sub.exchanges && sub.exchanges[0]) || "", ads: ADS_RATIO[T] || null } }) : fail(msg);
+  }
   var hasUSD = ["Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax", "NetIncomeLoss", "ProfitLoss"].some(function (n) { return us["us-gaap"] && us["us-gaap"][n] && us["us-gaap"][n].units && us["us-gaap"][n].units.USD; });
-  if (!hasUSD) throw fail(t + " does not file US-style (US GAAP, in dollars) financial statements with the SEC, so this free source cannot value it. Foreign companies (for example ASML) need a paid data plan or the manual entry form.");
+  if (!hasUSD) throw foreignFail(t + " does not file US-style (US GAAP, in dollars) financial statements with the SEC, so the free SEC data cannot value it. Foreign companies (for example ASML) are valued from Yahoo Finance instead when possible, or with the manual entry form.");
 
   var rev = collect(us, C.rev, "USD"), bRev = bankRevenue(us);
   /* many banks report net interest income and fee income but no single revenue line, or stopped using it */
@@ -385,7 +398,7 @@ function build(t, co, facts, sub, px, mkt, today) {
   var caveats = [];
   /* v2.8: companies that switched to foreign-style (IFRS) accounts, such as Petrobras, only have old US-style figures */
   var lastBar = px.bars.length ? px.bars[px.bars.length - 1].t : Date.now();
-  if ((lastBar - Date.parse(tNi.end)) / 864e5 > 730) throw fail("The latest US-style (US GAAP) figures in " + t + "'s SEC filings are from " + tNi.end.slice(0, 4) + ". The company now reports in another format (often foreign companies using IFRS), so this free source cannot value it. Use the manual entry form.");
+  if ((lastBar - Date.parse(tNi.end)) / 864e5 > 730) throw foreignFail("The latest US-style (US GAAP) figures in " + t + "'s SEC filings are from " + tNi.end.slice(0, 4) + ". The company now reports in another format (often foreign companies using IFRS), so this free source cannot value it. Use the manual entry form.");
   /* an earnings-per-share series that stopped years ago (for example after a change of share classes) is ignored */
   if (tEps && (Date.parse(tNi.end) - Date.parse(tEps.end)) / 864e5 > 400) tEps = null;
 
@@ -560,4 +573,4 @@ function rawCompany(co) {
   ]).then(function (r) { return { facts: r[0], sub: r[1] || {} }; });
 }
 
-module.exports = { getJSON: getJSON, BROWSER_UA: BROWSER_UA, load: load, quote: quote, rawCompany: rawCompany, yahoo: yahoo, _concepts: C, resolve: resolve, search: search, tickerList: tickerList, _setTickers: _setTickers, _build: build, _ttm: ttm, _collect: collect };
+module.exports = { ADS_RATIO: ADS_RATIO, getJSON: getJSON, BROWSER_UA: BROWSER_UA, load: load, quote: quote, rawCompany: rawCompany, yahoo: yahoo, _concepts: C, resolve: resolve, search: search, tickerList: tickerList, _setTickers: _setTickers, _build: build, _ttm: ttm, _collect: collect };

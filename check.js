@@ -2,13 +2,13 @@
 "use strict";
 var fs = require("fs"), path = require("path");
 try { fs.readFileSync(path.join(__dirname, ".env"), "utf8").split(/\r?\n/).forEach(function (l) { var m = l.match(/^\s*SEC_CONTACT\s*=\s*(.+?)\s*$/); if (m && !process.env.SEC_CONTACT) process.env.SEC_CONTACT = m[1].replace(/^["']|["']$/g, ""); }); } catch (e) {}
-var Edgar = require("./edgar.js"), IV = require("./engine.js"), QS = require("./quality.js");
+var Loader = require("./loader.js"), IV = require("./engine.js"), QS = require("./quality.js");
 var t = process.argv[2] || "NOW";
 function f0(v) { return typeof v === "number" && isFinite(v) ? v.toFixed(0) : "n/a"; }
-console.log("Loading " + t + " from SEC filings + Yahoo prices ...");
-Edgar.load(t).then(function (d) {
+console.log("Loading " + t + " from SEC filings + Yahoo prices (foreign IFRS filers and SGX stocks: Yahoo Finance) ...");
+Loader.loadAny(t).then(function (d) {
   var r = IV.compute(d, Object.assign(IV.defaultSettings(d), d.settings || {}));
-  console.log("\nOK: " + d.name + " (" + d.ticker + ")  price $" + d.price.toFixed(2) + "  shares " + d.shares.toFixed(0) + "M");
+  console.log("\nOK: " + d.name + " (" + d.ticker + ")  price $" + d.price.toFixed(2) + "  shares " + d.shares.toFixed(0) + "M" + (d.foreign ? "  [foreign company, " + d.adsRatio + " ordinary share(s) per ADS, source: " + d.source + "]" : ""));
   console.log("Latest 12 months to " + d.ttmEnd + ": revenue $" + d.ttm.rev.toFixed(0) + "M, net income $" + d.ttm.ni.toFixed(0) + "M, operating cash flow $" + d.ttm.ocf.toFixed(0) + "M, capex $" + d.ttm.capex.toFixed(0) + "M");
   console.log("Cash $" + d.cash.toFixed(0) + "M, debt $" + d.debt.toFixed(0) + "M, equity $" + d.equity.toFixed(0) + "M, beta " + d.beta.toFixed(2));
   console.log("History P/E " + d.hist.pe.map(function (v) { return v.toFixed(1); }).join(", ") + " | P/S " + d.hist.ps.map(function (v) { return v.toFixed(1); }).join(", ") + " | P/B " + d.hist.pb.map(function (v) { return v.toFixed(1); }).join(", "));
